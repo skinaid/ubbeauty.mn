@@ -14,16 +14,26 @@ export async function POST(req: Request) {
     try {
       parsedBody = JSON.parse(rawBodyText) as unknown;
     } catch {
+      console.warn("[qpay-webhook] Malformed JSON body, length:", rawBodyText.length);
       parsedBody = { _unparsed: true, text: rawBodyText.slice(0, 4000) };
     }
   }
 
-  const result = await handleQPayWebhookRequest({
-    invoiceIdFromQuery: invoiceId,
-    tokenFromQuery: token,
-    rawBodyText,
-    parsedBody
-  });
+  try {
+    const result = await handleQPayWebhookRequest({
+      invoiceIdFromQuery: invoiceId,
+      tokenFromQuery: token,
+      rawBodyText,
+      parsedBody
+    });
 
-  return NextResponse.json(result.body, { status: result.httpStatus });
+    return NextResponse.json(result.body, { status: result.httpStatus });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[qpay-webhook] Unhandled error:", msg);
+    return NextResponse.json(
+      { ok: false, error: "internal_error" },
+      { status: 500 }
+    );
+  }
 }

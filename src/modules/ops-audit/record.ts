@@ -4,14 +4,16 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database";
 
-export async function recordOperatorAuditEvent(params: {
+type AuditParams = {
   actorEmail: string;
   actionType: string;
   organizationId?: string | null;
   resourceType: string;
   resourceId: string;
   metadata?: Record<string, unknown>;
-}): Promise<void> {
+};
+
+export async function recordOperatorAuditEvent(params: AuditParams): Promise<void> {
   const admin = getSupabaseAdminClient();
   const { error } = await admin.from("operator_audit_events").insert({
     actor_email: params.actorEmail,
@@ -24,5 +26,17 @@ export async function recordOperatorAuditEvent(params: {
 
   if (error) {
     throw error;
+  }
+}
+
+/**
+ * Best-effort audit write — logs failures instead of throwing.
+ * Use in paths where audit failure must not mask the primary operation result.
+ */
+export async function safeRecordOperatorAuditEvent(params: AuditParams): Promise<void> {
+  try {
+    await recordOperatorAuditEvent(params);
+  } catch (e) {
+    console.error("[ops-audit] Audit write failed (non-fatal):", e instanceof Error ? e.message : e, params.actionType, params.resourceId);
   }
 }

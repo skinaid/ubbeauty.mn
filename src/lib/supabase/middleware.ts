@@ -5,11 +5,11 @@ import type { Database } from "@/types/database";
 const PROTECTED_PREFIXES = ["/dashboard", "/setup-organization", "/billing", "/settings", "/pages", "/internal"];
 const PUBLIC_AUTH_PATHS = ["/login", "/auth/callback"];
 
-function isProtectedPath(pathname: string): boolean {
+export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-function isPublicAuthPath(pathname: string): boolean {
+export function isPublicAuthPath(pathname: string): boolean {
   return PUBLIC_AUTH_PATHS.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -23,6 +23,12 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
+    if (isProtectedPath(request.nextUrl.pathname)) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("error", "auth_unavailable");
+      return NextResponse.redirect(redirectUrl);
+    }
     return response;
   }
 

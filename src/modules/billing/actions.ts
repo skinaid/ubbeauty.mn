@@ -77,6 +77,8 @@ export async function startPaidPlanCheckoutAction(
     revalidatePath("/dashboard");
     return { checkout };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Checkout failed." };
+    const raw = e instanceof Error ? e.message : "";
+    console.error("[billing] Checkout failed:", raw);
+    return { error: "Checkout failed. Please try again or contact support." };
   }
 }

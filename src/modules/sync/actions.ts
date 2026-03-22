@@ -64,7 +64,8 @@ export async function manualSyncPageAction(
     revalidatePath("/pages");
     return { message: "Sync completed." };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Sync failed." };
+    console.error("[sync] manualSyncPageAction failed:", e instanceof Error ? e.message : e);
+    return { error: "Sync failed. Please try again." };
   }
 }
 
@@ -112,6 +113,7 @@ export async function retrySyncJobAction(
     revalidatePath("/pages");
     return { message: "Sync completed." };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : "Sync failed." };
+    console.error("[sync] retrySyncJobAction failed:", e instanceof Error ? e.message : e);
+    return { error: "Sync retry failed. Please try again." };
   }
 }

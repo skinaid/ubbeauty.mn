@@ -81,7 +81,8 @@ export async function executeAnalysisJob(jobId: string): Promise<{ ok: boolean; 
       });
       llmResult = layer.result;
       modelName = layer.modelName;
-    } catch {
+    } catch (e) {
+      console.warn("[ai] LLM layer failed, using deterministic fallback:", e instanceof Error ? e.message : e);
       llmResult = buildDeterministicAnalysisResult(signals);
       modelName = null;
     }
@@ -104,8 +105,8 @@ export async function executeAnalysisJob(jobId: string): Promise<{ ok: boolean; 
 
     try {
       await incrementAiReportGeneratedForOrganization(job.organization_id);
-    } catch {
-      // Quota already checked; counter is best-effort
+    } catch (e) {
+      console.warn("[ai] Usage increment failed (best-effort):", e instanceof Error ? e.message : e);
     }
 
     await admin

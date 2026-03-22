@@ -34,7 +34,11 @@ export async function loginWithOtpAction(
   });
 
   if (error) {
-    return { error: error.message };
+    console.error("[auth] signInWithOtp failed:", error.message);
+    if (error.message.toLowerCase().includes("rate limit")) {
+      return { error: "Too many login attempts. Please wait a few minutes and try again." };
+    }
+    return { error: "Could not send login link. Please try again." };
   }
 
   return { message: "Check your email for the login link." };
@@ -42,6 +46,9 @@ export async function loginWithOtpAction(
 
 export async function signOutAction() {
   const supabase = await getSupabaseServerClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error("[auth] signOut failed:", error.message);
+  }
   redirect("/login");
 }

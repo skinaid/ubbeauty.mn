@@ -143,15 +143,23 @@ export async function createPaidPlanCheckout(params: {
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await markInvoiceFailed({ invoiceId, errorMessage: msg });
+    try {
+      await markInvoiceFailed({ invoiceId, errorMessage: msg });
+    } catch (markErr) {
+      console.error("[checkout] markInvoiceFailed secondary failure:", markErr instanceof Error ? markErr.message : markErr);
+    }
 
-    await insertBillingEvent({
-      organizationId: params.organizationId,
-      invoiceId,
-      eventType: "qpay_invoice_failed",
-      payload: { error: msg },
-      processingError: msg
-    });
+    try {
+      await insertBillingEvent({
+        organizationId: params.organizationId,
+        invoiceId,
+        eventType: "qpay_invoice_failed",
+        payload: { error: msg },
+        processingError: msg
+      });
+    } catch (eventErr) {
+      console.error("[checkout] billing event write secondary failure:", eventErr instanceof Error ? eventErr.message : eventErr);
+    }
 
     throw e;
   }

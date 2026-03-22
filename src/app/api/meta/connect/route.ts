@@ -13,6 +13,7 @@ export async function GET() {
     if (e instanceof OrgNotFoundError) {
       return NextResponse.redirect(new URL("/setup-organization", BASE));
     }
+    console.error("[meta/connect] OAuth initiation failed:", e instanceof Error ? e.message : e);
     const pagesUrl = new URL("/pages", BASE);
     pagesUrl.searchParams.set("meta", "error");
     pagesUrl.searchParams.set("reason", "connection_failed");

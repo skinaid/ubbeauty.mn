@@ -1,0 +1,109 @@
+# Deployment Readiness Checklist
+
+Use this before every production deployment.
+
+## 1. Quality Gates (automated via `npm run validate`)
+
+- [ ] `npm run typecheck` — zero errors
+- [ ] `npm run lint` — zero warnings
+- [ ] `npm run test` — all 85+ tests pass
+- [ ] `npm run build` — clean production build
+
+## 2. Environment Variables (Vercel)
+
+Every variable below must be set in Vercel's production environment.
+Compare against `.env.example` for descriptions.
+
+### Required — app will not start without these
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `NEXT_PUBLIC_APP_URL` | `https://martech.mn` | Must match your domain exactly (no trailing slash) |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxx.supabase.co` | From Supabase dashboard → Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | Public anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | **Secret.** Service role key for admin operations |
+
+### Required for Meta integration
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `META_APP_ID` | `26731368393113939` | Facebook App ID |
+| `META_APP_SECRET` | `66f1f6...` | **Secret.** Facebook App Secret |
+| `META_REDIRECT_URI` | `https://martech.mn/api/meta/callback` | Must match Facebook App OAuth settings exactly |
+| `META_API_VERSION` | `v21.0` | Graph API version |
+| `META_TOKEN_ENCRYPTION_KEY` | `61b963...` | **Secret.** 64-char hex key for token encryption |
+
+### Required for billing
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `QPAY_BASE_URL` | `https://merchant.qpay.mn` | QPay V2 base URL |
+| `QPAY_CLIENT_ID` | `NEGE_MN` | QPay merchant username |
+| `QPAY_CLIENT_SECRET` | `maVeJRVC` | **Secret.** QPay merchant password |
+| `QPAY_INVOICE_CODE` | `NEGE_MN_INVOICE` | QPay invoice code |
+
+### Required for AI
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `OPENAI_API_KEY` | `sk-proj-...` | **Secret.** OpenAI API key |
+| `AI_MODEL` | `gpt-4o-mini` | Model to use for analysis |
+
+### Required for internal ops
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. **If empty, /internal/ops is locked out.** |
+
+### Auto-provided (do NOT set manually)
+
+| Variable | Notes |
+|----------|-------|
+| `VERCEL_URL` | Set automatically by Vercel |
+| `NODE_ENV` | Set automatically (`production` on Vercel) |
+
+## 3. External Service Configuration
+
+### Supabase
+
+- [ ] Site URL set to `https://martech.mn`
+- [ ] Redirect URLs include `https://martech.mn/auth/callback`
+- [ ] All migrations applied (check `supabase/migrations/`)
+- [ ] Seed data applied (`supabase/seeds/`)
+- [ ] RLS policies active on all tables
+
+### Meta (Facebook)
+
+- [ ] Facebook Login → Valid OAuth Redirect URI: `https://martech.mn/api/meta/callback`
+- [ ] App Domains includes `martech.mn`
+- [ ] Data Deletion Request URL: `https://martech.mn/api/meta/data-deletion`
+- [ ] Required permissions approved: `pages_show_list`, `pages_read_engagement`
+
+### QPay
+
+- [ ] Callback URL reachable from QPay servers (no firewall blocking)
+- [ ] QPay credentials tested with a small invoice
+
+### Domain
+
+- [ ] DNS points to Vercel
+- [ ] HTTPS active (Vercel auto-provisions)
+- [ ] `NEXT_PUBLIC_APP_URL` matches the live domain
+
+## 4. Post-Deploy Verification
+
+- [ ] `GET /api/health` returns `{ status: "ok", checks: { supabase_configured: true } }`
+- [ ] Login page loads at `/login`
+- [ ] Magic link email sends successfully
+- [ ] Auth callback redirects to `/dashboard`
+- [ ] Organization creation works at `/setup-organization`
+- [ ] Meta connect flow completes at `/pages`
+- [ ] Internal ops accessible at `/internal/ops` (for listed emails)
+- [ ] 404 page renders at `/nonexistent-page`
+- [ ] Privacy, Terms, Data Deletion pages load
+
+## 5. Monitoring
+
+- [ ] Set up uptime check on `GET /api/health`
+- [ ] Vercel deployment notifications configured
+- [ ] Error monitoring configured (Vercel Logs or Sentry)

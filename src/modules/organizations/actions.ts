@@ -50,7 +50,8 @@ export async function createOrganizationAction(
   });
 
   if (error) {
-    return { error: error.message };
+    console.error("[organizations] create_organization_with_starter failed:", error.message);
+    return { error: "Could not create organization. Please try again." };
   }
 
   redirect("/dashboard");

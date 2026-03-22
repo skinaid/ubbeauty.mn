@@ -20,7 +20,11 @@ function parseSignedRequest(signedRequest: string, secret: string): Record<strin
   if (!crypto.timingSafeEqual(sig, expectedSig)) return null;
 
   const decoded = Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
-  return JSON.parse(decoded) as Record<string, unknown>;
+  try {
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -44,15 +48,11 @@ export async function POST(request: NextRequest) {
   const metaUserId = String(data.user_id ?? "unknown");
   const confirmationCode = crypto.randomUUID();
 
-  // TODO: In production, queue an async job to:
-  // 1. Find the meta_connection by meta_user_id
-  // 2. Delete all associated organization data
-  // 3. Log the deletion in operator_audit_events
-  console.log(
-    `[data-deletion] Meta user ${metaUserId} requested deletion. Confirmation: ${confirmationCode}`
-  );
+  // TODO: In production, queue an async job to find meta_connection by
+  // meta_user_id, delete associated data, and log in operator_audit_events.
+  console.info("[data-deletion] Meta user", metaUserId, "requested deletion. Confirmation:", confirmationCode);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://martech-olive.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://martech.mn";
 
   return NextResponse.json({
     url: `${appUrl}/data-deletion?confirmation=${confirmationCode}`,

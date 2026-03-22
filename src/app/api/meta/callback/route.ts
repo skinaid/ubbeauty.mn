@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     return redirectToPages("success");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "meta_callback_failed";
-    return redirectToPages("error", message);
+    console.error("[meta/callback] OAuth callback failed:", error instanceof Error ? error.message : error);
+    return redirectToPages("error", "meta_callback_failed");
   }
 }

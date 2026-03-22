@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireInternalOpsActor } from "@/modules/admin/guard";
-import { recordOperatorAuditEvent } from "@/modules/ops-audit/record";
+import { safeRecordOperatorAuditEvent } from "@/modules/ops-audit/record";
 import { runInvoicePaymentReverification } from "@/modules/billing/reconciliation";
 import { executeAnalysisJob } from "@/modules/ai/execute-analysis-job";
 import { executeMetaSyncJob } from "@/modules/sync/execute-meta-sync";
@@ -37,7 +37,7 @@ export async function operatorReverifyInvoiceAction(
   try {
     const result = await runInvoicePaymentReverification({ invoiceId, actorEmail: actor });
 
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "invoice_payment_reverification",
       organizationId: invRow.organization_id,
@@ -51,7 +51,7 @@ export async function operatorReverifyInvoiceAction(
     return { message: `Verification finished: ${result.status}` };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Reverification failed.";
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "invoice_payment_reverification",
       organizationId: invRow.organization_id,
@@ -94,7 +94,7 @@ export async function operatorRetrySyncJobAction(
   try {
     await executeMetaSyncJob(jobId);
 
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "sync_job_retry",
       organizationId: job.organization_id,
@@ -109,7 +109,7 @@ export async function operatorRetrySyncJobAction(
     return { message: "Sync job executed." };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Sync retry failed.";
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "sync_job_retry",
       organizationId: job.organization_id,
@@ -152,7 +152,7 @@ export async function operatorRetryAnalysisJobAction(
   try {
     const result = await executeAnalysisJob(jobId);
 
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "analysis_job_retry",
       organizationId: job.organization_id,
@@ -170,7 +170,7 @@ export async function operatorRetryAnalysisJobAction(
     return { message: "Analysis job completed." };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Analysis retry failed.";
-    await recordOperatorAuditEvent({
+    await safeRecordOperatorAuditEvent({
       actorEmail: actor,
       actionType: "analysis_job_retry",
       organizationId: job.organization_id,

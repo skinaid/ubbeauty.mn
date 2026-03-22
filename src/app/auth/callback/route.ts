@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 
-function sanitizeRedirectPath(raw: string | null): string {
+export function sanitizeRedirectPath(raw: string | null): string {
   if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//")) {
     return "/dashboard";
   }
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
+    console.error("[auth/callback] Code exchange failed:", error.message);
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "invalid_link");
     if (next && next !== "/dashboard") {

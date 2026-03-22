@@ -27,7 +27,10 @@ export async function qpayFetchAccessToken(env: QPayEnv): Promise<string> {
     body: JSON.stringify({})
   });
 
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const body = (await res.json().catch((parseErr: unknown) => {
+    console.warn("[qpay] Token response JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
+    return {};
+  })) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(`QPay token error ${res.status}: ${JSON.stringify(body).slice(0, 500)}`);
   }
@@ -107,7 +110,10 @@ export async function qpayCreateInvoice(env: QPayEnv, input: QPayCreateInvoiceIn
     body: JSON.stringify(payload)
   });
 
-  const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const raw = (await res.json().catch((parseErr: unknown) => {
+    console.warn("[qpay] Invoice response JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
+    return {};
+  })) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(`QPay invoice create ${res.status}: ${JSON.stringify(raw).slice(0, 800)}`);
   }
@@ -155,7 +161,10 @@ export async function qpayCheckInvoicePayments(env: QPayEnv, qpayInvoiceId: stri
     })
   });
 
-  const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const raw = (await res.json().catch((parseErr: unknown) => {
+    console.warn("[qpay] Payment check response JSON parse failed:", parseErr instanceof Error ? parseErr.message : parseErr);
+    return {};
+  })) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(`QPay payment/check ${res.status}: ${JSON.stringify(raw).slice(0, 800)}`);
   }

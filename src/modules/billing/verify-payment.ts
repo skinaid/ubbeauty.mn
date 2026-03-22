@@ -1,6 +1,9 @@
 /**
  * Orchestrator: load invoice → (optional) provider verification → subscription activation.
  * Concerns are split across `layer-*` modules; this file only sequences them.
+ *
+ * Billing event writes in this file are best-effort audit — they must not crash the
+ * verification pipeline or prevent the correct result from being returned.
  */
 import { insertBillingEvent } from "@/modules/billing/billing-events";
 import { recordInvoiceVerificationAudit } from "@/modules/billing/layer-invoice";
@@ -8,6 +11,22 @@ import { applySubscriptionTransitionAfterVerifiedPayment } from "@/modules/billi
 import { runProviderVerificationForInvoice } from "@/modules/billing/layer-verification";
 import { canApplyPaidPlanAfterVerification } from "@/modules/billing/subscription-transitions";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+
+async function safeBillingEvent(...args: Parameters<typeof insertBillingEvent>): Promise<void> {
+  try {
+    await insertBillingEvent(...args);
+  } catch (e) {
+    console.error("[verify-payment] Billing event write failed (non-fatal):", e instanceof Error ? e.message : e);
+  }
+}
+
+async function safeVerificationAudit(...args: Parameters<typeof recordInvoiceVerificationAudit>): Promise<void> {
+  try {
+    await recordInvoiceVerificationAudit(...args);
+  } catch (e) {
+    console.error("[verify-payment] Verification audit write failed (non-fatal):", e instanceof Error ? e.message : e);
+  }
+}
 
 export type VerifyPaymentResult =
   | { status: "already_finalized" }
@@ -49,7 +68,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (invoice.status === "paid") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "activation_idempotent_skip",
@@ -78,7 +97,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
 
   const gate = canApplyPaidPlanAfterVerification(sub, invoice.target_plan_id);
   if (!gate.ok) {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "verification_rejected_state",
@@ -89,14 +108,14 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
 
   const ver = await runProviderVerificationForInvoice(invoice);
 
-  await recordInvoiceVerificationAudit({
+  await safeVerificationAudit({
     invoiceId,
     previousAttemptCount: invoice.verification_attempt_count ?? 0,
     outcomeCode: outcomeCodeFromVerification(ver)
   });
 
   if (ver.kind === "qpay_unconfigured") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: null,
       invoiceId,
       eventType: "verification_skipped",
@@ -106,7 +125,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (ver.kind === "qpay_error") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "qpay_check_error",
@@ -117,7 +136,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (ver.kind === "currency_mismatch") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "verification_currency_mismatch",
@@ -127,7 +146,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (ver.kind === "amount_insufficient") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "verification_amount_insufficient",
@@ -137,7 +156,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (ver.kind === "not_paid_yet") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "payment_not_confirmed",
@@ -150,7 +169,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   const activation = await applySubscriptionTransitionAfterVerifiedPayment({ invoice, verification: ver });
 
   if (activation.status === "already_finalized") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "activation_idempotent_skip",
@@ -160,7 +179,7 @@ export async function verifyInvoiceAndActivateSubscription(invoiceId: string): P
   }
 
   if (activation.status === "subscription_update_failed") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "activation_failed_rolled_back",

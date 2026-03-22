@@ -1,10 +1,32 @@
 /**
  * QPay callback: authenticate → record provider delivery (audit) → always run verification pipeline.
  * Duplicate provider events are logged separately; activation remains idempotent via conditional invoice update.
+ *
+ * QPay V2 does not support HMAC request signing. Authentication relies on a per-invoice
+ * random token embedded in the callback URL. This is an accepted limitation of the QPay V2 API.
  */
+import { timingSafeEqual } from "crypto";
 import { insertBillingEvent } from "@/modules/billing/billing-events";
 import { verifyInvoiceAndActivateSubscription } from "@/modules/billing/verify-payment";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+
+function safeTimingCompare(a: string, b: string): boolean {
+  try {
+    return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort billing event — never throws. */
+async function safeBillingEvent(...args: Parameters<typeof insertBillingEvent>): Promise<string | null> {
+  try {
+    return await insertBillingEvent(...args);
+  } catch (e) {
+    console.error("[webhook] Billing event write failed (non-fatal):", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
 
 function asRecord(v: unknown): Record<string, unknown> {
   if (v && typeof v === "object" && !Array.isArray(v)) {
@@ -58,7 +80,12 @@ export async function handleQPayWebhookRequest(params: {
     return { httpStatus: 404, body: { ok: false, error: "invoice_not_found" } };
   }
 
-  if (!params.tokenFromQuery || params.tokenFromQuery !== invoice.webhook_verify_token) {
+  const expectedToken = invoice.webhook_verify_token ?? "";
+  const providedToken = params.tokenFromQuery ?? "";
+  const tokenValid = expectedToken.length > 0 &&
+    providedToken.length === expectedToken.length &&
+    safeTimingCompare(providedToken, expectedToken);
+  if (!tokenValid) {
     await insertBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
@@ -71,7 +98,7 @@ export async function handleQPayWebhookRequest(params: {
 
   const dedupe = extractProviderDedupeKey(params.parsedBody);
 
-  const inserted = await insertBillingEvent({
+  const inserted = await safeBillingEvent({
     organizationId: invoice.organization_id,
     invoiceId,
     eventType: "webhook_received",
@@ -83,7 +110,7 @@ export async function handleQPayWebhookRequest(params: {
   });
 
   if (inserted === null && dedupe) {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "webhook_provider_duplicate_delivery",
@@ -99,7 +126,7 @@ export async function handleQPayWebhookRequest(params: {
 
   const processedAt = new Date().toISOString();
   if (result.status === "verification_failed" || result.status === "qpay_not_configured") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "webhook_verification_failed",
@@ -109,7 +136,7 @@ export async function handleQPayWebhookRequest(params: {
       processedAt
     });
   } else if (result.status === "not_paid_yet") {
-    await insertBillingEvent({
+    await safeBillingEvent({
       organizationId: invoice.organization_id,
       invoiceId,
       eventType: "webhook_payment_pending",
@@ -119,10 +146,12 @@ export async function handleQPayWebhookRequest(params: {
     });
   }
 
+  const isSuccess = result.status === "activated" || result.status === "already_finalized" || result.status === "not_paid_yet";
+
   return {
     httpStatus: 200,
     body: {
-      ok: true,
+      ok: isSuccess,
       result: result.status,
       duplicate_provider_event: inserted === null && Boolean(dedupe)
     }

@@ -173,8 +173,8 @@ export async function executeMetaSyncJob(jobId: string): Promise<void> {
     if (job.job_type === "manual_sync") {
       try {
         await incrementManualSyncUsage(job.organization_id);
-      } catch {
-        // Job already succeeded; usage increment is best-effort for quota UX
+      } catch (e) {
+        console.warn("[sync] Usage increment failed (best-effort):", e instanceof Error ? e.message : e);
       }
     }
 
@@ -184,8 +184,8 @@ export async function executeMetaSyncJob(jobId: string): Promise<void> {
         metaPageId: job.meta_page_id,
         sourceSyncJobId: jobId
       });
-    } catch {
-      // Sync already succeeded; analysis failures are recorded on analysis_jobs
+    } catch (e) {
+      console.warn("[sync] Post-sync analysis scheduling failed:", e instanceof Error ? e.message : e);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
