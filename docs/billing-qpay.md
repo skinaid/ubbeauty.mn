@@ -52,7 +52,7 @@ Webhook payload is **not** sufficient to grant access; verification is always a 
 | `QPAY_CLIENT_SECRET` | OAuth client secret |
 | `QPAY_INVOICE_CODE` | Merchant invoice code from QPay |
 | `NEXT_PUBLIC_APP_URL` | Public base URL for webhook callback construction |
-| `MARTECH_INTERNAL_OPS_EMAILS` | Comma-separated emails allowed to open `/internal/ops` |
+| `MARTECH_INTERNAL_OPS_EMAILS` | Comma-separated — internal ops + bootstrap + env mutations (see `docs/admin-auth-v1.md`) |
 | `QPAY_WEBHOOK_SECRET` | Reserved for future HMAC validation (optional) |
 
 ## RLS
@@ -60,13 +60,13 @@ Webhook payload is **not** sufficient to grant access; verification is always a 
 - Authenticated **owners** can `SELECT` their org’s `invoices`, `payment_transactions`, and `billing_events` (where `organization_id` is set).
 - **No** insert/update/delete policies for these tables on the anon/authenticated roles; writes use **service role** on the server.
 
-## Internal ops
+## Internal ops / admin billing
 
-`/internal/ops` (allowlisted emails) uses the **service role** after server-side guard:
+Canonical billing ops: **`/admin/billing`**. Transitional **`/internal/ops/billing`** overlaps. Service role reads run after server guards (`docs/admin-auth-v1.md`):
 
-- **Overview** — health counts + recent `operator_audit_events`
+- **`/admin` overview** — health counts + recent `operator_audit_events`
 - **Organizations** — subscriptions + Meta connection
-- **Sync & analysis** — recent jobs + audited operator retries
+- **Jobs** — recent sync/analysis + audited operator retries
 - **Billing** — pending invoice reconciliation markers, **Re-verify QPay** (same path as webhook verification), plus global invoice / payment / billing event lists
 
 See `docs/private-beta-launch.md` for deployment and ops checklist.

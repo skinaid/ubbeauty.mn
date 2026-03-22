@@ -48,7 +48,7 @@ export default async function InternalOpsOrganizationsPage() {
                       </div>
                     </td>
                     <td style={{ padding: "0.5rem" }}>
-                      <Link href={`/internal/ops/jobs?org=${encodeURIComponent(o.id)}`} style={{ color: "#4f46e5" }}>
+                      <Link href={`/admin/jobs?org=${encodeURIComponent(o.id)}`} style={{ color: "#4f46e5" }}>
                         {o.slug}
                       </Link>
                     </td>

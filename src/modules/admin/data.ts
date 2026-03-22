@@ -1,10 +1,16 @@
 /**
  * Admin / internal ops reads (service role).
- * Use only behind `requireSystemAdmin` or `requireInternalOpsActor` (both allow env and/or DB `system_admins`).
+ * Call only from routes gated by `requireSystemAdmin` (`/admin/*`) or `requireInternalOpsActor` (`/internal/ops/*`).
+ * See `docs/admin-auth-v1.md` — `/admin` is DB/bootstrap; internal ops also allows env allowlist without a row.
  */
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BillingEventRow, PaymentTransactionRow } from "@/modules/billing/data";
 import type { InvoiceWithOrg } from "@/modules/billing/admin-data";
+import type { Database } from "@/types/database";
+
+export type PlanDirectoryRow = Database["public"]["Tables"]["plans"]["Row"];
+
+export type SystemAdminDirectoryRow = Database["public"]["Tables"]["system_admins"]["Row"];
 
 export type OrganizationOpsRow = {
   id: string;
@@ -522,19 +528,107 @@ export async function getGlobalRecentBillingEventsForOps(limit = 60): Promise<Bi
   return (data ?? []) as BillingEventRow[];
 }
 
-export async function getRecentOperatorAuditEvents(limit = 40): Promise<OperatorAuditEventRow[]> {
+const AUDIT_MAX_LIMIT = 200;
+
+export type OperatorAuditListParams = {
+  limit?: number;
+  /** Case-insensitive substring match on `action_type`. */
+  actionContains?: string | null;
+  /** Case-insensitive substring match on `actor_email`. */
+  actorContains?: string | null;
+  /** Exact `organization_id` (UUID). */
+  organizationId?: string | null;
+};
+
+export async function listOperatorAuditEvents(params: OperatorAuditListParams = {}): Promise<OperatorAuditEventRow[]> {
+  const rawLimit = params.limit ?? 100;
+  const limit = Math.min(Math.max(rawLimit, 1), AUDIT_MAX_LIMIT);
   const admin = getSupabaseAdminClient();
-  const { data, error } = await admin
-    .from("operator_audit_events")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+
+  let q = admin.from("operator_audit_events").select("*");
+
+  const actionTrim = params.actionContains?.trim();
+  if (actionTrim) {
+    q = q.ilike("action_type", `%${actionTrim}%`);
+  }
+  const actorTrim = params.actorContains?.trim();
+  if (actorTrim) {
+    q = q.ilike("actor_email", `%${actorTrim}%`);
+  }
+  const orgTrim = params.organizationId?.trim();
+  if (orgTrim) {
+    q = q.eq("organization_id", orgTrim);
+  }
+
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(limit);
 
   if (error) {
     throw error;
   }
 
   return (data ?? []) as OperatorAuditEventRow[];
+}
+
+export async function getRecentOperatorAuditEvents(limit = 40): Promise<OperatorAuditEventRow[]> {
+  return listOperatorAuditEvents({ limit });
+}
+
+/** Distinct action types from recent rows (for filter hints). */
+export async function getRecentOperatorAuditActionTypes(sampleSize = 800): Promise<string[]> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("operator_audit_events")
+    .select("action_type")
+    .order("created_at", { ascending: false })
+    .limit(sampleSize);
+
+  if (error) {
+    throw error;
+  }
+
+  const set = new Set((data ?? []).map((r) => r.action_type as string));
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+export async function getPlansForAdminDirectory(): Promise<PlanDirectoryRow[]> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.from("plans").select("*").order("price_monthly", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PlanDirectoryRow[];
+}
+
+export async function getSubscriptionCountsByPlanId(): Promise<Record<string, number>> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.from("subscriptions").select("plan_id");
+
+  if (error) {
+    throw error;
+  }
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = (row as { plan_id: string }).plan_id;
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export async function getSystemAdminsDirectory(): Promise<SystemAdminDirectoryRow[]> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("system_admins")
+    .select("id,user_id,email,role,status,granted_by,created_at,updated_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as SystemAdminDirectoryRow[];
 }
 
 export type OpsOverviewCounts = {

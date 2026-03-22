@@ -4,21 +4,41 @@ import { getOpsOverviewCounts, getRecentOperatorAuditEvents } from "@/modules/ad
 
 export const dynamic = "force-dynamic";
 
-/** Deep links for ops tools until routes are migrated under `/admin` (Phase C+). */
 const OPS = {
   organizations: "/admin/organizations",
-  billing: "/internal/ops/billing",
-  jobs: "/internal/ops/jobs"
+  billing: "/admin/billing",
+  jobs: "/admin/jobs"
 } as const;
 
-export default async function AdminOverviewPage() {
-  const [counts, audit] = await Promise.all([
-    getOpsOverviewCounts(),
-    getRecentOperatorAuditEvents(30)
-  ]);
+type OverviewProps = {
+  searchParams?: Promise<{ error?: string }>;
+};
+
+export default async function AdminOverviewPage({ searchParams }: OverviewProps) {
+  const sp = (await (searchParams ?? Promise.resolve({}))) as { error?: string };
+  const permError = sp.error === "insufficient_permissions";
+
+  const [counts, audit] = await Promise.all([getOpsOverviewCounts(), getRecentOperatorAuditEvents(30)]);
 
   return (
     <div style={{ display: "grid", gap: "1.75rem" }}>
+      {permError ? (
+        <div
+          role="alert"
+          style={{
+            padding: "0.75rem 1rem",
+            borderRadius: 8,
+            border: "1px solid #fecaca",
+            background: "#fff1f2",
+            color: "#9f1239",
+            fontSize: "0.9rem"
+          }}
+        >
+          <strong>Permission denied</strong> — that action requires an <strong>operator</strong> or{" "}
+          <strong>super admin</strong> role (or legacy env allowlist). Contact a super admin if you need elevated
+          access.
+        </div>
+      ) : null}
       <header>
         <h1 style={{ margin: "0 0 0.35rem", fontSize: "1.5rem", fontWeight: 700 }}>Overview</h1>
         <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem", maxWidth: "48rem" }}>
@@ -88,7 +108,7 @@ export default async function AdminOverviewPage() {
         <QuickLink href={OPS.jobs}>Jobs</QuickLink>
         <QuickLink href="/admin/audit">Audit log</QuickLink>
         <QuickLink href="/admin/plans">Plans</QuickLink>
-        <QuickLink href="/admin/settings">Admins</QuickLink>
+        <QuickLink href="/admin/settings">Settings</QuickLink>
       </section>
 
       <section id="recent-audit">

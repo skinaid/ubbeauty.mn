@@ -23,47 +23,47 @@ export default async function InternalOpsOverviewPage() {
           gap: "0.75rem"
         }}
       >
-        <Stat label="Organizations" value={counts.organizationCount} href="/internal/ops/organizations" />
+        <Stat label="Organizations" value={counts.organizationCount} href="/admin/organizations" />
         <Stat
           label="Active subscriptions"
           value={counts.activeSubscriptionCount}
-          href="/internal/ops/organizations"
+          href="/admin/organizations"
         />
-        <Stat label="Pending invoices" value={counts.pendingInvoiceCount} href="/internal/ops/billing" />
+        <Stat label="Pending invoices" value={counts.pendingInvoiceCount} href="/admin/billing" />
         <Stat
           label="Pending past due"
           value={counts.pendingPastDueCount}
-          href="/internal/ops/billing"
+          href="/admin/billing"
           warn={counts.pendingPastDueCount > 0}
         />
         <Stat
           label="Stale pending (3d+)"
           value={counts.pendingOlderThan3dCount}
-          href="/internal/ops/billing"
+          href="/admin/billing"
           warn={counts.pendingOlderThan3dCount > 0}
         />
         <Stat
           label="Failed sync (24h)"
           value={counts.failedSyncRecentCount}
-          href="/internal/ops/jobs"
+          href="/admin/jobs"
           warn={counts.failedSyncRecentCount > 0}
         />
         <Stat
           label="Failed analysis (24h)"
           value={counts.failedAnalysisRecentCount}
-          href="/internal/ops/jobs"
+          href="/admin/jobs"
           warn={counts.failedAnalysisRecentCount > 0}
         />
       </section>
 
       <section style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-        <Link href="/internal/ops/organizations" style={{ color: "#4f46e5" }}>
+        <Link href="/admin/organizations" style={{ color: "#4f46e5" }}>
           Browse organizations →
         </Link>
-        <Link href="/internal/ops/jobs" style={{ color: "#4f46e5" }}>
+        <Link href="/admin/jobs" style={{ color: "#4f46e5" }}>
           Sync &amp; analysis jobs →
         </Link>
-        <Link href="/internal/ops/billing" style={{ color: "#4f46e5" }}>
+        <Link href="/admin/billing" style={{ color: "#4f46e5" }}>
           Billing &amp; reconciliation →
         </Link>
       </section>

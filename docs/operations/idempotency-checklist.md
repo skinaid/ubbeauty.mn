@@ -21,7 +21,7 @@ Use this when validating behavior before or during private beta. Automated cover
 
 | Flow | Idempotency / safety | How to verify |
 |------|----------------------|---------------|
-| `executeAnalysisJob` | Returns structured `{ ok, error }`; succeeded jobs blocked from operator “retry” in UI | Fail a job, operator retry from `/internal/ops/jobs`, then confirm audit metadata |
+| `executeAnalysisJob` | Returns structured `{ ok, error }`; succeeded jobs blocked from operator “retry” in UI | Fail a job, operator retry from `/admin/jobs` (or legacy `/internal/ops/jobs`), then confirm audit metadata |
 | Customer regenerate | Product flow may create **new** job rows — distinct from in-place retry | Confirm with DB or UI job list |
 
 ## Operator audit

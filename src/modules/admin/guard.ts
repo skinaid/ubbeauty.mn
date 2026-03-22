@@ -30,7 +30,7 @@ export async function requireSystemAdmin(
     .from("system_admins")
     .select("id,user_id,email,role,status")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (row && row.status === "active") {
     const role = row.role as SystemAdminRole;
@@ -69,19 +69,52 @@ export async function hasActiveSystemAdminRecord(userId: string): Promise<boolea
 }
 
 /**
- * Legacy `/internal/ops/*` gate: allow **either** env allowlist **or** an active
- * DB-backed system admin (same access as `/admin` deep links).
+ * Legacy `/internal/ops/*` page gate: **`MARTECH_INTERNAL_OPS_EMAILS` match** (no `system_admins`
+ * row required) **or** any **active** `system_admins` row.
+ *
+ * This is **broader** than `/admin/*`: allowlisted emails can use internal ops **without** being in
+ * `system_admins` once the table is non-empty (they still cannot open `/admin` until given a row or
+ * bootstrap runs on an empty table). Unauthenticated callers match `/admin` behavior → `/login`.
  */
 export async function requireInternalOpsActor(): Promise<string> {
   const user = await getCurrentUser();
   if (!user?.id || !user.email) {
-    redirect("/dashboard");
+    redirect("/login");
   }
   if (isInternalOpsEmail(user.email)) {
-    return user.email;
+    return user.email.toLowerCase();
   }
   if (await hasActiveSystemAdminRecord(user.id)) {
-    return user.email;
+    return user.email.toLowerCase();
   }
   redirect("/dashboard");
+}
+
+/**
+ * For operator mutations (billing re-verify, job retries): same as legacy env allowlist **or**
+ * an active `system_admins` row with **operator** (or super_admin) role.
+ * Viewers can browse `/admin` but cannot run these actions — aligns with `requireSystemAdmin("operator")`.
+ */
+export async function requireOperatorMutationActor(): Promise<string> {
+  const user = await getCurrentUser();
+  if (!user?.id || !user.email) {
+    redirect("/login");
+  }
+
+  if (isInternalOpsEmail(user.email)) {
+    return user.email.toLowerCase();
+  }
+
+  const admin = getSupabaseAdminClient();
+  const { data: row } = await admin
+    .from("system_admins")
+    .select("email,role,status")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (row && row.status === "active" && hasMinRole(row.role as SystemAdminRole, "operator")) {
+    return row.email.toLowerCase();
+  }
+
+  redirect("/admin?error=insufficient_permissions");
 }

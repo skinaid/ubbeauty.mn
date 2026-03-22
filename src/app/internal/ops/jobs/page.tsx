@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { OperatorRetryAnalysisForm } from "@/components/internal/operator-retry-analysis-form";
 import { OperatorRetrySyncForm } from "@/components/internal/operator-retry-sync-form";
 import { getRecentAnalysisJobsForOps, getRecentSyncJobsForOps } from "@/modules/admin/data";
@@ -22,6 +23,23 @@ export default async function InternalOpsJobsPage({ searchParams }: JobsPageProp
 
   return (
     <section style={{ display: "grid", gap: "1.5rem" }}>
+      <div
+        role="status"
+        style={{
+          padding: "0.75rem 1rem",
+          borderRadius: 8,
+          border: "1px solid #c4b5fd",
+          background: "#f5f3ff",
+          fontSize: "0.9rem",
+          color: "#4c1d95"
+        }}
+      >
+        <strong>Transitional route</strong> — sync and analysis job ops now live under{" "}
+        <Link href="/admin/jobs" style={{ color: "#5b21b6", fontWeight: 600 }}>
+          /admin/jobs
+        </Link>{" "}
+        (system admin). This page is unchanged for bookmarks; prefer the admin control plane.
+      </div>
       <div>
         <h1 style={{ margin: "0 0 0.35rem" }}>Sync &amp; analysis jobs</h1>
         <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem" }}>
@@ -31,9 +49,9 @@ export default async function InternalOpsJobsPage({ searchParams }: JobsPageProp
             <>
               {" "}
               Filtered to org <code>{orgFilter.slice(0, 8)}…</code> —{" "}
-              <a href="/internal/ops/jobs" style={{ color: "#4f46e5" }}>
+              <Link href="/admin/jobs" style={{ color: "#4f46e5" }}>
                 clear
-              </a>
+              </Link>
               .
             </>
           ) : null}

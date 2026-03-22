@@ -187,7 +187,7 @@ export default async function AdminOrganizationsPage({ searchParams }: { searchP
                     )}
                   </td>
                   <td style={{ padding: "0.5rem 0.65rem" }}>
-                    <Link href={`/internal/ops/jobs?org=${encodeURIComponent(o.id)}`} style={{ color: "#7c3aed", fontSize: "0.75rem" }}>
+                    <Link href={`/admin/jobs?org=${encodeURIComponent(o.id)}`} style={{ color: "#7c3aed", fontSize: "0.75rem" }}>
                       Open jobs
                     </Link>
                   </td>

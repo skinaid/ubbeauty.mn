@@ -22,7 +22,7 @@ Phase 2–7 foundations are implemented from `MarTech-MVP-v1-Spec.md`:
    - Optional: `OPENAI_API_KEY`, `AI_MODEL` for LLM narrative (see `docs/ai-analysis.md`)
    - Fill Meta vars: `META_APP_ID`, `META_APP_SECRET`, `META_REDIRECT_URI`, `META_TOKEN_ENCRYPTION_KEY`
    - QPay (billing): `QPAY_BASE_URL`, `QPAY_CLIENT_ID`, `QPAY_CLIENT_SECRET`, `QPAY_INVOICE_CODE` (see `docs/billing-qpay.md`)
-   - Optional: `MARTECH_INTERNAL_OPS_EMAILS` for `/internal/ops`
+   - Optional: `MARTECH_INTERNAL_OPS_EMAILS` — bootstrap + legacy ops (see `docs/admin-auth-v1.md`)
 3. Apply migrations in your Supabase project:
    - run SQL in `supabase/migrations/202603220001_phase2_auth_org.sql`
    - run SQL in `supabase/migrations/202603220002_phase3_subscriptions.sql`

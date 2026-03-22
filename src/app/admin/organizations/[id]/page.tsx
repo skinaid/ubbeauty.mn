@@ -170,7 +170,7 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
       <section style={sectionStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem" }}>
           <h2 style={{ ...h2Style, margin: 0 }}>Recent sync jobs</h2>
-          <Link href={`/internal/ops/jobs?org=${encodeURIComponent(org.id)}`} style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+          <Link href={`/admin/jobs?org=${encodeURIComponent(org.id)}`} style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
             All jobs (filtered) →
           </Link>
         </div>
@@ -205,7 +205,7 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
       <section style={sectionStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem" }}>
           <h2 style={{ ...h2Style, margin: 0 }}>Recent invoices</h2>
-          <Link href="/internal/ops/billing" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+          <Link href="/admin/billing" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
             Global billing →
           </Link>
         </div>

@@ -11,11 +11,11 @@ export default async function InternalOpsLayout({ children }: { children: ReactN
     <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
       <header style={{ borderBottom: "1px solid #e2e8f0", padding: "1rem 2rem", background: "#fff" }}>
         <nav style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center" }}>
-          <strong style={{ marginRight: "0.5rem" }}>Internal ops</strong>
-          <Link href="/internal/ops">Overview</Link>
-          <Link href="/internal/ops/organizations">Organizations</Link>
-          <Link href="/internal/ops/jobs">Sync &amp; analysis</Link>
-          <Link href="/internal/ops/billing">Billing</Link>
+          <strong style={{ marginRight: "0.5rem" }}>Internal ops (transitional)</strong>
+          <Link href="/admin">System admin</Link>
+          <Link href="/admin/organizations">Organizations</Link>
+          <Link href="/admin/jobs">Sync &amp; analysis</Link>
+          <Link href="/admin/billing">Billing</Link>
           <Link href="/dashboard" style={{ marginLeft: "auto", color: "#64748b" }}>
             ← App dashboard
           </Link>

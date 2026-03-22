@@ -7,11 +7,11 @@ export const dynamic = "force-dynamic";
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/organizations", label: "Organizations" },
-  { href: "/internal/ops/billing", label: "Billing" },
-  { href: "/internal/ops/jobs", label: "Jobs" },
+  { href: "/admin/billing", label: "Billing" },
+  { href: "/admin/jobs", label: "Jobs" },
   { href: "/admin/audit", label: "Audit log" },
   { href: "/admin/plans", label: "Plans" },
-  { href: "/admin/settings", label: "Admins" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {

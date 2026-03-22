@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireInternalOpsActor } from "@/modules/admin/guard";
+import { requireOperatorMutationActor } from "@/modules/admin/guard";
 import { safeRecordOperatorAuditEvent } from "@/modules/ops-audit/record";
 import { runInvoicePaymentReverification } from "@/modules/billing/reconciliation";
 import { executeAnalysisJob } from "@/modules/ai/execute-analysis-job";
@@ -17,7 +17,7 @@ export async function operatorReverifyInvoiceAction(
   _prev: OperatorActionState,
   formData: FormData
 ): Promise<OperatorActionState> {
-  const actor = await requireInternalOpsActor();
+  const actor = await requireOperatorMutationActor();
   const invoiceId = formData.get("invoiceId");
   if (typeof invoiceId !== "string" || !invoiceId) {
     return { error: "Invalid invoice." };
@@ -50,6 +50,7 @@ export async function operatorReverifyInvoiceAction(
     revalidatePath("/internal/ops/billing");
     revalidatePath("/admin");
     revalidatePath("/admin/billing");
+    revalidatePath("/admin/audit");
     return { message: `Verification finished: ${result.status}` };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Reverification failed.";
@@ -69,7 +70,7 @@ export async function operatorRetrySyncJobAction(
   _prev: OperatorActionState,
   formData: FormData
 ): Promise<OperatorActionState> {
-  const actor = await requireInternalOpsActor();
+  const actor = await requireOperatorMutationActor();
   const jobId = formData.get("jobId");
   if (typeof jobId !== "string" || !jobId) {
     return { error: "Invalid job." };
@@ -109,6 +110,7 @@ export async function operatorRetrySyncJobAction(
     revalidatePath("/internal/ops/jobs");
     revalidatePath("/admin");
     revalidatePath("/admin/jobs");
+    revalidatePath("/admin/audit");
     revalidatePath("/dashboard");
     return { message: "Sync job executed." };
   } catch (e) {
@@ -129,7 +131,7 @@ export async function operatorRetryAnalysisJobAction(
   _prev: OperatorActionState,
   formData: FormData
 ): Promise<OperatorActionState> {
-  const actor = await requireInternalOpsActor();
+  const actor = await requireOperatorMutationActor();
   const jobId = formData.get("jobId");
   if (typeof jobId !== "string" || !jobId) {
     return { error: "Invalid job." };
@@ -169,6 +171,7 @@ export async function operatorRetryAnalysisJobAction(
     revalidatePath("/internal/ops/jobs");
     revalidatePath("/admin");
     revalidatePath("/admin/jobs");
+    revalidatePath("/admin/audit");
     revalidatePath("/dashboard");
     if (!result.ok) {
       return { error: result.error ?? "Analysis still failed." };

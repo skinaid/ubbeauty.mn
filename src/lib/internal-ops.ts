@@ -1,5 +1,6 @@
 /**
- * Lightweight internal ops gate (env allowlist). Not a full RBAC product.
+ * Env allowlist for legacy internal ops and bootstrap — not a full RBAC product.
+ * See `docs/admin-auth-v1.md` for how this interacts with `system_admins` and `/admin`.
  */
 export function isInternalOpsEmail(email: string | null | undefined): boolean {
   if (!email) {

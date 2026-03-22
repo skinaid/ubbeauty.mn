@@ -53,7 +53,7 @@ Compare against `.env.example` for descriptions.
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. Seeds **first** `system_admins` row(s) only while that table is empty; after that, access is DB-only. See `docs/admin-bootstrap.md`. **If empty, `/admin` and legacy `/internal/ops` are locked out** (until admins exist in DB). |
+| `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. Bootstrap when `system_admins` is empty; also grants **legacy internal ops page access** and **env-based operator mutations** without a DB row. **`/admin`** still requires a `system_admins` row (or bootstrap) — see `docs/admin-auth-v1.md`. If empty and table non-empty with no row for a user, that user has no env path. |
 
 ### Auto-provided (do NOT set manually)
 

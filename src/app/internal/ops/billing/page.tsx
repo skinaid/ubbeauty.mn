@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { OperatorInvoiceReverifyForm } from "@/components/internal/operator-invoice-reverify-form";
 import {
   computeInvoiceReconciliationFlags,
@@ -23,6 +24,23 @@ export default async function InternalOpsBillingPage() {
 
   return (
     <section style={{ display: "grid", gap: "1.5rem" }}>
+      <div
+        role="status"
+        style={{
+          padding: "0.75rem 1rem",
+          borderRadius: 8,
+          border: "1px solid #c4b5fd",
+          background: "#f5f3ff",
+          fontSize: "0.9rem",
+          color: "#4c1d95"
+        }}
+      >
+        <strong>Transitional route</strong> — platform billing operations now live under{" "}
+        <Link href="/admin/billing" style={{ color: "#5b21b6", fontWeight: 600 }}>
+          /admin/billing
+        </Link>{" "}
+        (system admin). This page is unchanged for bookmarks; prefer the admin control plane for day-to-day ops.
+      </div>
       <div>
         <h1 style={{ margin: "0 0 0.35rem" }}>Billing &amp; reconciliation</h1>
         <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem" }}>

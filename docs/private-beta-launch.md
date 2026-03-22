@@ -10,7 +10,7 @@ Production-minded checklist for operating the MarTech MVP in a **private beta**.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Browser-safe key; RLS applies |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | **Server only.** Never expose to client. Used for sync execution, AI persistence, billing writes, internal ops reads |
 | `NEXT_PUBLIC_APP_URL` | Yes | Canonical public origin (webhooks, OAuth redirects, QPay callback URL) |
-| `MARTECH_INTERNAL_OPS_EMAILS` | Beta ops | Comma-separated emails allowed to access `/internal/ops` |
+| `MARTECH_INTERNAL_OPS_EMAILS` | Beta ops | Comma-separated emails: bootstrap + legacy internal ops + env-based operator mutations (see `docs/admin-auth-v1.md`) |
 | Meta: `META_APP_ID`, `META_APP_SECRET`, `META_REDIRECT_URI`, `META_TOKEN_ENCRYPTION_KEY` | Yes for Meta | Redirect URI must match Meta app settings |
 | QPay: `QPAY_BASE_URL`, `QPAY_CLIENT_ID`, `QPAY_CLIENT_SECRET`, `QPAY_INVOICE_CODE` | Yes for billing | Sandbox vs production host |
 | `OPENAI_API_KEY`, `AI_MODEL` | Optional | AI narrative refinement only |
@@ -36,16 +36,14 @@ The **service role** bypasses RLS. It is appropriate only on the **server** for:
 
 - Executing Meta sync and AI analysis jobs
 - Creating/updating billing rows and processing webhooks
-- Internal ops queries (`/internal/ops`) after **email allowlist** check (`MARTECH_INTERNAL_OPS_EMAILS` + `requireInternalOpsActor`)
+- Internal ops / admin reads after server gates (`requireInternalOpsActor` for `/internal/ops/*`, `requireSystemAdmin` for `/admin/*`); see `docs/admin-auth-v1.md`
 
 Never pass the service role key to the browser or edge functions that serve untrusted callers.
 
-## Internal ops UI (`/internal/ops`)
+## Operator UI
 
-- **Overview** — org count, pending invoice reconciliation signals, failed sync/analysis (24h), recent `operator_audit_events`
-- **Organizations** — subscription + Meta connection snapshot
-- **Sync & analysis** — recent jobs, operator retry (audited)
-- **Billing** — pending invoices with stale markers, re-verify payment (same path as webhook verification), global invoice/txn/event lists
+- **Canonical:** **`/admin`** — overview, organizations, billing, jobs, audit, plans, settings (`system_admins` + bootstrap; see `docs/admin-auth-v1.md`).
+- **Transitional:** **`/internal/ops/*`** — overlapping tooling; overview URL redirects to `/admin`. Env allowlist can access internal ops without a `system_admins` row; `/admin` cannot.
 
 Operator actions write to `operator_audit_events` (migration `010`). Table has **no** RLS policies for authenticated users — intended for service-role inserts only.
 
