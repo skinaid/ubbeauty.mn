@@ -49,11 +49,11 @@ Compare against `.env.example` for descriptions.
 | `OPENAI_API_KEY` | `sk-proj-...` | **Secret.** OpenAI API key |
 | `AI_MODEL` | `gpt-4o-mini` | Model to use for analysis |
 
-### Required for internal ops
+### Required for internal ops / system admin
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. **If empty, /internal/ops is locked out.** |
+| `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. Seeds **first** `system_admins` row(s) only while that table is empty; after that, access is DB-only. See `docs/admin-bootstrap.md`. **If empty, `/admin` and legacy `/internal/ops` are locked out** (until admins exist in DB). |
 
 ### Auto-provided (do NOT set manually)
 
@@ -68,7 +68,7 @@ Compare against `.env.example` for descriptions.
 
 - [ ] Site URL set to `https://martech.mn`
 - [ ] Redirect URLs include `https://martech.mn/auth/callback`
-- [ ] All migrations applied (check `supabase/migrations/`)
+- [ ] All migrations applied (check `supabase/migrations/`), including `202603220012_system_admins.sql` — see `docs/admin-bootstrap.md` (no duplicate SQL; use the migration file as the only source)
 - [ ] Seed data applied (`supabase/seeds/`)
 - [ ] RLS policies active on all tables
 
