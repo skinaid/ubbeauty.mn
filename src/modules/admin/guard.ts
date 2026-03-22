@@ -55,15 +55,33 @@ export async function requireSystemAdmin(
   redirect("/dashboard");
 }
 
+/** True if the user has an active row in `system_admins` (for nav / UI hints). */
+export async function hasActiveSystemAdminRecord(userId: string): Promise<boolean> {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("system_admins")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  return !error && data != null;
+}
+
 /**
- * @deprecated Use requireSystemAdmin() for new admin pages.
- * Kept for backward compatibility with existing /internal/ops/* pages
- * during the migration period.
+ * Legacy `/internal/ops/*` gate: allow **either** env allowlist **or** an active
+ * DB-backed system admin (same access as `/admin` deep links).
  */
 export async function requireInternalOpsActor(): Promise<string> {
   const user = await getCurrentUser();
-  if (!user?.email || !isInternalOpsEmail(user.email)) {
+  if (!user?.id || !user.email) {
     redirect("/dashboard");
   }
-  return user.email;
+  if (isInternalOpsEmail(user.email)) {
+    return user.email;
+  }
+  if (await hasActiveSystemAdminRecord(user.id)) {
+    return user.email;
+  }
+  redirect("/dashboard");
 }

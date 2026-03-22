@@ -1,6 +1,6 @@
 /**
  * Admin / internal ops reads (service role).
- * Use only behind `requireSystemAdmin` (DB-backed) or legacy `requireInternalOpsActor` (env allowlist).
+ * Use only behind `requireSystemAdmin` or `requireInternalOpsActor` (both allow env and/or DB `system_admins`).
  */
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { BillingEventRow, PaymentTransactionRow } from "@/modules/billing/data";

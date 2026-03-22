@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOutAction } from "@/modules/auth/actions";
 import { getCurrentUser } from "@/modules/auth/session";
+import { hasActiveSystemAdminRecord } from "@/modules/admin/guard";
 import { isInternalOpsEmail } from "@/lib/internal-ops";
 
 type DashboardLayoutProps = {
@@ -15,6 +16,10 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   if (!user) {
     redirect("/login");
   }
+
+  const showSystemAdminNav =
+    Boolean(user.id) &&
+    (isInternalOpsEmail(user.email) || (await hasActiveSystemAdminRecord(user.id)));
 
   return (
     <div>
@@ -31,7 +36,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/billing">Billing</Link>
           <Link href="/pricing">Pricing</Link>
-          {user?.email && isInternalOpsEmail(user.email) ? (
+          {showSystemAdminNav ? (
             <Link href="/admin" style={{ color: "#7c3aed" }}>
               System admin
             </Link>

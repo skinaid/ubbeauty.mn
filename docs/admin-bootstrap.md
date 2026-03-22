@@ -37,4 +37,4 @@ Successful bootstrap writes `operator_audit_events` with `action_type = system_a
 | Env var typo / empty allowlist | No bootstrap; admins must be created in DB. |
 | Only “first wave” while table empty | Second allowlisted user is not auto-seeded after first row; document for operators. |
 | Rare multi-row race on empty table | Acceptable for small teams; review `system_admins` after first deploy if needed. |
-| `requireInternalOpsActor` (legacy `/internal/ops`) | Still env-only; does not read `system_admins`. Intentional during migration. |
+| `requireInternalOpsActor` (legacy `/internal/ops`) | Allows env allowlist **or** active `system_admins` row (aligned with `/admin`). |
