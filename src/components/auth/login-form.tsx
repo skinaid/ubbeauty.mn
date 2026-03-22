@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { loginWithOtpAction, type AuthActionState } from "@/modules/auth/actions";
+import { Alert, Button, Input } from "@/components/ui";
 
 const initialState: AuthActionState = {};
 
@@ -9,15 +10,19 @@ export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(loginWithOtpAction, initialState);
 
   return (
-    <form action={formAction} style={{ display: "grid", gap: "0.75rem", maxWidth: 360 }}>
+    <form action={formAction} className="ui-form-stack">
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <label htmlFor="email">Email</label>
-      <input id="email" name="email" type="email" required autoComplete="email" />
-      <button type="submit" disabled={pending}>
+      <div>
+        <label className="ui-label" htmlFor="email">
+          Email
+        </label>
+        <Input id="email" name="email" type="email" required autoComplete="email" />
+      </div>
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Sending..." : "Send login link"}
-      </button>
-      {state.error ? <p style={{ color: "#b91c1c" }}>{state.error}</p> : null}
-      {state.message ? <p style={{ color: "#166534" }}>{state.message}</p> : null}
+      </Button>
+      {state.error ? <Alert variant="danger">{state.error}</Alert> : null}
+      {state.message ? <Alert variant="success">{state.message}</Alert> : null}
     </form>
   );
 }

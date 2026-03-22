@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SelectPlanForm } from "@/components/billing/select-plan-form";
 import { StartPaidCheckoutForm } from "@/components/billing/start-paid-checkout-form";
+import { Badge, Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getCurrentOrganizationSubscription, getPublicActivePlans } from "@/modules/subscriptions/data";
@@ -11,9 +12,9 @@ export default async function PricingPage() {
   const subscription = user ? await getCurrentOrganizationSubscription(user.id) : null;
 
   return (
-    <main style={{ padding: "2rem", display: "grid", gap: "1.5rem" }}>
+    <main className="ui-page-main">
       {user ? (
-        <p style={{ margin: 0, fontSize: "0.9rem" }}>
+        <p className="ui-text-muted" style={{ margin: 0 }}>
           <Link href="/dashboard">← Dashboard</Link>
           {organization ? (
             <>
@@ -23,37 +24,39 @@ export default async function PricingPage() {
           ) : null}
         </p>
       ) : null}
-      <section>
-        <h1>Pricing</h1>
-        <p>
-          Paid plans use <strong>QPay</strong>: we create an invoice, you pay via QR or bank deeplinks, then we verify with
-          QPay before activating your subscription. No silent plan changes.
-        </p>
-      </section>
+      <PageHeader
+        title="Pricing"
+        description={
+          <>
+            Paid plans use <strong>QPay</strong>: we create an invoice, you pay via QR or bank deeplinks, then we verify with
+            QPay before activating your subscription. No silent plan changes.
+          </>
+        }
+      />
 
       {user && organization ? (
-        <section style={{ border: "1px solid #e2e8f0", padding: "1rem", borderRadius: 8 }}>
-          <h2>Current subscription</h2>
+        <Card padded stack>
+          <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Current subscription</h2>
           {subscription ? (
-            <p>
+            <p style={{ margin: 0 }}>
               {subscription.plan.name} ({subscription.plan.code}) — <strong>{subscription.status}</strong>
             </p>
           ) : (
-            <p>No subscription found yet.</p>
+            <p style={{ margin: 0 }}>No subscription found yet.</p>
           )}
-          <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
             <Link href="/billing">Billing</Link> shows invoices and payment status.
           </p>
-        </section>
+        </Card>
       ) : (
-        <section style={{ border: "1px solid #e2e8f0", padding: "1rem", borderRadius: 8 }}>
-          <p>
+        <Card padded stack>
+          <p style={{ margin: 0 }}>
             <Link href="/login">Sign in</Link> to start checkout for your organization.
           </p>
-        </section>
+        </Card>
       )}
 
-      <section style={{ display: "grid", gap: "1rem" }}>
+      <section style={{ display: "grid", gap: "var(--space-4)" }}>
         {plans.map((plan) => {
           const paid = Number(plan.price_monthly) > 0;
           const isCurrentPlan = subscription?.plan_id === plan.id;
@@ -75,11 +78,8 @@ export default async function PricingPage() {
           const showCheckout = canStarterCheckout || canPaidPlanCheckout;
 
           return (
-            <article
-              key={plan.id}
-              style={{ border: "1px solid #e2e8f0", padding: "1rem", borderRadius: 8, display: "grid", gap: "0.5rem" }}
-            >
-              <h3 style={{ margin: 0 }}>{plan.name}</h3>
+            <Card key={plan.id} padded stack>
+              <h3 style={{ margin: 0, fontSize: "var(--text-lg)" }}>{plan.name}</h3>
               <p style={{ margin: 0 }}>
                 {plan.price_monthly} {plan.currency} / month
               </p>
@@ -88,11 +88,11 @@ export default async function PricingPage() {
               <p style={{ margin: 0 }}>Monthly AI reports: {plan.monthly_ai_reports}</p>
 
               {alreadyThisActivePlan ? (
-                <p style={{ margin: 0, color: "#166534", fontSize: "0.9rem" }}>Current active plan</p>
+                <Badge variant="success">Current active plan</Badge>
               ) : null}
 
               {plan.code === "starter" && isBootstrap && paid ? (
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "#475569" }}>
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>
                   Your org is in <code>bootstrap_pending_billing</code>. Pay the starter invoice via QPay to move to{" "}
                   <code>active</code>.
                 </p>
@@ -112,7 +112,7 @@ export default async function PricingPage() {
               ) : null}
 
               {paid && organization && subscription && !showCheckout && !alreadyThisActivePlan ? (
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>
+                <p className="ui-text-muted" style={{ margin: 0, fontSize: "var(--text-xs)" }}>
                   {plan.code === "starter" && !isBootstrap
                     ? "Starter QPay checkout is only available in bootstrap_pending_billing."
                     : blocked
@@ -122,9 +122,11 @@ export default async function PricingPage() {
               ) : null}
 
               {!organization && paid ? (
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "#64748b" }}>Sign in to pay for this plan.</p>
+                <p className="ui-text-muted" style={{ margin: 0, fontSize: "var(--text-xs)" }}>
+                  Sign in to pay for this plan.
+                </p>
               ) : null}
-            </article>
+            </Card>
           );
         })}
       </section>

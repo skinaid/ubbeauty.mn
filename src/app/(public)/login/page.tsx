@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/login-form";
+import { Alert, PageHeader } from "@/components/ui";
 
 type LoginPageProps = {
   searchParams: Promise<{ next?: string; error?: string }>;
@@ -15,13 +16,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <h1>Sign in</h1>
-      <p>Use your email to receive a secure one-time login link.</p>
+    <main className="ui-auth-main">
+      <PageHeader
+        title="Sign in"
+        description="Use your email to receive a secure one-time login link."
+      />
       {params.error && ERROR_MESSAGES[params.error] ? (
-        <p style={{ color: "#b91c1c", marginBottom: "0.5rem" }}>{ERROR_MESSAGES[params.error]}</p>
+        <Alert variant="danger">{ERROR_MESSAGES[params.error]}</Alert>
       ) : null}
-      {params.next ? <p>After sign-in you will continue to: {params.next}</p> : null}
+      {params.next ? (
+        <p className="ui-text-muted ui-text-break" style={{ margin: 0 }}>
+          After sign-in you will continue to: {params.next}
+        </p>
+      ) : null}
       <LoginForm next={params.next} />
     </main>
   );

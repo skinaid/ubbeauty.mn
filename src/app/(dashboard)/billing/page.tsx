@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import {
@@ -28,52 +29,59 @@ export default async function BillingPage() {
   ]);
 
   return (
-    <section style={{ display: "grid", gap: "1.25rem" }}>
-      <h1>Billing</h1>
-      <p style={{ color: "#64748b", margin: 0 }}>
-        Invoices and payments are organization-scoped. Activation always follows a successful QPay{" "}
-        <code>payment/check</code> call — webhooks alone are not trusted.
-      </p>
+    <section className="ui-customer-stack">
+      <PageHeader
+        title="Billing"
+        description="Invoices and payments are organization-scoped. Activation always follows a successful QPay payment/check call — webhooks alone are not trusted."
+      />
 
       {subscription ? (
-        <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "1rem" }}>
-          <h2 style={{ marginTop: 0 }}>Subscription</h2>
+        <Card padded stack>
+          <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+            Subscription
+          </h2>
           <p style={{ margin: 0 }}>
             Plan: <strong>{subscription.plan.name}</strong> ({subscription.plan.code})
           </p>
-          <p style={{ margin: "0.35rem 0 0" }}>
+          <p style={{ margin: "var(--space-2) 0 0" }}>
             Status: <strong>{subscription.status}</strong>
           </p>
           {subscription.status === "bootstrap_pending_billing" ? (
-            <p style={{ margin: "0.5rem 0 0", fontSize: "0.9rem", color: "#92400e" }}>
-              Complete QPay checkout on <Link href="/pricing">Pricing</Link> to activate billing.
+            <p className="ui-text-warning-emphasis" style={{ margin: "var(--space-2) 0 0" }}>
+              Complete QPay checkout on{" "}
+              <Link href="/pricing" className="ui-table__link">
+                Pricing
+              </Link>{" "}
+              to activate billing.
             </p>
           ) : null}
-        </section>
+        </Card>
       ) : (
         <p>No subscription row found.</p>
       )}
 
-      <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Recent invoices</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Recent invoices
+        </h2>
         {invoices.length === 0 ? (
           <p style={{ margin: 0 }}>No invoices yet.</p>
         ) : (
-          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.9rem" }}>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "var(--text-sm)" }}>
             {invoices.map((inv) => (
-              <li key={inv.id} style={{ marginBottom: "0.5rem" }}>
+              <li key={inv.id} style={{ marginBottom: "var(--space-2)" }}>
                 <code>{inv.id.slice(0, 8)}…</code> · <strong>{inv.status}</strong> · {inv.amount} {inv.currency}
-                {inv.paid_at ? <span style={{ color: "#64748b" }}> · paid {inv.paid_at}</span> : null}
-                {inv.due_at ? <span style={{ color: "#64748b" }}> · due {inv.due_at}</span> : null}
+                {inv.paid_at ? <span className="ui-text-muted"> · paid {inv.paid_at}</span> : null}
+                {inv.due_at ? <span className="ui-text-muted"> · due {inv.due_at}</span> : null}
                 {typeof inv.verification_attempt_count === "number" && inv.verification_attempt_count > 0 ? (
-                  <span style={{ color: "#64748b", display: "block", fontSize: "0.8rem" }}>
+                  <span className="ui-text-faint" style={{ display: "block", marginTop: "var(--space-1)" }}>
                     Verifications: {inv.verification_attempt_count}
                     {inv.last_verification_outcome ? ` · last: ${inv.last_verification_outcome}` : null}
                     {inv.last_verification_at ? ` @ ${inv.last_verification_at}` : null}
                   </span>
                 ) : null}
                 {inv.provider_last_error ? (
-                  <span style={{ color: "#b91c1c", display: "block", fontSize: "0.85rem" }}>
+                  <span className="ui-text-error" style={{ display: "block", marginTop: "var(--space-1)" }}>
                     {inv.provider_last_error}
                   </span>
                 ) : null}
@@ -81,52 +89,60 @@ export default async function BillingPage() {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Payment transactions</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Payment transactions
+        </h2>
         {txns.length === 0 ? (
           <p style={{ margin: 0 }}>No payment rows yet.</p>
         ) : (
-          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.9rem" }}>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "var(--text-sm)" }}>
             {txns.map((t) => (
               <li key={t.id} style={{ marginBottom: "0.4rem" }}>
                 <strong>{t.status}</strong> · {t.amount} {t.currency}
                 {t.provider_txn_id ? (
-                  <span style={{ color: "#64748b" }}>
+                  <span className="ui-text-muted">
                     {" "}
                     · txn <code>{String(t.provider_txn_id).slice(0, 12)}…</code>
                   </span>
                 ) : null}
                 {t.last_verification_error ? (
-                  <span style={{ color: "#b91c1c", display: "block" }}>{t.last_verification_error}</span>
+                  <span className="ui-text-error" style={{ display: "block" }}>
+                    {t.last_verification_error}
+                  </span>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Billing events (your org)</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Billing events (your org)
+        </h2>
         {events.length === 0 ? (
           <p style={{ margin: 0 }}>No events yet.</p>
         ) : (
-          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.85rem" }}>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "var(--text-xs)" }}>
             {events.map((ev) => (
               <li key={ev.id} style={{ marginBottom: "0.35rem" }}>
                 <strong>{ev.event_type}</strong>
                 {ev.processing_error ? (
-                  <span style={{ color: "#b91c1c" }}> — {ev.processing_error}</span>
+                  <span className="ui-text-error"> — {ev.processing_error}</span>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <p style={{ fontSize: "0.9rem" }}>
-        <Link href="/pricing">← Back to pricing</Link>
+      <p className="ui-text-muted" style={{ margin: 0 }}>
+        <Link href="/pricing" className="ui-table__link">
+          ← Back to pricing
+        </Link>
       </p>
     </section>
   );

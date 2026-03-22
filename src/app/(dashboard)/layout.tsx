@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui";
 import { signOutAction } from "@/modules/auth/actions";
 import { getCurrentUser } from "@/modules/auth/session";
 import { hasActiveSystemAdminRecord } from "@/modules/admin/guard";
@@ -22,31 +23,26 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     (isInternalOpsEmail(user.email) || (await hasActiveSystemAdminRecord(user.id)));
 
   return (
-    <div>
-      <header
-        style={{
-          padding: "1rem 2rem",
-          borderBottom: "1px solid #e2e8f0",
-          display: "flex",
-          justifyContent: "space-between"
-        }}
-      >
-        <nav style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <strong>MarTech</strong>
+    <div className="app-shell">
+      <header className="app-shell__header">
+        <nav className="app-shell__nav">
+          <span className="app-shell__brand">MarTech</span>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/billing">Billing</Link>
           <Link href="/pricing">Pricing</Link>
           {showSystemAdminNav ? (
-            <Link href="/admin" style={{ color: "#7c3aed" }}>
+            <Link href="/admin" className="app-shell__nav-link--accent">
               System admin
             </Link>
           ) : null}
         </nav>
         <form action={signOutAction}>
-          <button type="submit">Sign out</button>
+          <Button type="submit" variant="secondary">
+            Sign out
+          </Button>
         </form>
       </header>
-      <main style={{ padding: "2rem" }}>{children}</main>
+      <main className="app-shell__main">{children}</main>
     </div>
   );
 }

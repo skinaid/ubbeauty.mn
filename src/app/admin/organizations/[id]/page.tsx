@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { CSSProperties } from "react";
+import { Badge, Card, PageHeader } from "@/components/ui";
 import { getOrganizationAdminDetail } from "@/modules/admin/data";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +8,8 @@ export const dynamic = "force-dynamic";
 function StatusPill(props: { status: string }) {
   const bad = props.status === "failed" || props.status === "error" || props.status === "suspended";
   const warn = props.status === "past_due" || props.status === "pending" || props.status === "queued";
-  const color = bad ? "#b91c1c" : warn ? "#b45309" : "#334155";
-  return (
-    <span style={{ fontSize: "0.75rem", fontWeight: 600, color }}>
-      {props.status}
-    </span>
-  );
+  const variant = bad ? "danger" : warn ? "warning" : "neutral";
+  return <Badge variant={variant}>{props.status}</Badge>;
 }
 
 export default async function AdminOrganizationDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,24 +24,35 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
   const owners = org.organization_members.filter((m) => m.role === "owner" && m.status === "active");
 
   return (
-    <div style={{ display: "grid", gap: "1.5rem" }}>
+    <div className="ui-admin-stack">
       <div>
-        <Link href="/admin/organizations" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
-          ← Organizations
-        </Link>
-        <h1 style={{ margin: "0.5rem 0 0.25rem", fontSize: "1.35rem", fontWeight: 700 }}>{org.name}</h1>
-        <p style={{ margin: 0, color: "#64748b", fontSize: "0.9rem" }}>
-          <code>{org.slug}</code> · org <code>{org.id}</code> · status <strong>{org.status}</strong>
-        </p>
-        <p style={{ margin: "0.35rem 0 0", fontSize: "0.8rem", color: "#94a3b8" }}>
+        <div className="ui-admin-pagehead">
+          <Link href="/admin/organizations" className="ui-admin-back">
+            ← Organizations
+          </Link>
+          <PageHeader
+            className="ui-page-header--admin"
+            title={org.name}
+            description={
+              <>
+                <code>{org.slug}</code> · org <code>{org.id}</code> · status <strong>{org.status}</strong>
+              </>
+            }
+          />
+        </div>
+        <p className="ui-text-faint" style={{ margin: "var(--space-2) 0 0" }}>
           Created {org.created_at} · Updated {org.updated_at}
         </p>
       </div>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Ownership</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Ownership
+        </h2>
         {owners.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>No active owner membership found.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            No active owner membership found.
+          </p>
         ) : (
           <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
             {owners.map((m, idx) => (
@@ -56,10 +63,12 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Subscription</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Subscription
+        </h2>
         {subscriptionWithPlan ? (
           <div style={{ fontSize: "0.88rem", display: "grid", gap: "0.35rem" }}>
             <div>
@@ -79,44 +88,54 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             </div>
           </div>
         ) : (
-          <p style={{ color: "#64748b", margin: 0 }}>No subscription row.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            No subscription row.
+          </p>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Usage counters (recent periods)</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Usage counters (recent periods)
+        </h2>
         {usageCounters.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>None.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            None.
+          </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ ...tableStyle, fontSize: "0.78rem" }}>
+          <div className="ui-table-wrap">
+            <table className="ui-table" style={{ fontSize: "0.78rem" }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Period</th>
-                  <th style={thStyle}>Metric</th>
-                  <th style={thStyle}>Value</th>
+                  <th>Period</th>
+                  <th>Metric</th>
+                  <th>Value</th>
                 </tr>
               </thead>
               <tbody>
                 {usageCounters.map((u) => (
-                  <tr key={u.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <td style={tdStyle}>{u.period_key}</td>
-                    <td style={tdStyle}>
+                  <tr key={u.id}>
+                    <td>{u.period_key}</td>
+                    <td>
                       <code>{u.metric_key}</code>
                     </td>
-                    <td style={tdStyle}>{u.value}</td>
+                    <td>{u.value}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Meta connections</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Meta connections
+        </h2>
         {org.meta_connections.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>No Meta connection.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            No Meta connection.
+          </p>
         ) : (
           <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.85rem" }}>
             {org.meta_connections.map((m, i) => (
@@ -124,53 +143,61 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
                 <strong>{m.status}</strong>
                 {m.last_validated_at ? ` · validated ${m.last_validated_at}` : null}
                 {m.last_error ? (
-                  <span style={{ color: "#b91c1c", display: "block", fontSize: "0.75rem" }}>{m.last_error}</span>
+                  <span className="ui-text-error" style={{ display: "block", fontSize: "0.75rem" }}>
+                    {m.last_error}
+                  </span>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Meta pages ({org.meta_pages.length})</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Meta pages ({org.meta_pages.length})
+        </h2>
         {org.meta_pages.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>No pages.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            No pages.
+          </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={tableStyle}>
+          <div className="ui-table-wrap">
+            <table className="ui-table">
               <thead>
                 <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Selected</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Last sync</th>
+                  <th>Name</th>
+                  <th>Selected</th>
+                  <th>Status</th>
+                  <th>Last sync</th>
                 </tr>
               </thead>
               <tbody>
                 {org.meta_pages.map((p) => (
-                  <tr key={p.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <td style={tdStyle}>
+                  <tr key={p.id}>
+                    <td>
                       {p.name}
-                      <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>
+                      <div className="ui-text-faint">
                         <code>{p.meta_page_id}</code>
                       </div>
                     </td>
-                    <td style={tdStyle}>{p.is_selected ? "yes" : "no"}</td>
-                    <td style={tdStyle}>{p.status}</td>
-                    <td style={tdStyle}>{p.last_synced_at ?? "—"}</td>
+                    <td>{p.is_selected ? "yes" : "no"}</td>
+                    <td>{p.status}</td>
+                    <td>{p.last_synced_at ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem" }}>
-          <h2 style={{ ...h2Style, margin: 0 }}>Recent sync jobs</h2>
-          <Link href={`/admin/jobs?org=${encodeURIComponent(org.id)}`} style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+      <Card padded stack>
+        <div className="ui-section-head">
+          <h2 className="ui-section-title" style={{ margin: 0 }}>
+            Recent sync jobs
+          </h2>
+          <Link href={`/admin/jobs?org=${encodeURIComponent(org.id)}`} className="ui-link-subtle">
             All jobs (filtered) →
           </Link>
         </div>
@@ -185,10 +212,12 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             page: j.meta_pages?.name
           }))}
         />
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Recent analysis jobs</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Recent analysis jobs
+        </h2>
         <JobTable
           rows={recentAnalysisJobs.map((j) => ({
             id: j.id,
@@ -200,39 +229,43 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             page: j.meta_pages?.name
           }))}
         />
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem" }}>
-          <h2 style={{ ...h2Style, margin: 0 }}>Recent invoices</h2>
-          <Link href="/admin/billing" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+      <Card padded stack>
+        <div className="ui-section-head">
+          <h2 className="ui-section-title" style={{ margin: 0 }}>
+            Recent invoices
+          </h2>
+          <Link href="/admin/billing" className="ui-link-subtle">
             Global billing →
           </Link>
         </div>
         {recentInvoices.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>None.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            None.
+          </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ ...tableStyle, fontSize: "0.78rem" }}>
+          <div className="ui-table-wrap">
+            <table className="ui-table" style={{ fontSize: "0.78rem" }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Created</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Amount</th>
-                  <th style={thStyle}>QPay / sender</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                  <th>QPay / sender</th>
                 </tr>
               </thead>
               <tbody>
                 {recentInvoices.map((inv) => (
-                  <tr key={inv.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <td style={tdStyle}>{inv.created_at}</td>
-                    <td style={tdStyle}>
+                  <tr key={inv.id}>
+                    <td>{inv.created_at}</td>
+                    <td>
                       <StatusPill status={inv.status} />
                     </td>
-                    <td style={tdStyle}>
+                    <td>
                       {inv.amount} {inv.currency}
                     </td>
-                    <td style={tdStyle}>
+                    <td>
                       <code style={{ fontSize: "0.7rem" }}>{inv.provider_invoice_id ?? inv.qpay_sender_invoice_no}</code>
                     </td>
                   </tr>
@@ -241,28 +274,32 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Recent payment transactions</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Recent payment transactions
+        </h2>
         {recentPaymentTransactions.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>None.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            None.
+          </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ ...tableStyle, fontSize: "0.78rem" }}>
+          <div className="ui-table-wrap">
+            <table className="ui-table" style={{ fontSize: "0.78rem" }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Created</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Amount</th>
+                  <th>Created</th>
+                  <th>Status</th>
+                  <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {recentPaymentTransactions.map((tx) => (
-                  <tr key={tx.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <td style={tdStyle}>{tx.created_at}</td>
-                    <td style={tdStyle}>{tx.status}</td>
-                    <td style={tdStyle}>
+                  <tr key={tx.id}>
+                    <td>{tx.created_at}</td>
+                    <td>{tx.status}</td>
+                    <td>
                       {tx.amount} {tx.currency}
                     </td>
                   </tr>
@@ -271,68 +308,56 @@ export default async function AdminOrganizationDetailPage({ params }: { params: 
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Recent billing events</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Recent billing events
+        </h2>
         {recentBillingEvents.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>None.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            None.
+          </p>
         ) : (
           <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.8rem" }}>
             {recentBillingEvents.map((ev) => (
               <li key={ev.id} style={{ marginBottom: "0.35rem" }}>
                 <code>{ev.event_type}</code> · {ev.created_at}
                 {ev.processing_error ? (
-                  <span style={{ color: "#b91c1c", display: "block" }}>{ev.processing_error}</span>
+                  <span className="ui-text-error" style={{ display: "block" }}>
+                    {ev.processing_error}
+                  </span>
                 ) : null}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
-      <section style={sectionStyle}>
-        <h2 style={h2Style}>Operator audit (this org)</h2>
+      <Card padded stack>
+        <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+          Operator audit (this org)
+        </h2>
         {recentAuditEvents.length === 0 ? (
-          <p style={{ color: "#64748b", margin: 0 }}>None.</p>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            None.
+          </p>
         ) : (
           <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.8rem" }}>
             {recentAuditEvents.map((e) => (
               <li key={e.id} style={{ marginBottom: "0.45rem" }}>
                 <strong>{e.action_type}</strong> · {e.actor_email} · {e.created_at}
-                <div style={{ color: "#64748b" }}>
+                <div className="ui-text-muted">
                   {e.resource_type} <code>{e.resource_id}</code>
                 </div>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
-
-const sectionStyle: CSSProperties = {
-  padding: "1rem 1.15rem",
-  background: "#fff",
-  border: "1px solid #e2e8f0",
-  borderRadius: 8
-};
-
-const h2Style: CSSProperties = {
-  margin: "0 0 0.65rem",
-  fontSize: "1rem",
-  fontWeight: 600
-};
-
-const tableStyle: CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: "0.82rem"
-};
-
-const thStyle: CSSProperties = { padding: "0.45rem 0.5rem", textAlign: "left", color: "#475569" };
-const tdStyle: CSSProperties = { padding: "0.45rem 0.5rem", verticalAlign: "top" };
 
 function JobTable(props: {
   rows: Array<{
@@ -346,30 +371,34 @@ function JobTable(props: {
   }>;
 }) {
   if (props.rows.length === 0) {
-    return <p style={{ color: "#64748b", margin: 0 }}>None.</p>;
+    return (
+      <p className="ui-text-muted" style={{ margin: 0 }}>
+        None.
+      </p>
+    );
   }
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={tableStyle}>
+    <div className="ui-table-wrap">
+      <table className="ui-table">
         <thead>
           <tr>
-            <th style={thStyle}>Created</th>
-            <th style={thStyle}>Type</th>
-            <th style={thStyle}>Status</th>
-            <th style={thStyle}>Page</th>
-            <th style={thStyle}>Error</th>
+            <th>Created</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Page</th>
+            <th>Error</th>
           </tr>
         </thead>
         <tbody>
           {props.rows.map((j) => (
-            <tr key={j.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-              <td style={tdStyle}>{j.created}</td>
-              <td style={tdStyle}>{j.jobType}</td>
-              <td style={tdStyle}>
+            <tr key={j.id}>
+              <td>{j.created}</td>
+              <td>{j.jobType}</td>
+              <td>
                 <StatusPill status={j.status} /> ({j.attempts})
               </td>
-              <td style={tdStyle}>{j.page ?? "—"}</td>
-              <td style={{ ...tdStyle, color: j.error ? "#b91c1c" : "#64748b", maxWidth: 280 }}>
+              <td>{j.page ?? "—"}</td>
+              <td style={{ maxWidth: 280 }} className={j.error ? "ui-text-error" : "ui-text-muted"}>
                 {j.error ? j.error.slice(0, 200) : "—"}
               </td>
             </tr>

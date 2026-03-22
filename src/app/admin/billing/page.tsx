@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge, PageHeader } from "@/components/ui";
 import { OperatorInvoiceReverifyForm } from "@/components/internal/operator-invoice-reverify-form";
 import {
   computeInvoiceReconciliationFlags,
@@ -38,43 +39,42 @@ export default async function AdminBillingPage() {
   const eventsClean = events.filter((ev) => !ev.processing_error);
 
   return (
-    <section style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <Link href="/admin" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+    <div className="ui-admin-subpage">
+      <div className="ui-admin-pagehead">
+        <Link href="/admin" className="ui-admin-back">
           ← Overview
         </Link>
-        <h1 style={{ margin: "0.5rem 0 0.35rem", fontSize: "1.35rem", fontWeight: 700 }}>Billing &amp; reconciliation</h1>
-        <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem", maxWidth: "44rem" }}>
-          Platform billing operations (read-oriented + safe re-verify). Re-verify calls the same idempotent path as
-          webhooks; stale markers are advisory. Audit events record outcomes.
-        </p>
+        <PageHeader
+          className="ui-page-header--admin"
+          title="Billing & reconciliation"
+          description="Platform billing operations (read-oriented + safe re-verify). Re-verify calls the same idempotent path as
+          webhooks; stale markers are advisory. Audit events record outcomes."
+        />
       </div>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Pending invoices (reconciliation)</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Pending invoices (reconciliation)</h2>
         {pendingSorted.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No pending invoices.</p>
+          <p className="ui-text-muted">No pending invoices.</p>
         ) : (
-          <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+          <ul className="ui-admin-list ui-admin-list--loose">
             {pendingSorted.map((inv) => {
               const flags = computeInvoiceReconciliationFlags(inv, now);
               return (
-                <li key={inv.id} style={{ marginBottom: "0.75rem" }}>
+                <li key={inv.id}>
                   <code>{inv.id.slice(0, 8)}…</code> · {inv.organizations?.name ?? inv.organization_id} ·{" "}
                   <strong>{inv.status}</strong> · {inv.amount} {inv.currency}
-                  <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
+                  <div className="ui-text-faint" style={{ marginTop: "0.15rem" }}>
                     created {inv.created_at} · due {inv.due_at}
                   </div>
                   {(flags.pastDueWhilePending || flags.oldPending) && (
-                    <div style={{ fontSize: "0.75rem", marginTop: "0.2rem" }}>
-                      {flags.pastDueWhilePending ? (
-                        <span style={{ color: "#b45309", marginRight: "0.5rem" }}>[past due]</span>
-                      ) : null}
-                      {flags.oldPending ? <span style={{ color: "#b45309" }}>[pending 3d+]</span> : null}
+                    <div style={{ fontSize: "var(--text-xs)", marginTop: "0.2rem", display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                      {flags.pastDueWhilePending ? <Badge variant="warning">Past due</Badge> : null}
+                      {flags.oldPending ? <Badge variant="warning">Pending 3d+</Badge> : null}
                     </div>
                   )}
                   {inv.provider_last_error ? (
-                    <span style={{ color: "#b91c1c", display: "block", fontSize: "0.8rem" }}>
+                    <span className="ui-text-error" style={{ display: "block" }}>
                       {inv.provider_last_error}
                     </span>
                   ) : null}
@@ -88,24 +88,26 @@ export default async function AdminBillingPage() {
         )}
       </section>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Recent invoices (all statuses)</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Recent invoices (all statuses)</h2>
         {invoices.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No invoices.</p>
+          <p className="ui-text-muted">No invoices.</p>
         ) : (
-          <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+          <ul className="ui-admin-list ui-admin-list--spaced">
             {invoices.map((inv) => (
-              <li key={inv.id} style={{ marginBottom: "0.5rem" }}>
+              <li key={inv.id}>
                 <code>{inv.id.slice(0, 8)}…</code> · {inv.organizations?.name ?? inv.organization_id} ·{" "}
                 <strong>{inv.status}</strong> · {inv.amount} {inv.currency}
                 {inv.provider_invoice_id ? (
-                  <span style={{ color: "#64748b" }}>
+                  <span className="ui-text-muted">
                     {" "}
                     · QPay <code>{inv.provider_invoice_id.slice(0, 8)}…</code>
                   </span>
                 ) : null}
                 {inv.provider_last_error ? (
-                  <span style={{ color: "#b91c1c", display: "block" }}>{inv.provider_last_error}</span>
+                  <span className="ui-text-error" style={{ display: "block" }}>
+                    {inv.provider_last_error}
+                  </span>
                 ) : null}
               </li>
             ))}
@@ -113,18 +115,18 @@ export default async function AdminBillingPage() {
         )}
       </section>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Recent payment transactions</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Recent payment transactions</h2>
         {txns.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No transactions.</p>
+          <p className="ui-text-muted">No transactions.</p>
         ) : (
           <>
             {txnNeedsAttention.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#b45309", marginBottom: "0.35rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--warning">
                   Needs attention (failed or verification error)
                 </h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                <ul className="ui-admin-list ui-admin-list--spaced" style={{ marginBottom: "var(--space-4)" }}>
                   {txnNeedsAttention.map((t) => (
                     <PaymentTxnItem key={t.id} t={t} emphasize />
                   ))}
@@ -133,8 +135,8 @@ export default async function AdminBillingPage() {
             ) : null}
             {txnOther.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.35rem" }}>Other recent</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--muted">Other recent</h3>
+                <ul className="ui-admin-list ui-admin-list--spaced">
                   {txnOther.map((t) => (
                     <PaymentTxnItem key={t.id} t={t} />
                   ))}
@@ -145,16 +147,16 @@ export default async function AdminBillingPage() {
         )}
       </section>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Recent billing events</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Recent billing events</h2>
         {events.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No events.</p>
+          <p className="ui-text-muted">No events.</p>
         ) : (
           <>
             {eventsWithErrors.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#b45309", marginBottom: "0.35rem" }}>Processing errors</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--warning">Processing errors</h3>
+                <ul className="ui-admin-list ui-admin-list--spaced" style={{ marginBottom: "var(--space-4)" }}>
                   {eventsWithErrors.map((ev) => (
                     <BillingEventItem key={ev.id} ev={ev} />
                   ))}
@@ -163,8 +165,8 @@ export default async function AdminBillingPage() {
             ) : null}
             {eventsClean.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.35rem" }}>Other recent</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--muted">Other recent</h3>
+                <ul className="ui-admin-list ui-admin-list--spaced">
                   {eventsClean.map((ev) => (
                     <BillingEventItem key={ev.id} ev={ev} />
                   ))}
@@ -174,7 +176,7 @@ export default async function AdminBillingPage() {
           </>
         )}
       </section>
-    </section>
+    </div>
   );
 }
 
@@ -188,7 +190,7 @@ function isPaymentTxnAnomalous(t: PaymentTransactionRow): boolean {
 
 function PaymentTxnItem({ t, emphasize }: { t: PaymentTransactionRow; emphasize?: boolean }) {
   return (
-    <li style={{ marginBottom: "0.5rem", borderLeft: emphasize ? "3px solid #f59e0b" : undefined, paddingLeft: emphasize ? "0.5rem" : 0 }}>
+    <li className={emphasize ? "ui-admin-list-item--attention" : undefined}>
       <code>{t.id.slice(0, 8)}…</code> · org <code>{t.organization_id.slice(0, 8)}…</code> · invoice{" "}
       <code>{t.invoice_id.slice(0, 8)}…</code> · <strong>{t.status}</strong>
       {t.provider_txn_id ? (
@@ -198,7 +200,9 @@ function PaymentTxnItem({ t, emphasize }: { t: PaymentTransactionRow; emphasize?
         </span>
       ) : null}
       {t.last_verification_error ? (
-        <span style={{ color: "#b91c1c", display: "block" }}>{t.last_verification_error}</span>
+        <span className="ui-text-error" style={{ display: "block" }}>
+          {t.last_verification_error}
+        </span>
       ) : null}
     </li>
   );
@@ -206,18 +210,20 @@ function PaymentTxnItem({ t, emphasize }: { t: PaymentTransactionRow; emphasize?
 
 function BillingEventItem({ ev }: { ev: BillingEventRow }) {
   return (
-    <li style={{ marginBottom: "0.5rem" }}>
+    <li>
       <strong>{ev.event_type}</strong> · org{" "}
       {ev.organization_id ? <code>{ev.organization_id.slice(0, 8)}…</code> : "—"} · inv{" "}
       {ev.invoice_id ? <code>{ev.invoice_id.slice(0, 8)}…</code> : "—"}
       {ev.provider_event_id ? (
-        <span style={{ color: "#64748b" }}>
+        <span className="ui-text-muted">
           {" "}
           · <code>{ev.provider_event_id}</code>
         </span>
       ) : null}
       {ev.processing_error ? (
-        <span style={{ color: "#b91c1c", display: "block" }}>{ev.processing_error}</span>
+        <span className="ui-text-error" style={{ display: "block" }}>
+          {ev.processing_error}
+        </span>
       ) : null}
     </li>
   );

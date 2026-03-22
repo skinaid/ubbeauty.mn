@@ -1,3 +1,4 @@
+import { Alert, Badge } from "@/components/ui";
 import type {
   AnalysisJobStatusView,
   AnalysisReportHistoryView,
@@ -17,6 +18,22 @@ function formatTs(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
+}
+
+function jobStatusBadgeVariant(status: string): "danger" | "warning" | "success" | "neutral" | "info" {
+  const s = status.toLowerCase();
+  if (s === "failed") return "danger";
+  if (s === "running") return "info";
+  if (s === "queued" || s === "pending") return "warning";
+  if (s === "succeeded" || s === "completed") return "success";
+  return "neutral";
+}
+
+function historyStatusBadgeVariant(status: string): "danger" | "warning" | "success" | "neutral" | "info" {
+  const s = status.toLowerCase();
+  if (s === "failed") return "danger";
+  if (s === "ready" || s === "succeeded") return "success";
+  return "neutral";
 }
 
 export function AiInsightsBlock(props: {
@@ -49,27 +66,18 @@ export function AiInsightsBlock(props: {
     !report && analysisJob?.status === "failed" && analysisJob.error_message;
 
   return (
-    <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed #cbd5e1" }}>
-      <h4 style={{ margin: "0 0 0.35rem" }}>AI insights</h4>
-      <p style={{ margin: "0 0 0.5rem", fontSize: "0.8rem", color: "#64748b" }}>
+    <div className="ui-ai-insights">
+      <h4 className="ui-ai-insights__title">AI insights</h4>
+      <p className="ui-ai-insights__lead">
         Signals come from normalized metrics only (no raw provider payloads in the model path). Recommendations are
         stored in the <code>recommendations</code> table; the report row keeps pointers for audit.
       </p>
 
       {showFailure ? (
-        <div
-          style={{
-            color: "#b91c1c",
-            fontSize: "0.9rem",
-            marginBottom: "0.5rem",
-            padding: "0.5rem",
-            background: "#fef2f2",
-            borderRadius: 6
-          }}
-        >
+        <Alert variant="danger" className="ui-operational-alert">
           <strong>Last analysis failed</strong>
           <p style={{ margin: "0.35rem 0 0" }}>{analysisJob?.error_message}</p>
-          <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem", fontSize: "0.8rem" }}>
+          <ul className="ui-ai-insights__list" style={{ margin: "0.35rem 0 0" }}>
             <li>Status: {analysisJob?.status}</li>
             <li>Scheduled: {formatTs(analysisJob?.scheduled_at)}</li>
             <li>Started: {formatTs(analysisJob?.started_at)}</li>
@@ -83,25 +91,21 @@ export function AiInsightsBlock(props: {
               )}
             </li>
           </ul>
-        </div>
+        </Alert>
       ) : null}
 
       {report ? (
         <>
-          <p style={{ margin: "0.35rem 0", fontSize: "0.95rem" }}>
-            <strong>Summary</strong>
-          </p>
-          <p style={{ margin: "0 0 0.5rem", whiteSpace: "pre-wrap" }}>{report.summary}</p>
+          <p className="ui-ai-insights__block-label">Summary</p>
+          <p className="ui-ai-insights__summary">{report.summary}</p>
           {report.model_name ? (
-            <p style={{ fontSize: "0.75rem", color: "#64748b" }}>Model: {report.model_name}</p>
+            <p className="ui-text-faint">Model: {report.model_name}</p>
           ) : (
-            <p style={{ fontSize: "0.75rem", color: "#64748b" }}>Deterministic narrative (no LLM)</p>
+            <p className="ui-text-faint">Deterministic narrative (no LLM)</p>
           )}
 
-          <p style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.9rem" }}>
-            <strong>Key signals (rules)</strong>
-          </p>
-          <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.85rem" }}>
+          <p className="ui-ai-insights__block-label">Key signals (rules)</p>
+          <ul className="ui-ai-insights__list">
             {signals.map((s, i) => (
               <li key={i}>
                 <strong>{s.title ?? "Signal"}</strong> ({s.severity ?? "info"}): {s.detail ?? ""}
@@ -111,10 +115,8 @@ export function AiInsightsBlock(props: {
 
           {extras.length > 0 ? (
             <>
-              <p style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.9rem" }}>
-                <strong>Additional notes (model)</strong>
-              </p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.85rem" }}>
+              <p className="ui-ai-insights__block-label">Additional notes (model)</p>
+              <ul className="ui-ai-insights__list">
                 {extras.map((e, i) => (
                   <li key={i}>
                     <strong>{e.title}</strong>: {e.detail}
@@ -124,13 +126,13 @@ export function AiInsightsBlock(props: {
             </>
           ) : null}
 
-          <p style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.9rem" }}>
-            <strong>Recommendations</strong> ({sortedRecs.length}) — from <code>recommendations</code> table
+          <p className="ui-ai-insights__block-label">
+            Recommendations ({sortedRecs.length}) — from <code>recommendations</code> table
           </p>
-          <ol style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "0.85rem" }}>
+          <ol className="ui-ai-insights__ol">
             {sortedRecs.map((r) => (
               <li key={r.id} style={{ marginBottom: "0.35rem" }}>
-                <span style={{ textTransform: "uppercase", fontSize: "0.7rem", color: "#64748b" }}>
+                <span className="ui-ai-insights__rec-meta">
                   {r.priority} · {r.category}
                 </span>
                 <br />
@@ -140,32 +142,28 @@ export function AiInsightsBlock(props: {
           </ol>
         </>
       ) : !showFailure ? (
-        <p style={{ fontSize: "0.9rem", color: "#64748b" }}>
-          No ready report yet. Run a successful sync (or use regenerate) when monthly AI quota allows.
-        </p>
+        <p className="ui-text-muted">No ready report yet. Run a successful sync (or use regenerate) when monthly AI quota allows.</p>
       ) : null}
 
       {recentAnalysisJobs.length > 0 ? (
-        <details style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
-          <summary style={{ cursor: "pointer", color: "#475569" }}>
+        <details style={{ marginTop: "0.65rem" }}>
+          <summary>
             Recent analysis runs ({recentAnalysisJobs.length})
           </summary>
-          <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem" }}>
+          <ul className="ui-ai-insights__list" style={{ margin: "0.35rem 0 0" }}>
             {recentAnalysisJobs.map((j) => (
               <li key={j.id} style={{ marginBottom: "0.35rem" }}>
-                <code>{j.id.slice(0, 8)}…</code> · <strong>{j.status}</strong>
-                {j.error_message ? (
-                  <span style={{ color: "#b91c1c", display: "block" }}>{j.error_message}</span>
-                ) : null}
-                <span style={{ color: "#64748b", display: "block" }}>
+                <code>{j.id.slice(0, 8)}…</code> · <Badge variant={jobStatusBadgeVariant(j.status)}>{j.status}</Badge>
+                {j.error_message ? <span className="ui-ai-insights__detail-error">{j.error_message}</span> : null}
+                <span className="ui-ai-insights__detail-meta">
                   scheduled {formatTs(j.scheduled_at)} · finished {formatTs(j.finished_at)}
                 </span>
                 {j.source_sync_job_id ? (
-                  <span style={{ color: "#64748b", display: "block" }}>
+                  <span className="ui-ai-insights__detail-meta">
                     sync job <code>{j.source_sync_job_id.slice(0, 8)}…</code>
                   </span>
                 ) : (
-                  <span style={{ color: "#64748b", display: "block" }}>no sync linkage</span>
+                  <span className="ui-ai-insights__detail-meta">no sync linkage</span>
                 )}
               </li>
             ))}
@@ -174,18 +172,13 @@ export function AiInsightsBlock(props: {
       ) : null}
 
       {reportHistory.length > 1 ? (
-        <details style={{ marginTop: "0.5rem", fontSize: "0.8rem" }}>
-          <summary style={{ cursor: "pointer", color: "#475569" }}>
-            Report history (compare over time)
-          </summary>
-          <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem" }}>
+        <details style={{ marginTop: "0.5rem" }}>
+          <summary>Report history (compare over time)</summary>
+          <ul className="ui-ai-insights__list" style={{ margin: "0.35rem 0 0" }}>
             {reportHistory.map((h) => (
               <li key={h.id} style={{ marginBottom: "0.35rem" }}>
-                <span style={{ textTransform: "uppercase", fontSize: "0.65rem", color: "#64748b" }}>
-                  {h.status}
-                </span>{" "}
-                · {formatTs(h.created_at)}
-                <div style={{ color: "#334155", marginTop: "0.15rem" }}>
+                <Badge variant={historyStatusBadgeVariant(h.status)}>{h.status}</Badge> · {formatTs(h.created_at)}
+                <div className="ui-ai-insights__history-snippet">
                   {h.summary.slice(0, 140)}
                   {h.summary.length > 140 ? "…" : ""}
                 </div>

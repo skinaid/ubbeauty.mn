@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button, Input } from "@/components/ui";
 import {
   createOrganizationAction,
   type OrganizationActionState
@@ -12,13 +13,21 @@ export function CreateOrganizationForm() {
   const [state, formAction, pending] = useActionState(createOrganizationAction, initialState);
 
   return (
-    <form action={formAction} style={{ display: "grid", gap: "0.75rem", maxWidth: 420 }}>
-      <label htmlFor="name">Organization name</label>
-      <input id="name" name="name" type="text" required maxLength={120} />
-      <button type="submit" disabled={pending}>
+    <form action={formAction} className="ui-form-stack ui-form-stack--wide">
+      <div>
+        <label className="ui-label" htmlFor="name">
+          Organization name
+        </label>
+        <Input id="name" name="name" type="text" required maxLength={120} />
+      </div>
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Creating..." : "Create organization"}
-      </button>
-      {state.error ? <p style={{ color: "#b91c1c" }}>{state.error}</p> : null}
+      </Button>
+      {state.error ? (
+        <p className="ui-inline-feedback ui-inline-feedback--error" style={{ margin: 0 }}>
+          {state.error}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui";
 import { setMetaPageSelectionAction, type MetaPageSelectionState } from "@/modules/meta/actions";
 
 type MetaPageSelectionFormProps = {
@@ -21,14 +22,14 @@ export function MetaPageSelectionForm({
   const [state, formAction, pending] = useActionState(setMetaPageSelectionAction, initialState);
 
   return (
-    <form action={formAction} style={{ display: "grid", gap: "0.35rem" }}>
+    <form action={formAction} className="ui-form-block">
       <input type="hidden" name="organizationId" value={organizationId} />
       <input type="hidden" name="metaPageId" value={metaPageId} />
       <input type="hidden" name="selected" value={isSelected ? "false" : "true"} />
-      <button type="submit" disabled={pending || disabled}>
+      <Button type="submit" variant={isSelected ? "secondary" : "primary"} disabled={pending || disabled}>
         {isSelected ? "Deselect" : "Select"}
-      </button>
-      {state.error ? <p style={{ margin: 0, color: "#b91c1c" }}>{state.error}</p> : null}
+      </Button>
+      {state.error ? <p className="ui-inline-feedback ui-inline-feedback--error" style={{ margin: 0 }}>{state.error}</p> : null}
     </form>
   );
 }

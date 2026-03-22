@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button } from "@/components/ui";
 import { manualSyncPageAction, type SyncActionState } from "@/modules/sync/actions";
 
 type ManualSyncFormProps = {
@@ -21,14 +22,16 @@ export function ManualSyncForm({
   const [state, formAction, pending] = useActionState(manualSyncPageAction, initial);
 
   return (
-    <form action={formAction} style={{ display: "inline-grid", gap: "0.35rem" }}>
+    <form action={formAction} className="ui-form-inline">
       <input type="hidden" name="organizationId" value={organizationId} />
       <input type="hidden" name="internalPageId" value={internalPageId} />
-      <button type="submit" disabled={pending || disabled}>
+      <Button type="submit" variant="secondary" disabled={pending || disabled}>
         {pending ? "Syncing…" : `Manual sync (${pageLabel})`}
-      </button>
-      {state.error ? <span style={{ color: "#b91c1c", fontSize: "0.85rem" }}>{state.error}</span> : null}
-      {state.message ? <span style={{ color: "#166534", fontSize: "0.85rem" }}>{state.message}</span> : null}
+      </Button>
+      {state.error ? <span className="ui-inline-feedback ui-inline-feedback--error">{state.error}</span> : null}
+      {state.message ? (
+        <span className="ui-inline-feedback ui-inline-feedback--success">{state.message}</span>
+      ) : null}
     </form>
   );
 }

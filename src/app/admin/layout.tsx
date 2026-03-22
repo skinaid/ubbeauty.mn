@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const actor = await requireSystemAdmin("viewer");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+    <div className="ui-admin-shell">
       <header
         style={{
           borderBottom: "2px solid #7c3aed",
@@ -67,9 +67,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </span>
         </nav>
       </header>
-      <div style={{ padding: "1.5rem 2rem", maxWidth: 1280, margin: "0 auto" }}>
-        {children}
-      </div>
+      <div className="ui-admin-content">{children}</div>
     </div>
   );
 }

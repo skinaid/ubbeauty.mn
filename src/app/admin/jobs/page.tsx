@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge, PageHeader, type BadgeVariant } from "@/components/ui";
 import { OperatorRetryAnalysisForm } from "@/components/internal/operator-retry-analysis-form";
 import { OperatorRetrySyncForm } from "@/components/internal/operator-retry-sync-form";
 import {
@@ -13,6 +14,15 @@ export const dynamic = "force-dynamic";
 type JobsPageProps = {
   searchParams: Promise<{ org?: string }>;
 };
+
+function jobStatusBadgeVariant(status: string): BadgeVariant {
+  const s = status.toLowerCase();
+  if (s === "failed") return "danger";
+  if (s === "running") return "info";
+  if (s === "queued" || s === "pending") return "warning";
+  if (s === "succeeded" || s === "completed") return "success";
+  return "neutral";
+}
 
 export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
   const sp = await searchParams;
@@ -32,38 +42,43 @@ export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
   const analysisNonFailed = analysisFiltered.filter((j) => j.status !== "failed");
 
   return (
-    <section style={{ display: "grid", gap: "1.5rem" }}>
-      <div>
-        <Link href="/admin" style={{ fontSize: "0.85rem", color: "#7c3aed" }}>
+    <div className="ui-admin-subpage">
+      <div className="ui-admin-pagehead">
+        <Link href="/admin" className="ui-admin-back">
           ← Overview
         </Link>
-        <h1 style={{ margin: "0.5rem 0 0.35rem", fontSize: "1.35rem", fontWeight: 700 }}>Sync &amp; analysis jobs</h1>
-        <p style={{ color: "#64748b", margin: 0, fontSize: "0.95rem", maxWidth: "44rem" }}>
-          Recent jobs across all orgs. Retry actions call the same execute entrypoints as the product; outcomes are
-          audited.
-          {orgFilter ? (
+        <PageHeader
+          className="ui-page-header--admin"
+          title="Sync & analysis jobs"
+          description={
             <>
-              {" "}
-              Filtered to org <code>{orgFilter.slice(0, 8)}…</code> —{" "}
-              <Link href="/admin/jobs" style={{ color: "#4f46e5" }}>
-                clear
-              </Link>
-              .
+              Recent jobs across all orgs. Retry actions call the same execute entrypoints as the product; outcomes are
+              audited.
+              {orgFilter ? (
+                <>
+                  {" "}
+                  Filtered to org <code>{orgFilter.slice(0, 8)}…</code> —{" "}
+                  <Link href="/admin/jobs" className="ui-link-subtle">
+                    clear
+                  </Link>
+                  .
+                </>
+              ) : null}
             </>
-          ) : null}
-        </p>
+          }
+        />
       </div>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Meta sync jobs</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Meta sync jobs</h2>
         {syncFiltered.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No sync jobs in window.</p>
+          <p className="ui-text-muted">No sync jobs in window.</p>
         ) : (
           <>
             {syncFailed.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#b45309", marginBottom: "0.35rem" }}>Failed (recent)</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--warning">Failed (recent)</h3>
+                <ul className="ui-admin-list ui-admin-list--loose" style={{ marginBottom: "var(--space-4)" }}>
                   {syncFailed.map((j) => (
                     <SyncJobItem key={j.id} j={j} />
                   ))}
@@ -72,8 +87,8 @@ export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
             ) : null}
             {syncNonFailed.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.35rem" }}>Other statuses</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--muted">Other statuses</h3>
+                <ul className="ui-admin-list ui-admin-list--loose">
                   {syncNonFailed.map((j) => (
                     <SyncJobItem key={j.id} j={j} />
                   ))}
@@ -84,16 +99,16 @@ export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
         )}
       </section>
 
-      <section>
-        <h2 style={{ marginBottom: "0.5rem", fontSize: "1.05rem" }}>Analysis jobs</h2>
+      <section className="ui-admin-section">
+        <h2 className="ui-section-title">Analysis jobs</h2>
         {analysisFiltered.length === 0 ? (
-          <p style={{ color: "#64748b" }}>No analysis jobs in window.</p>
+          <p className="ui-text-muted">No analysis jobs in window.</p>
         ) : (
           <>
             {analysisFailed.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#b45309", marginBottom: "0.35rem" }}>Failed (recent)</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem", marginBottom: "1rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--warning">Failed (recent)</h3>
+                <ul className="ui-admin-list ui-admin-list--loose" style={{ marginBottom: "var(--space-4)" }}>
                   {analysisFailed.map((j) => (
                     <AnalysisJobItem key={j.id} j={j} />
                   ))}
@@ -102,8 +117,8 @@ export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
             ) : null}
             {analysisNonFailed.length > 0 ? (
               <>
-                <h3 style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "0.35rem" }}>Other statuses</h3>
-                <ul style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+                <h3 className="ui-subsection-heading ui-subsection-heading--muted">Other statuses</h3>
+                <ul className="ui-admin-list ui-admin-list--loose">
                   {analysisNonFailed.map((j) => (
                     <AnalysisJobItem key={j.id} j={j} />
                   ))}
@@ -113,19 +128,21 @@ export default async function AdminJobsPage({ searchParams }: JobsPageProps) {
           </>
         )}
       </section>
-    </section>
+    </div>
   );
 }
 
 function SyncJobItem({ j }: { j: SyncJobOpsRow }) {
   return (
-    <li style={{ marginBottom: "0.65rem" }}>
+    <li>
       <code>{j.id.slice(0, 8)}…</code> · {j.organizations?.name ?? j.organization_id} ·{" "}
-      {j.meta_pages?.name ?? "page"} · <strong>{j.job_type}</strong> · <StatusPill status={j.status} />
-      <span style={{ color: "#64748b" }}> · attempts {j.attempt_count}</span>
-      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{j.created_at}</div>
+      {j.meta_pages?.name ?? "page"} · <strong>{j.job_type}</strong> · <Badge variant={jobStatusBadgeVariant(j.status)}>{j.status}</Badge>
+      <span className="ui-text-muted"> · attempts {j.attempt_count}</span>
+      <div className="ui-text-faint">{j.created_at}</div>
       {j.error_message ? (
-        <div style={{ color: "#b91c1c", fontSize: "0.8rem", marginTop: "0.2rem" }}>{j.error_message}</div>
+        <div className="ui-text-error" style={{ marginTop: "0.2rem" }}>
+          {j.error_message}
+        </div>
       ) : null}
       {j.status === "failed" || j.status === "queued" ? (
         <div style={{ marginTop: "0.35rem" }}>
@@ -138,19 +155,21 @@ function SyncJobItem({ j }: { j: SyncJobOpsRow }) {
 
 function AnalysisJobItem({ j }: { j: AnalysisJobOpsRow }) {
   return (
-    <li style={{ marginBottom: "0.65rem" }}>
+    <li>
       <code>{j.id.slice(0, 8)}…</code> · {j.organizations?.name ?? j.organization_id} ·{" "}
-      {j.meta_pages?.name ?? "page"} · <StatusPill status={j.status} />
-      <span style={{ color: "#64748b" }}> · attempts {j.attempt_count}</span>
+      {j.meta_pages?.name ?? "page"} · <Badge variant={jobStatusBadgeVariant(j.status)}>{j.status}</Badge>
+      <span className="ui-text-muted"> · attempts {j.attempt_count}</span>
       {j.source_sync_job_id ? (
-        <span style={{ color: "#64748b" }}>
+        <span className="ui-text-muted">
           {" "}
           · sync <code>{j.source_sync_job_id.slice(0, 8)}…</code>
         </span>
       ) : null}
-      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{j.created_at}</div>
+      <div className="ui-text-faint">{j.created_at}</div>
       {j.error_message ? (
-        <div style={{ color: "#b91c1c", fontSize: "0.8rem", marginTop: "0.2rem" }}>{j.error_message}</div>
+        <div className="ui-text-error" style={{ marginTop: "0.2rem" }}>
+          {j.error_message}
+        </div>
       ) : null}
       {j.status !== "succeeded" && j.status !== "running" ? (
         <div style={{ marginTop: "0.35rem" }}>
@@ -158,19 +177,5 @@ function AnalysisJobItem({ j }: { j: AnalysisJobOpsRow }) {
         </div>
       ) : null}
     </li>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const failed = status === "failed";
-  const running = status === "running";
-  return (
-    <strong
-      style={{
-        color: failed ? "#b91c1c" : running ? "#1d4ed8" : "#0f172a"
-      }}
-    >
-      {status}
-    </strong>
   );
 }
