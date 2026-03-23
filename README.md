@@ -58,6 +58,13 @@ Phase 2–7 foundations are implemented from `MarTech-MVP-v1-Spec.md`:
 10. Selecting a page enqueues and runs an `initial_sync` job (server-side); dashboard shows sync status, stored metrics, and a **manual sync** action (plan daily quota via `usage_counters.manual_syncs_used`).
 11. After each **successful** sync, an **analysis** job may run (monthly `ai_reports_generated` vs plan); dashboard shows summary, signals, and recommendations.
 
+## Multi-agent development
+
+- Multi-agent operating docs live in `docs/automation/`
+- Start with `docs/automation/README.md`
+- Use `docs/automation/TASK_TEMPLATE.md` for new feature briefs
+- Use `docs/automation/AGENT_ROLES.md` and `docs/automation/WORKFLOW.md` as the operating model
+
 ## Notes
 
 - Private beta ops: `docs/private-beta-launch.md` (env checklist, webhooks, service role, internal ops). Idempotency / retry verification: `docs/operations/idempotency-checklist.md`.
