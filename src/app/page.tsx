@@ -24,6 +24,31 @@ export default async function HomePage() {
 
   return (
     <main className="marketing-home">
+      <header className="marketing-topbar">
+        <div className="marketing-shell marketing-topbar__inner">
+          <Link href="/" className="marketing-brand" aria-label="MarTech нүүр">
+            <span className="marketing-brand__mark">M</span>
+            <span className="marketing-brand__text">MarTech</span>
+          </Link>
+
+          <nav className="marketing-nav" aria-label="Нүүр navigation">
+            <a href="#features">Боломжууд</a>
+            <a href="#how-it-works">Яаж ажилладаг</a>
+            <a href="#trust">Итгэл</a>
+            <Link href="/pricing">Үнэ</Link>
+          </nav>
+
+          <div className="marketing-topbar__actions">
+            <Link href="/login" className="ui-button ui-button--ghost">
+              Нэвтрэх
+            </Link>
+            <Link href="/login" className="ui-button ui-button--primary ui-button--sm">
+              Эхлэх
+            </Link>
+          </div>
+        </div>
+      </header>
+
       <section className="marketing-hero">
         <div className="marketing-shell marketing-hero__grid">
           <div className="marketing-hero__copy">
@@ -49,6 +74,11 @@ export default async function HomePage() {
           </div>
 
           <div className="marketing-preview ui-card">
+            <div className="marketing-preview__chrome" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
             <div className="marketing-preview__header">
               <div>
                 <strong>Dashboard preview</strong>
@@ -76,7 +106,10 @@ export default async function HomePage() {
             </div>
 
             <div className="marketing-insight ui-card">
-              <p className="marketing-insight__label">AI дүгнэлт</p>
+              <div className="marketing-insight__meta">
+                <p className="marketing-insight__label">AI дүгнэлт</p>
+                <span className="marketing-insight__badge">Deterministic + AI</span>
+              </div>
               <p className="marketing-insight__text">
                 Reach буурах дохио ажиглагдсан ч тогтвортой туршилт хийвэл engagement-ийг сэргээх боломж харагдаж
                 байна.
@@ -90,7 +123,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="marketing-section">
+      <section id="features" className="marketing-section">
         <div className="marketing-shell">
           <div className="marketing-section__intro">
             <span className="marketing-kicker">Энэ яг юу хийдэг вэ?</span>
@@ -113,7 +146,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="marketing-section marketing-section--subtle">
+      <section id="how-it-works" className="marketing-section marketing-section--subtle">
         <div className="marketing-shell">
           <div className="marketing-section__intro">
             <span className="marketing-kicker">Яаж ажилладаг вэ?</span>
@@ -140,7 +173,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="marketing-section">
+      <section id="trust" className="marketing-section">
         <div className="marketing-shell">
           <div className="marketing-trust ui-card">
             <div>
