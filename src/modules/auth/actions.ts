@@ -44,6 +44,29 @@ export async function loginWithOtpAction(
   return { message: "Check your email for the login link." };
 }
 
+export async function loginWithGoogleAction(): Promise<never> {
+  const supabase = await getSupabaseServerClient();
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback?next=/dashboard`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  });
+
+  if (error || !data.url) {
+    console.error("[auth] Google OAuth failed:", error?.message);
+    redirect("/login?error=oauth_failed");
+  }
+
+  redirect(data.url);
+}
+
 export async function signOutAction() {
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase.auth.signOut();
