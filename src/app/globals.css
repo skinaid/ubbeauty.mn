@@ -232,6 +232,8 @@ code {
 .marketing-hero__copy {
   display: grid;
   gap: 1.25rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .marketing-eyebrow {
@@ -268,12 +270,14 @@ code {
 }
 
 .marketing-hero h1 {
-  max-width: 14ch;
-  font-size: clamp(3rem, 8vw, 6rem);
+  max-width: 12ch;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
   font-weight: 800;
   color: #fff;
   letter-spacing: -0.03em;
-  line-height: 0.95;
+  line-height: 1;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .marketing-hero__lead,
@@ -507,7 +511,8 @@ code {
   .marketing-hero__grid,
   .marketing-final,
   .marketing-trust {
-    grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3rem;
   }
 
   .marketing-card-grid,
