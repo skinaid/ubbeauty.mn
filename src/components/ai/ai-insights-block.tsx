@@ -8,8 +8,31 @@ import type {
 
 const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
-type SignalLike = { title?: string; detail?: string; severity?: string };
+type SignalLike = { id?: string; title?: string; detail?: string; severity?: string };
 type ExtraLike = { title?: string; detail?: string };
+
+type RecommendationEvidenceRow = {
+  title?: string;
+  source?: string;
+  evidence_signal_ids?: string[];
+};
+
+function parseRecommendationEvidence(raw: unknown): RecommendationEvidenceRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === "object" && !Array.isArray(x))
+    .map((x) => ({
+      title: typeof x.title === "string" ? x.title : undefined,
+      source: typeof x.source === "string" ? x.source : undefined,
+      evidence_signal_ids: Array.isArray(x.evidence_signal_ids)
+        ? x.evidence_signal_ids.filter((y): y is string => typeof y === "string")
+        : undefined
+    }));
+}
+
+function evidenceForRecommendation(title: string, rows: RecommendationEvidenceRow[]): RecommendationEvidenceRow | null {
+  return rows.find((r) => r.title === title) ?? null;
+}
 
 function formatTs(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -57,6 +80,14 @@ export function AiInsightsBlock(props: {
   const extras = Array.isArray(findingsObj.llm_extra_findings)
     ? (findingsObj.llm_extra_findings as ExtraLike[])
     : [];
+  const recommendationEvidence = parseRecommendationEvidence(findingsObj.recommendation_evidence);
+
+  const signalTitleById = new Map<string, string>();
+  for (const s of signals) {
+    const sid = typeof s.id === "string" ? s.id : "";
+    if (!sid) continue;
+    signalTitleById.set(sid, typeof s.title === "string" && s.title.length > 0 ? s.title : sid);
+  }
 
   const sortedRecs = [...recommendations].sort(
     (a, b) => (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9)
@@ -108,6 +139,11 @@ export function AiInsightsBlock(props: {
           <ul className="ui-ai-insights__list">
             {signals.map((s, i) => (
               <li key={i}>
+                {typeof s.id === "string" && s.id ? (
+                  <code className="ui-text-faint" style={{ fontSize: "var(--text-xs)" }}>
+                    {s.id}
+                  </code>
+                ) : null}{" "}
                 <strong>{s.title ?? "Signal"}</strong> ({s.severity ?? "info"}): {s.detail ?? ""}
               </li>
             ))}
@@ -130,15 +166,31 @@ export function AiInsightsBlock(props: {
             Recommendations ({sortedRecs.length}) — from <code>recommendations</code> table
           </p>
           <ol className="ui-ai-insights__ol">
-            {sortedRecs.map((r) => (
-              <li key={r.id} style={{ marginBottom: "0.35rem" }}>
-                <span className="ui-ai-insights__rec-meta">
-                  {r.priority} · {r.category}
-                </span>
-                <br />
-                <strong>{r.title}</strong> — {r.description}
-              </li>
-            ))}
+            {sortedRecs.map((r) => {
+              const ev = evidenceForRecommendation(r.title, recommendationEvidence);
+              const ids = ev?.evidence_signal_ids ?? [];
+              return (
+                <li key={r.id} style={{ marginBottom: "0.35rem" }}>
+                  <span className="ui-ai-insights__rec-meta">
+                    {r.priority} · {r.category}
+                    {ev?.source ? ` · ${ev.source}` : null}
+                  </span>
+                  <br />
+                  <strong>{r.title}</strong> — {r.description}
+                  {ids.length > 0 ? (
+                    <div className="ui-text-faint" style={{ marginTop: "0.25rem", fontSize: "var(--text-xs)" }}>
+                      Нотолгооны сигнал:{" "}
+                      {ids
+                        .map((id) => {
+                          const label = signalTitleById.get(id);
+                          return label && label !== id ? `${id} (${label})` : id;
+                        })
+                        .join(", ")}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ol>
         </>
       ) : !showFailure ? (

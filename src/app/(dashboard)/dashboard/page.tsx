@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AiInsightsBlock } from "@/components/ai/ai-insights-block";
 import { RegenerateAnalysisForm } from "@/components/ai/regenerate-analysis-form";
 import { OperationalHealthBanner } from "@/components/dashboard/operational-health-banner";
+import { PageAnalyticsBlock } from "@/components/dashboard/page-analytics-block";
 import { ManualSyncForm } from "@/components/sync/manual-sync-form";
 import { RetrySyncJobForm } from "@/components/sync/retry-sync-job-form";
 import { Alert, Card, PageHeader } from "@/components/ui";
@@ -20,9 +21,12 @@ import { getOrganizationMetaPages } from "@/modules/meta/data";
 import { getCurrentOrganizationSubscription } from "@/modules/subscriptions/data";
 import { checkOrganizationFeatureLimit } from "@/modules/subscriptions/entitlements";
 import {
+  getDailyMetricsSeriesForPage,
   getLatestDailyMetricForPage,
   getLatestFailedSyncJobForOrganization,
+  getLatestSucceededSyncJobForPage,
   getLatestSyncJobForPage,
+  getRecentPostMetricsForPage,
   getRecentSyncJobsForOrganization
 } from "@/modules/sync/data";
 
@@ -52,16 +56,32 @@ export default async function DashboardPage() {
 
   const pageCards = await Promise.all(
     selectedPages.map(async (p) => {
-      const [metric, job, aiReport, aiJob, aiJobRuns, reportHistory] = await Promise.all([
-        getLatestDailyMetricForPage(p.id),
-        getLatestSyncJobForPage(p.id),
-        getLatestReadyReportForPage(p.id),
-        getLatestAnalysisJobForPage(p.id),
-        getRecentAnalysisJobsForPage(p.id, 6),
-        getReportHistoryForPage(p.id, 10)
-      ]);
+      const [metric, job, lastOkJob, dailySeries, postMetrics, aiReport, aiJob, aiJobRuns, reportHistory] =
+        await Promise.all([
+          getLatestDailyMetricForPage(p.id),
+          getLatestSyncJobForPage(p.id),
+          getLatestSucceededSyncJobForPage(p.id),
+          getDailyMetricsSeriesForPage(p.id, 28),
+          getRecentPostMetricsForPage(p.id, 15),
+          getLatestReadyReportForPage(p.id),
+          getLatestAnalysisJobForPage(p.id),
+          getRecentAnalysisJobsForPage(p.id, 6),
+          getReportHistoryForPage(p.id, 10)
+        ]);
       const recs = aiReport ? await getRecommendationsForReport(aiReport.id) : [];
-      return { page: p, metric, job, aiReport, aiJob, aiJobRuns, reportHistory, recs };
+      return {
+        page: p,
+        metric,
+        job,
+        lastOkJob,
+        dailySeries,
+        postMetrics,
+        aiReport,
+        aiJob,
+        aiJobRuns,
+        reportHistory,
+        recs
+      };
     })
   );
 
@@ -110,7 +130,20 @@ export default async function DashboardPage() {
           <p>No pages selected. Connect Meta and select pages on /pages.</p>
         ) : (
           <ul className="ui-dashboard-page-list">
-            {pageCards.map(({ page, metric, job, aiReport, aiJob, aiJobRuns, reportHistory, recs }) => (
+            {pageCards.map(
+              ({
+                page,
+                metric,
+                job,
+                lastOkJob,
+                dailySeries,
+                postMetrics,
+                aiReport,
+                aiJob,
+                aiJobRuns,
+                reportHistory,
+                recs
+              }) => (
               <li key={page.id}>
                 <Card padded stack>
                   <strong>{page.name}</strong>
@@ -151,6 +184,16 @@ export default async function DashboardPage() {
                     ) : null}
                   </div>
 
+                  <PageAnalyticsBlock
+                    pageName={page.name}
+                    dailySeries={dailySeries}
+                    posts={postMetrics}
+                    latestJob={job}
+                    lastSucceededJob={lastOkJob}
+                    latestMetricDate={metric?.metric_date ?? null}
+                    pageLastSyncedAt={page.last_synced_at}
+                  />
+
                   <AiInsightsBlock
                     report={aiReport}
                     recommendations={recs}
@@ -160,7 +203,8 @@ export default async function DashboardPage() {
                   />
                 </Card>
               </li>
-            ))}
+            )
+            )}
           </ul>
         )}
 
