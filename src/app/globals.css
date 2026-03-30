@@ -163,7 +163,7 @@ code {
 }
 
 .marketing-brand__logo {
-  width: 8rem;
+  width: 12rem;
   height: auto;
   display: block;
 }
@@ -1521,8 +1521,8 @@ code {
 }
 
 .login-brand__logo {
-  height: 2.5rem;
-  width: auto;
+  height: auto;
+  width: 14rem;
   object-fit: contain;
 }
 

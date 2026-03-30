@@ -65,8 +65,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <Image
               src="/brand/logo.svg"
               alt="MarTech"
-              width={160}
-              height={40}
+              width={280}
+              height={70}
               className="login-brand__logo"
               priority
             />

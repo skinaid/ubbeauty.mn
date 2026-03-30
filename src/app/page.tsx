@@ -83,8 +83,8 @@ export default async function HomePage() {
               <Image
                 src="/brand/logo.svg"
                 alt="MarTech"
-                width={200}
-                height={50}
+                width={280}
+                height={70}
                 className="marketing-brand__logo"
                 priority
               />
