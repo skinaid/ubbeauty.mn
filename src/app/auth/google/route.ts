@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 
 export async function GET(request: NextRequest) {
@@ -14,16 +15,16 @@ export async function GET(request: NextRequest) {
   const nextRaw = request.nextUrl.searchParams.get("next") ?? "/dashboard";
   const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/dashboard";
 
-  let response = NextResponse.next();
+  const cookieStore = await cookies();
 
   const supabase = createServerClient<Database>(url, anonKey, {
     cookies: {
       getAll() {
-        return request.cookies.getAll();
+        return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
+          cookieStore.set(name, value, options);
         });
       },
     },
@@ -44,10 +45,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=oauth_failed", request.url));
   }
 
-  const redirectResponse = NextResponse.redirect(data.url);
-  response.cookies.getAll().forEach(({ name, value, ...options }) => {
-    redirectResponse.cookies.set(name, value, options);
-  });
-
-  return redirectResponse;
+  return NextResponse.redirect(data.url);
 }
