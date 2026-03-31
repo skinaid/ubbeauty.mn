@@ -199,6 +199,65 @@ export type Database = {
           },
         ]
       }
+      brand_design_tokens: {
+        Row: {
+          animation_style: string | null
+          border_radius: string
+          brand_manager_id: string
+          colors: Json
+          created_at: string
+          fonts: Json
+          id: string
+          logo_clear_space: string | null
+          logo_dont_rules: string[]
+          logo_min_size_px: number | null
+          spacing_unit: number
+          updated_at: string
+          visual_keywords: string[]
+          visual_style: string | null
+        }
+        Insert: {
+          animation_style?: string | null
+          border_radius?: string
+          brand_manager_id: string
+          colors?: Json
+          created_at?: string
+          fonts?: Json
+          id?: string
+          logo_clear_space?: string | null
+          logo_dont_rules?: string[]
+          logo_min_size_px?: number | null
+          spacing_unit?: number
+          updated_at?: string
+          visual_keywords?: string[]
+          visual_style?: string | null
+        }
+        Update: {
+          animation_style?: string | null
+          border_radius?: string
+          brand_manager_id?: string
+          colors?: Json
+          created_at?: string
+          fonts?: Json
+          id?: string
+          logo_clear_space?: string | null
+          logo_dont_rules?: string[]
+          logo_min_size_px?: number | null
+          spacing_unit?: number
+          updated_at?: string
+          visual_keywords?: string[]
+          visual_style?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_design_tokens_brand_manager_id_fkey"
+            columns: ["brand_manager_id"]
+            isOneToOne: true
+            referencedRelation: "brand_managers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_knowledge_sections: {
         Row: {
           brand_manager_id: string
@@ -328,6 +387,96 @@ export type Database = {
           },
           {
             foreignKeyName: "brand_training_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_visual_assets: {
+        Row: {
+          ai_audit_notes: string | null
+          ai_audit_score: number | null
+          ai_audited_at: string | null
+          asset_tag: string | null
+          asset_type: string
+          brand_manager_id: string
+          created_at: string
+          description: string | null
+          extracted_colors: string[] | null
+          file_name: string
+          file_path: string
+          file_size: number
+          height_px: number | null
+          id: string
+          is_primary: boolean
+          mime_type: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+          usage_context: string | null
+          usage_rules: string | null
+          width_px: number | null
+        }
+        Insert: {
+          ai_audit_notes?: string | null
+          ai_audit_score?: number | null
+          ai_audited_at?: string | null
+          asset_tag?: string | null
+          asset_type: string
+          brand_manager_id: string
+          created_at?: string
+          description?: string | null
+          extracted_colors?: string[] | null
+          file_name: string
+          file_path: string
+          file_size?: number
+          height_px?: number | null
+          id?: string
+          is_primary?: boolean
+          mime_type: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+          usage_context?: string | null
+          usage_rules?: string | null
+          width_px?: number | null
+        }
+        Update: {
+          ai_audit_notes?: string | null
+          ai_audit_score?: number | null
+          ai_audited_at?: string | null
+          asset_tag?: string | null
+          asset_type?: string
+          brand_manager_id?: string
+          created_at?: string
+          description?: string | null
+          extracted_colors?: string[] | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          height_px?: number | null
+          id?: string
+          is_primary?: boolean
+          mime_type?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+          usage_context?: string | null
+          usage_rules?: string | null
+          width_px?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_visual_assets_brand_manager_id_fkey"
+            columns: ["brand_manager_id"]
+            isOneToOne: false
+            referencedRelation: "brand_managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brand_visual_assets_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

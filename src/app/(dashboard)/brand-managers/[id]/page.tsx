@@ -35,11 +35,16 @@ export default async function BrandManagerDetailPage({ params }: Props) {
           <h1 className="page-title">{bm.name}</h1>
           <p className="page-subtitle">{bm.description ?? "AI брэнд менежер"}</p>
         </div>
-        <Link href={`/brand-managers/${id}/train`}>
-          <Button variant="primary">
-            {bm.overall_score === 0 ? "Сургалт эхлүүлэх" : "Сургалт үргэлжлүүлэх"}
-          </Button>
-        </Link>
+        <div style={{display:"flex",gap:"0.5rem"}}>
+          <Link href={`/brand-managers/${id}/visual`}>
+            <Button variant="secondary">🎨 Visual DNA</Button>
+          </Link>
+          <Link href={`/brand-managers/${id}/train`}>
+            <Button variant="primary">
+              {bm.overall_score === 0 ? "Сургалт эхлүүлэх" : "Сургалт үргэлжлүүлэх"}
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="bm-detail">
