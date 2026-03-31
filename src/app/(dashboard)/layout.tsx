@@ -27,6 +27,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/pages", label: "Pages" },
+    { href: "/brand-managers", label: "AI Brand Managers" },
     { href: "/billing", label: "Billing" },
     ...(showSystemAdminNav
       ? [{ href: "/admin", label: "System Admin", accent: true }]
