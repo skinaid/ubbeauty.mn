@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { appConfig } from "@/config/app";
 import { LoginForm } from "@/components/auth/login-form";
 import { Alert } from "@/components/ui";
 
@@ -61,10 +62,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="login-brand__content">
           {/* Logo */}
-          <Link href="/" className="login-brand__logo-link" aria-label="MarTech нүүр">
+          <Link href="/" className="login-brand__logo-link" aria-label={`${appConfig.name} нүүр`}>
             <Image
               src="/brand/logo.svg"
-              alt="MarTech"
+              alt={appConfig.name}
               width={280}
               height={70}
               className="login-brand__logo"
@@ -83,7 +84,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <p className="login-brand__footer">
-            © {new Date().getFullYear()} MarTech
+            © {new Date().getFullYear()} {appConfig.name}
           </p>
         </div>
       </aside>

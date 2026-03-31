@@ -69,6 +69,7 @@ Phase 2–7 foundations are implemented from `MarTech-MVP-v1-Spec.md`:
 
 ## Notes
 
+- If you want to fork this into a different product, start with `docs/system-clone-playbook.md`.
 - Private beta ops: `docs/private-beta-launch.md` (env checklist, webhooks, service role, internal ops). Idempotency / retry verification: `docs/operations/idempotency-checklist.md`.
 - QPay billing foundation: see `docs/billing-qpay.md` (invoice → webhook → `payment/check` → subscription activation).
 - Sync execution runs **inline** from server actions today (no cron/queue); the same `executeMetaSyncJob(jobId)` entrypoint is intended for a worker later.

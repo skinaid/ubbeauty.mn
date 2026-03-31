@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Inter } from "next/font/google";
+import { appConfig } from "@/config/app";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,8 +12,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MarTech MVP",
-  description: "Scaffold for MarTech MVP v1"
+  title: appConfig.shortName,
+  description: `Scaffold for ${appConfig.shortName}`
 };
 
 type RootLayoutProps = {

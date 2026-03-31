@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { appConfig, getSupportEmailHref } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — MarTech",
-  description: "Terms and conditions for using the MarTech platform."
+  title: `Terms of Service — ${appConfig.name}`,
+  description: `Terms and conditions for using the ${appConfig.name} platform.`
 };
 
 export default function TermsOfServicePage() {
@@ -23,9 +24,9 @@ export default function TermsOfServicePage() {
       <p style={{ color: "#64748b" }}>Last updated: {updated}</p>
 
       <p>
-        These Terms of Service (&quot;Terms&quot;) govern your use of the MarTech platform (&quot;Service&quot;)
-        operated by MarTech Mongolia (&quot;we&quot;, &quot;us&quot;). By accessing or using the Service, you agree to
-        be bound by these Terms.
+        These Terms of Service (&quot;Terms&quot;) govern your use of the {appConfig.name} platform
+        (&quot;Service&quot;) operated by {appConfig.legalEntityName} (&quot;we&quot;, &quot;us&quot;). By accessing
+        or using the Service, you agree to be bound by these Terms.
       </p>
 
       <h2>1. Eligibility</h2>
@@ -118,9 +119,9 @@ export default function TermsOfServicePage() {
 
       <h2>11. Limitation of Liability</h2>
       <p>
-        To the maximum extent permitted by law, MarTech Mongolia shall not be liable for any indirect, incidental,
-        special, consequential, or punitive damages, including loss of profits, data, or business opportunities,
-        arising from your use of the Service.
+        To the maximum extent permitted by law, {appConfig.legalEntityName} shall not be liable for any indirect,
+        incidental, special, consequential, or punitive damages, including loss of profits, data, or business
+        opportunities, arising from your use of the Service.
       </p>
 
       <h2>12. Disclaimer of Warranties</h2>
@@ -145,7 +146,7 @@ export default function TermsOfServicePage() {
       <h2>15. Contact</h2>
       <p>
         For questions about these Terms, contact us at:{" "}
-        <a href="mailto:support@martech.mn">support@martech.mn</a>
+        <a href={getSupportEmailHref()}>{appConfig.supportEmail}</a>
       </p>
 
       <footer style={{ marginTop: "3rem", paddingTop: "1rem", borderTop: "1px solid #e2e8f0", fontSize: "0.85rem", color: "#64748b" }}>
