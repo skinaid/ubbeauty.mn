@@ -2655,3 +2655,21 @@ code {
   background: #FEF2F2; border: 1px solid #FECACA;
   border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0 0 0.75rem;
 }
+
+/* ── Brand Manager error page ───────────────────────────── */
+.bm-error-page {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 4rem 2rem; text-align: center; gap: 1rem;
+}
+.bm-error-page__icon  { font-size: 3rem; }
+.bm-error-page__title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.bm-error-page__desc  { color: var(--text-secondary); max-width: 400px; margin: 0; font-size: 0.9rem; }
+.bm-error-page__actions { display: flex; gap: 0.75rem; }
+
+/* ── Color extractor save error ─────────────────────────── */
+.ce-save-error {
+  font-size: 0.82rem; color: #991B1B;
+  background: #FEF2F2; border: 1px solid #FECACA;
+  border-radius: 6px; padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem; display: block;
+}

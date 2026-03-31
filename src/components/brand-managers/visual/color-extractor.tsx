@@ -58,6 +58,7 @@ export function ColorExtractor({ imageUrl, brandManagerId, onClose }: Props) {
   const [selected, setSelected] = useState<Record<string, { name: string; role: ColorRole; include: boolean }>>({});
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
@@ -88,18 +89,29 @@ export function ColorExtractor({ imageUrl, brandManagerId, onClose }: Props) {
   }, [imageUrl]);
 
   function save() {
+    setSaveError(null);
     startTransition(async () => {
-      const colors: BrandColor[] = palette
-        .filter((hex) => selected[hex]?.include)
-        .map((hex) => ({
-          name: selected[hex].name,
-          hex,
-          role: selected[hex].role,
-        }));
+      try {
+        const colors: BrandColor[] = palette
+          .filter((hex) => selected[hex]?.include)
+          .map((hex) => ({
+            name: selected[hex].name,
+            hex,
+            role: selected[hex].role,
+          }));
 
-      await upsertDesignTokens(brandManagerId, { colors });
-      setSaved(true);
-      setTimeout(onClose, 1200);
+        if (colors.length === 0) {
+          setSaveError("Хадгалах өнгө сонгоогүй байна");
+          return;
+        }
+
+        await upsertDesignTokens(brandManagerId, { colors });
+        setSaved(true);
+        setTimeout(onClose, 1200);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Тодорхойгүй алдаа";
+        setSaveError(msg);
+      }
     });
   }
 
@@ -157,6 +169,9 @@ export function ColorExtractor({ imageUrl, brandManagerId, onClose }: Props) {
               })}
             </div>
 
+            {saveError && (
+              <p className="ce-save-error">❌ {saveError}</p>
+            )}
             <div className="color-extractor__actions">
               <Button variant="ghost" onClick={onClose}>Болих</Button>
               <Button variant="primary" onClick={save} disabled={isPending || saved}>

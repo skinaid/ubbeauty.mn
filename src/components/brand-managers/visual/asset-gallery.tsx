@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui";
 import { createVisualAsset, deleteVisualAsset, auditVisualAsset, getAssetUrl } from "@/modules/brand-managers/visual-actions";
 import { ASSET_TYPE_META, type AssetType, type BrandVisualAsset, type DesignTokens } from "@/modules/brand-managers/visual-types";
@@ -16,11 +16,21 @@ type Props = {
 type UploadState = "idle" | "uploading" | "saving" | "done" | "error";
 
 // Simple inline toast — нэмэлт library шаардахгүй
+// Fix #8: setTimeout cleanup — unmount болоход setToast дуудахгүй
 function useToast() {
   const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   function show(msg: string, type: "error" | "success" = "error") {
+    if (timerRef.current) clearTimeout(timerRef.current);
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
+    timerRef.current = setTimeout(() => setToast(null), 4000);
   }
   return { toast, show };
 }

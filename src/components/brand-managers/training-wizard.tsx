@@ -88,15 +88,15 @@ export function TrainingWizard({ brandManager, sections, initialSection }: Props
     setInput("");
   }, []);
 
-  // Fix #10: Sliding window — API payload болон token хэт томрохоос сэргийлнэ
+  // Fix #9: useCallback-д оруулах — render бүрт шинэ instance үүсгэхгүй
   const MAX_HISTORY = 20;
-  function getWindowedMessages(msgs: TrainingMessage[]): TrainingMessage[] {
+  const getWindowedMessages = useCallback((msgs: TrainingMessage[]): TrainingMessage[] => {
     if (msgs.length <= MAX_HISTORY) return msgs;
     // Эхний assistant мессежийг хадгалж (context), сүүлийн N-1-г авна
     const first = msgs[0];
     const tail = msgs.slice(-(MAX_HISTORY - 1));
     return [first, ...tail];
-  }
+  }, []);
 
   async function sendMessage() {
     if (!input.trim() || loading) return;

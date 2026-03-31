@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui";
 import { upsertDesignTokens } from "@/modules/brand-managers/visual-actions";
-import type { DesignTokens, BrandColor, BrandFont, ColorRole, FontRole, VisualStyle } from "@/modules/brand-managers/visual-types";
+import type { DesignTokens, BrandColor, BrandFont, ColorRole, VisualStyle } from "@/modules/brand-managers/visual-types";
 
 const COLOR_ROLES: ColorRole[] = ["primary", "secondary", "accent", "neutral", "background", "text"];
 const ROLE_LABEL: Record<ColorRole, string> = {

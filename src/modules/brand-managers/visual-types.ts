@@ -41,11 +41,19 @@ export type BorderRadius = "none" | "subtle" | "medium" | "large" | "pill";
 export type BrandColor = { name: string; hex: string; role: ColorRole };
 export type BrandFont  = { name: string; role: FontRole; weights: number[]; source: "google" | "custom" | "system" };
 
+// Internal flag type — server action-д ашиглана, DB-д явдаггүй
+export type UpsertDesignTokensInput = Partial<
+  Omit<DesignTokens, "id" | "brand_manager_id" | "created_at" | "updated_at">
+> & {
+  /** true → Panel-аас full replace; false/omit → ColorExtractor merge mode */
+  _replaceColors?: boolean;
+};
+
 export type DesignTokens = {
   id: string;
   brand_manager_id: string;
   colors: BrandColor[];
-  fonts: BrandFont[]; // used in design-tokens-panel
+  fonts: BrandFont[];
   spacing_unit: number;
   border_radius: BorderRadius;
   visual_style: VisualStyle | null;

@@ -5,7 +5,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
-import type { AssetType, BrandVisualAsset, DesignTokens } from "./visual-types";
+import type { AssetType, BrandVisualAsset, DesignTokens, UpsertDesignTokensInput } from "./visual-types";
 
 const BUCKET = "brand-assets";
 
@@ -161,14 +161,16 @@ export async function deleteVisualAsset(assetId: string, brandManagerId: string)
   const { org } = await requireOrg();
   const admin = getSupabaseAdminClient();
 
+  // Fix #4: brandManagerId verify — buruу BM-д recalculate_score явахгүй
   const { data: asset } = await admin
     .from("brand_visual_assets")
-    .select("file_path, organization_id")
+    .select("file_path, organization_id, brand_manager_id")
     .eq("id", assetId)
     .eq("organization_id", org.id)
+    .eq("brand_manager_id", brandManagerId)
     .single();
 
-  if (!asset) throw new Error("Asset not found");
+  if (!asset) throw new Error("Asset not found or access denied");
 
   // Fix #5: Storage delete fail → DB record устгахгүй (orphan record эрсдэл)
   const supabase = await getSupabaseServerClient();
@@ -210,8 +212,7 @@ export async function getDesignTokens(brandManagerId: string): Promise<DesignTok
 // • _replaceColors=false → ColorExtractor-аас: existing-тэй merge (шинэ өнгө нэмэх)
 export async function upsertDesignTokens(
   brandManagerId: string,
-  tokens: Partial<Omit<DesignTokens, "id" | "brand_manager_id" | "created_at" | "updated_at">>
-    & { _replaceColors?: boolean }
+  tokens: UpsertDesignTokensInput
 ): Promise<void> {
   const { org } = await requireOrg();
   const admin = getSupabaseAdminClient();
@@ -322,9 +323,23 @@ JSON буцаа: { "score": 0-100, "notes": "монгол хэлээр тайл�
     cache: "no-store",
   });
 
+  // Fix #1: OpenAI HTTP error шалгана — алдаатай байвал throw хийж caller-д мэдэгдэнэ
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "unknown");
+    throw new Error(`AI audit алдаа (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
   const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const raw = body.choices?.[0]?.message?.content ?? "{}";
-  const parsed = JSON.parse(raw) as { score?: number; notes?: string };
+  const raw = body.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("AI-аас хариу ирсэнгүй");
+
+  let parsed: { score?: number; notes?: string } = {};
+  try {
+    parsed = JSON.parse(raw) as { score?: number; notes?: string };
+  } catch {
+    throw new Error("AI хариуг задлах боломжгүй");
+  }
+
   const score = Math.min(100, Math.max(0, parsed.score ?? 50));
   const notes = parsed.notes ?? "";
 

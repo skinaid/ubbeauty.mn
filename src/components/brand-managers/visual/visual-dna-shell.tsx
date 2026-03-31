@@ -61,7 +61,10 @@ export function VisualDNAShell({ brandManager, assetsByType, initialTokens }: Pr
           />
         )}
         {activeTab !== "tokens" && (
+          // Fix #7: key={activeTab} → tab switch хийхэд component remount хийж
+          // initialAssets шинэчлэгдэнэ (stale state эрсдэлгүй)
           <AssetGallery
+            key={activeTab}
             brandManagerId={brandManager.id}
             assetType={activeTab as AssetType}
             assets={assetsByType[activeTab] ?? []}

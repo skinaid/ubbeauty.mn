@@ -117,12 +117,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Fix #8: Prompt injection guard — зөвхөн user/assistant role-г зөвшөөрнө
-  // Клиент role="system" эсвэл хуурамч role оруулж system prompt override хийхгүй
   const ALLOWED_ROLES = new Set(["user", "assistant"]);
   if (!Array.isArray(messages) || messages.some(
     (m) => !m || typeof m.content !== "string" || !ALLOWED_ROLES.has(m.role)
   )) {
     return NextResponse.json({ error: "Invalid message format" }, { status: 400 });
+  }
+
+  // Fix #6: Server-side messages length cap (клиент sliding window-г bypass хийж чадахгүй)
+  const SERVER_MAX_MESSAGES = 30;
+  if (messages.length > SERVER_MAX_MESSAGES) {
+    return NextResponse.json({ error: "Message history too long" }, { status: 400 });
   }
 
   // userMessage хэт урт байвал хайчлах (token bomb)
