@@ -1,6 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import type { Database } from "@/types/database";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/setup-organization", "/billing", "/settings", "/pages", "/internal", "/admin"];
 // Paths where an already-authenticated user should be redirected away to /dashboard.
@@ -16,8 +14,27 @@ export function isPublicAuthPath(pathname: string): boolean {
   return PUBLIC_AUTH_PATHS.some((prefix) => pathname.startsWith(prefix));
 }
 
+function getSupabaseAuthCookiePrefix(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+
+  try {
+    const ref = new URL(url).hostname.split(".")[0];
+    return `sb-${ref}-auth-token`;
+  } catch {
+    return null;
+  }
+}
+
+function hasSupabaseSession(request: NextRequest): boolean {
+  const prefix = getSupabaseAuthCookiePrefix();
+  if (!prefix) return false;
+
+  return request.cookies.getAll().some(({ name }) => name === prefix || name.startsWith(`${prefix}.`));
+}
+
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers
     }
@@ -35,33 +52,17 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  const supabase = createServerClient<Database>(url, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options: _options }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-      }
-    }
-  });
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
+  const hasSession = hasSupabaseSession(request);
 
-  if (!user && isProtectedPath(pathname)) {
+  if (!hasSession && isProtectedPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isPublicAuthPath(pathname)) {
+  if (hasSession && isPublicAuthPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
     redirectUrl.search = "";

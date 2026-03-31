@@ -2,13 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { appConfig } from "@/config/app";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 
 export const metadata: Metadata = {
-  title: "MarTech — Facebook Page analytics ба AI зөвлөмж",
-  description:
-    "Facebook Page-ээ холбоод үзүүлэлтээ нэг дор харж, AI-аас ойлгомжтой дүгнэлт болон хэрэгжүүлэхүйц зөвлөмж аваарай."
+  title: `${appConfig.name} — ${appConfig.marketing.title}`,
+  description: appConfig.marketing.description
 };
 
 export default async function HomePage() {
@@ -79,10 +79,10 @@ export default async function HomePage() {
         {/* ── Navbar ── */}
         <header className="marketing-topbar" role="banner">
           <div className="marketing-shell marketing-topbar__inner">
-            <Link href="/" className="marketing-brand" aria-label="MarTech нүүр">
+            <Link href="/" className="marketing-brand" aria-label={`${appConfig.name} нүүр`}>
               <Image
                 src="/brand/logo.svg"
-                alt="MarTech"
+                alt={appConfig.name}
                 width={280}
                 height={70}
                 className="marketing-brand__logo"
