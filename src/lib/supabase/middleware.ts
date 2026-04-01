@@ -34,11 +34,7 @@ function hasSupabaseSession(request: NextRequest): boolean {
 }
 
 export async function updateSession(request: NextRequest) {
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers
-    }
-  });
+  const response = NextResponse.next();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
