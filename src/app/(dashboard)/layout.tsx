@@ -26,8 +26,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/pages", label: "Pages" },
-    { href: "/brand-managers", label: "AI Brand Managers" },
+    { href: "/appointments", label: "Appointments" },
+    { href: "/patients", label: "Patients" },
+    { href: "/treatments", label: "Treatments" },
+    { href: "/clinic", label: "Clinic Profile" },
+    { href: "/brand-managers", label: "Playbooks" },
     { href: "/billing", label: "Billing" },
     ...(showSystemAdminNav
       ? [{ href: "/admin", label: "System Admin", accent: true }]
@@ -41,7 +44,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         <Link href="/dashboard" className="app-shell__logo-link">
           <Image
             src="/brand/logo.svg"
-            alt="MarTech"
+            alt="UbBeauty"
             width={140}
             height={40}
             className="app-shell__logo"

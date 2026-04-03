@@ -1,14 +1,14 @@
 export const appConfig = {
-  name: "MarTech",
-  shortName: "MarTech MVP",
-  legalEntityName: "MarTech Mongolia",
-  supportEmail: "support@martech.mn",
-  websiteHost: "martech.mn",
+  name: "UbBeauty",
+  shortName: "UbBeauty OS",
+  legalEntityName: "UbBeauty Technologies",
+  supportEmail: "support@ubbeauty.mn",
+  websiteHost: "ubbeauty.mn",
   locale: "mn",
   marketing: {
-    title: "Facebook Page analytics ба AI зөвлөмж",
+    title: "Арьс гоо заслын эмнэлгийн нэгдсэн SaaS систем",
     description:
-      "Facebook Page-ээ холбоод үзүүлэлтээ нэг дор харж, AI-аас ойлгомжтой дүгнэлт болон хэрэгжүүлэхүйц зөвлөмж аваарай."
+      "Clinic profile, онлайн цаг захиалга, patient CRM, treatment record, billing ба POS-ийг нэг урсгалд холбосон operating system."
   }
 } as const;
 

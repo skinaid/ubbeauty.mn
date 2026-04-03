@@ -34,6 +34,10 @@ Phase 2–7 foundations are implemented from `MarTech-MVP-v1-Spec.md`:
    - run SQL in `supabase/migrations/202603220008_phase7_billing_qpay.sql`
    - run SQL in `supabase/migrations/202603220009_phase7_billing_hardening.sql`
    - run SQL in `supabase/migrations/202603220010_operator_audit.sql` (operator audit for `/internal/ops` actions)
+   - run SQL in `supabase/migrations/202604030001_clinic_mvp_foundation.sql` (clinic MVP foundation: locations, staff, services, patients, appointments, treatment records)
+   - run SQL in `supabase/migrations/202604030002_clinic_pos_foundation.sql` (clinic POS foundation: checkout drafts and checkout items)
+   - run SQL in `supabase/migrations/202604030003_clinic_checkout_payments.sql` (clinic POS payments: cashier payment capture and payment log)
+   - run SQL in `supabase/migrations/202604030004_clinic_checkout_refunds.sql` (clinic POS refunds: refund ledger support)
 4. Seed plans:
    - run SQL in `supabase/seeds/202603220001_plans.sql`
 5. Start app:

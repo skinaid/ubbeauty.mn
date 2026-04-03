@@ -18,8 +18,8 @@ export default async function BrandManagersPage() {
     <div className="page-content">
       <div className="page-header-row">
         <div>
-          <h1 className="page-title">AI Brand Managers</h1>
-          <p className="page-subtitle">Брэндийнхээ тухай бүрэн мэдлэгтэй AI менежерүүдийг бүтээгээрэй</p>
+          <h1 className="page-title">Playbooks</h1>
+          <p className="page-subtitle">Clinic knowledge, treatment guideline, service playbook-уудын туршилтын workspace</p>
         </div>
         <CreateBrandManagerButton />
       </div>
@@ -27,9 +27,9 @@ export default async function BrandManagersPage() {
       {brandManagers.length === 0 ? (
         <div className="brand-managers-empty">
           <div className="brand-managers-empty__icon">🧠</div>
-          <h3 className="brand-managers-empty__title">Брэнд менежер байхгүй байна</h3>
+          <h3 className="brand-managers-empty__title">Playbook байхгүй байна</h3>
           <p className="brand-managers-empty__desc">
-            Анхны AI брэнд менежерээ үүсгэж, брэндийнхээ мэдлэгийг сургаарай.
+            Анхны clinic playbook-оо үүсгээд treatment workflow болон internal knowledge-оо бүтэцтэй болгоорой.
           </p>
           <CreateBrandManagerButton primary />
         </div>

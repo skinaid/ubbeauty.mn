@@ -9,13 +9,13 @@ import { getCurrentOrganizationSubscription, getPublicActivePlans } from "@/modu
 function getPlanFit(planCode: string): string {
   switch (planCode) {
     case "free":
-      return "Эхлэх гэж буй жижиг баг, туршиж үзэх хэрэглээнд тохирно.";
+      return "Анхны clinic setup, service menu, workflow туршилтад тохирно.";
     case "starter":
-      return "Тогтмол page хянах, сар бүр AI зөвлөмж авах үндсэн хэрэглээнд тохирно.";
+      return "Нэг салбартай clinic-ийн appointment, CRM, treatment workflow эхлүүлэхэд тохирно.";
     case "growth":
-      return "Олон page удирддаг, илүү их sync ба AI тайлан хэрэгтэй багт тохирно.";
+      return "Илүү олон staff, илүү их patient volume, олон role-той багт тохирно.";
     default:
-      return "Танай багийн өсөлт, page хяналтын хэрэгцээнд тохируулан сонгоно.";
+      return "Clinic-ийн үйл ажиллагааны өсөлт, service volume-д тааруулан сонгоно.";
   }
 }
 
@@ -78,8 +78,8 @@ export default async function PricingPage() {
         title="Төлөвлөгөө ба төлбөр"
         description={
           <>
-            MarTech-ийн төлөвлөгөөнүүд нь хэдэн page холбох, өдөрт хэдэн sync хийх, сар бүр хэдэн AI тайлан авахыг
-            тодорхойлно. Төлбөртэй төлөвлөгөөний төлбөрийг <strong>QPay</strong>-аар хийж, төлбөр баталгаажсаны дараа
+            UbBeauty-ийн төлөвлөгөөнүүд нь clinic workspace, team size, operational growth-ийг дэмжих subscription
+            суурь болно. Төлбөртэй төлөвлөгөөний төлбөрийг <strong>QPay</strong>-аар хийж, баталгаажсаны дараа
             subscription идэвхжинэ.
           </>
         }
@@ -89,9 +89,9 @@ export default async function PricingPage() {
         <Card padded stack>
           <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Төлбөр хэрхэн явагдах вэ?</h2>
           <ol style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "var(--space-2)" }}>
-            <li>Өөрт тохирох төлөвлөгөөгөө сонгоно.</li>
+            <li>Clinic-ийнхээ stage-д тохирох төлөвлөгөөг сонгоно.</li>
             <li>Төлбөртэй төлөвлөгөө бол QPay нэхэмжлэл үүсгээд төлнө.</li>
-            <li>MarTech төлбөр баталгаажсаны дараа subscription-ийг идэвхжүүлнэ.</li>
+            <li>UbBeauty төлбөр баталгаажсаны дараа subscription-ийг идэвхжүүлнэ.</li>
           </ol>
           <p className="ui-text-muted" style={{ margin: 0 }}>
             Төлбөрийн явц, нэхэмжлэл, баталгаажуулалтын төлөвийг <Link href="/billing">Billing</Link> хэсгээс харж
@@ -162,9 +162,9 @@ export default async function PricingPage() {
               </div>
 
               <div style={{ display: "grid", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
-                <p style={{ margin: 0 }}>Холбох page: <strong>{plan.max_pages}</strong></p>
-                <p style={{ margin: 0 }}>Өдөрт sync: <strong>{plan.syncs_per_day}</strong></p>
-                <p style={{ margin: 0 }}>Сарын AI тайлан: <strong>{plan.monthly_ai_reports}</strong></p>
+                <p style={{ margin: 0 }}>Clinic capacity slot: <strong>{plan.max_pages}</strong></p>
+                <p style={{ margin: 0 }}>Daily operations quota: <strong>{plan.syncs_per_day}</strong></p>
+                <p style={{ margin: 0 }}>Monthly AI / automation quota: <strong>{plan.monthly_ai_reports}</strong></p>
               </div>
 
               {plan.code === "starter" && isBootstrap && paid ? (

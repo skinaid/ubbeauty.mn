@@ -75,11 +75,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
           <div className="login-brand__copy">
             <h1 className="login-brand__headline">
-              Маркетингийн<br />эрх чөлөө.
+              Clinic operating
+              <br />
+              system.
             </h1>
             <p className="login-brand__tagline">
-              Facebook Page-ийн гүйцэтгэлийг нэг дор харж,
-              AI-аас ойлгомжтой зөвлөмж аваарай.
+              Appointment, patient CRM, treatment record,
+              billing ба POS-оо нэг системээс удирдаарай.
             </p>
           </div>
 
@@ -95,7 +97,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="login-form-header">
             <h2 className="login-form-title">Нэвтрэх</h2>
             <p className="login-form-subtitle">
-              И-мэйл хаягаар нэг удаагийн линк авч нэвтэрнэ үү.
+              Clinic admin workspace-д и-мэйл нэг удаагийн линкээр нэвтэрнэ үү.
             </p>
           </div>
 
