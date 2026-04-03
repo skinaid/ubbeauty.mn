@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestAppOrigin } from "@/lib/url/get-app-origin";
 
 export type AuthActionState = {
   error?: string;
@@ -24,7 +25,7 @@ export async function loginWithOtpAction(
       : "/dashboard";
 
   const supabase = await getSupabaseServerClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = await getRequestAppOrigin();
 
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
@@ -46,7 +47,7 @@ export async function loginWithOtpAction(
 
 export async function loginWithGoogleAction(): Promise<never> {
   const supabase = await getSupabaseServerClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = await getRequestAppOrigin();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

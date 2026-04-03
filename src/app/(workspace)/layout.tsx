@@ -9,11 +9,11 @@ import { getCurrentUser } from "@/modules/auth/session";
 import { hasActiveSystemAdminRecord } from "@/modules/admin/guard";
 import { isInternalOpsEmail } from "@/lib/internal-ops";
 
-type DashboardLayoutProps = {
+type WorkspaceLayoutProps = {
   children: ReactNode;
 };
 
-export default async function DashboardLayout({ children }: DashboardLayoutProps) {
+export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -25,13 +25,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     (isInternalOpsEmail(user.email) || (await hasActiveSystemAdminRecord(user.id)));
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/appointments", label: "Appointments" },
+    { href: "/pulse", label: "Pulse" },
+    { href: "/schedule", label: "Schedule" },
     { href: "/patients", label: "Patients" },
-    { href: "/treatments", label: "Treatments" },
-    { href: "/clinic", label: "Clinic Profile" },
-    { href: "/brand-managers", label: "Playbooks" },
-    { href: "/billing", label: "Billing" },
+    { href: "/checkout", label: "Checkout" },
+    { href: "/settings", label: "Settings" },
     ...(showSystemAdminNav
       ? [{ href: "/admin", label: "System Admin", accent: true }]
       : []),
@@ -41,7 +39,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     <div className="app-shell">
       {/* Sidebar */}
       <aside className="app-shell__sidebar">
-        <Link href="/dashboard" className="app-shell__logo-link">
+        <Link href="/pulse" className="app-shell__logo-link">
           <Image
             src="/brand/logo.svg"
             alt="UbBeauty"

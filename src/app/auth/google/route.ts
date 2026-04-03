@@ -5,7 +5,7 @@ import type { Database } from "@/types/database";
 export async function GET(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = request.nextUrl.origin;
 
   if (!url || !anonKey) {
     return NextResponse.redirect(new URL("/login?error=auth_unavailable", request.url));

@@ -104,19 +104,19 @@ export default async function HomePage() {
               </ul>
             </div>
 
-            <div className="marketing-preview">
-              <div className="marketing-preview__chrome" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="marketing-preview__header">
-                <div>
-                  <strong>Clinic operations preview</strong>
-                  <p>Front desk, provider, billing баг нэг dashboard-аас ажиллана.</p>
+              <div className="marketing-preview">
+                <div className="marketing-preview__chrome" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
                 </div>
-                <span className="marketing-status">MVP 1</span>
-              </div>
+                <div className="marketing-preview__header">
+                  <div>
+                    <strong>Pulse Command Center</strong>
+                    <p>Өдрийн календарийн урсгал, бүртгэл ба төлбөрийг нэг дороос.</p>
+                  </div>
+                  <span className="marketing-status">Premium OS</span>
+                </div>
 
               <div className="marketing-metrics">
                 <article className="marketing-metric-card">
