@@ -2699,3 +2699,366 @@ code {
   border-radius: 6px; padding: 0.4rem 0.75rem;
   margin-bottom: 0.5rem; display: block;
 }
+
+/* ── Consumer-first homepage ───────────────────────────── */
+.consumer-home {
+  padding-bottom: 5rem;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f8f7f5 42%, #ffffff 100%);
+}
+
+.consumer-hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.consumer-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 18%, rgba(14, 165, 233, 0.18), transparent 22%),
+    radial-gradient(circle at 10% 20%, rgba(30, 64, 175, 0.08), transparent 30%);
+  pointer-events: none;
+}
+
+.consumer-brand-mark {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+}
+
+.consumer-hero__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.5rem;
+  padding: 4.5rem 0 3.5rem;
+  align-items: center;
+}
+
+.consumer-hero__copy {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.consumer-hero__copy h1 {
+  max-width: 11ch;
+  font-size: clamp(2.9rem, 7vw, 5.6rem);
+  line-height: 0.98;
+}
+
+.consumer-hero__lead {
+  margin: 0;
+  max-width: 41rem;
+  font-size: 1.08rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.consumer-search-panel {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.consumer-search-panel__header,
+.consumer-clinic-card__top,
+.consumer-offer-card,
+.consumer-final__card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.consumer-panel-label,
+.consumer-search-panel__footer p,
+.consumer-slot-card p,
+.consumer-clinic-card__top p,
+.consumer-clinic-card__focus,
+.consumer-fallback-note,
+.consumer-offer-card p,
+.consumer-final__card p,
+.consumer-section__intro p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.consumer-panel-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.consumer-live-badge,
+.consumer-clinic-card__top span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.1);
+  color: #0369a1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.consumer-search-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.consumer-search-box span {
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.consumer-search-box a,
+.consumer-inline-link {
+  color: var(--brand-blue);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.consumer-filter-row,
+.consumer-chip-row,
+.consumer-final__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.consumer-filter-row span,
+.consumer-chip-row span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.consumer-slot-list,
+.consumer-offer-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.consumer-slot-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.consumer-slot-card strong,
+.consumer-offer-card strong {
+  font-size: 0.98rem;
+}
+
+.consumer-slot-card span {
+  white-space: nowrap;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+}
+
+.consumer-search-panel__footer {
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.consumer-section {
+  padding: 4.5rem 0;
+}
+
+.consumer-section--soft {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.consumer-section__intro {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.75rem;
+}
+
+.consumer-section__intro h2,
+.consumer-final__card h2 {
+  margin: 0;
+  max-width: 14ch;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.consumer-section__intro--spread {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.consumer-journey-grid,
+.consumer-clinic-grid,
+.consumer-steps-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.consumer-journey-card,
+.consumer-clinic-card,
+.consumer-step-card {
+  padding: 1.35rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.04);
+}
+
+.consumer-journey-card h3,
+.consumer-clinic-card h3,
+.consumer-offer-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+}
+
+.consumer-journey-card p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.consumer-fallback-note {
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+}
+
+.consumer-clinic-card__focus {
+  margin-bottom: 1rem;
+  min-height: 3rem;
+}
+
+.consumer-clinic-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.consumer-split-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.consumer-offer-card {
+  padding: 1.1rem 1.15rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.consumer-process {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.consumer-step-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.consumer-step-card span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.consumer-step-card p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.consumer-final {
+  padding-top: 0;
+}
+
+.consumer-final__card {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 55%, #f8f7f5 100%);
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.06);
+}
+
+@media (min-width: 820px) {
+  .consumer-hero__inner,
+  .consumer-split-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
+  }
+
+  .consumer-journey-grid,
+  .consumer-steps-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .consumer-clinic-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .consumer-final__card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 819px) {
+  .consumer-hero__copy h1 {
+    max-width: 100%;
+  }
+
+  .consumer-search-panel__header,
+  .consumer-slot-card,
+  .consumer-offer-card,
+  .consumer-final__card,
+  .consumer-section__intro--spread {
+    flex-direction: column;
+  }
+
+  .consumer-search-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .consumer-search-box a {
+    text-align: center;
+  }
+}
