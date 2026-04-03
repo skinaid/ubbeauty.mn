@@ -61,9 +61,17 @@ async function requireOrganizationId(userId: string): Promise<string | null> {
 
 export function isClinicFoundationMissingError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const code = "code" in error ? error.code : undefined;
-  const message = "message" in error ? String(error.message) : "";
-  return code === "42P01" || code === "42703" || message.includes("does not exist") || message.includes("column");
+  const code = "code" in error ? String(error.code) : "";
+  const message = "message" in error ? String(error.message).toLowerCase() : "";
+  
+  return (
+    code === "42P01" || 
+    code === "42703" || 
+    code === "PGRST205" || 
+    message.includes("does not exist") || 
+    message.includes("column") || 
+    message.includes("schema cache")
+  );
 }
 
 export const getClinicLocations = cache(async (userId: string): Promise<ClinicLocationRow[]> => {

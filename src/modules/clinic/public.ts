@@ -33,6 +33,9 @@ export async function getPublicClinics(limit = 24): Promise<PublicClinicSummary[
     .limit(limit);
 
   if (error) {
+    if (isClinicFoundationMissingError(error)) {
+      return [];
+    }
     throw error;
   }
 
@@ -84,6 +87,9 @@ export async function getPublicClinicBySlug(slug: string): Promise<PublicClinicD
     .maybeSingle();
 
   if (error) {
+    if (isClinicFoundationMissingError(error)) {
+      return null;
+    }
     throw error;
   }
 
