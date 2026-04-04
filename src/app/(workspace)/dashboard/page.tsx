@@ -126,7 +126,7 @@ export default async function DashboardPage() {
   let checkouts: ClinicCheckoutWithRelations[] = [];
   let engagementJobs: ClinicEngagementJobWithRelations[] = [];
   let patients: PatientTimelineSummary[] = [];
-  let reportPresets = [];
+  let reportPresets: Awaited<ReturnType<typeof getClinicReportPresets>> = [];
   let locationCount = 0;
   let serviceCount = 0;
   let staffCount = 0;

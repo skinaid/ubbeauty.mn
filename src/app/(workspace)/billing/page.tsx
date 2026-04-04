@@ -11,6 +11,7 @@ import {
   type ClinicCheckoutWithRelations,
   getCheckoutDraftCandidates,
   getClinicCheckouts,
+  getServices,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
 import type { ClinicCheckoutItemRow } from "@/modules/clinic/types";
@@ -114,12 +115,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   let clinicCheckouts: ClinicCheckoutWithRelations[] = [];
   let checkoutCandidates: AppointmentWithRelations[] = [];
+  let services: Awaited<ReturnType<typeof getServices>> = [];
   let clinicPosMissing = false;
 
   try {
-    [clinicCheckouts, checkoutCandidates] = await Promise.all([
+    [clinicCheckouts, checkoutCandidates, services] = await Promise.all([
       getClinicCheckouts(user.id, 20),
-      getCheckoutDraftCandidates(user.id, 20)
+      getCheckoutDraftCandidates(user.id, 20),
+      getServices(user.id)
     ]);
   } catch (error) {
     if (isClinicFoundationMissingError(error)) {
@@ -341,7 +344,18 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                         .join(" · ")}
                       </span>
                     ) : null}
-                    {checkout.payment_status !== "paid" ? <AddCheckoutItemForm checkoutId={checkout.id} /> : null}
+                    {checkout.payment_status !== "paid" ? (
+                      <AddCheckoutItemForm
+                        checkoutId={checkout.id}
+                        currency={checkout.currency}
+                        serviceCatalog={services.map((service) => ({
+                          id: service.id,
+                          name: service.name,
+                          priceFrom: Number(service.price_from ?? 0),
+                          currency: service.currency ?? checkout.currency
+                        }))}
+                      />
+                    ) : null}
                     {outstanding > 0 ? (
                       <CaptureCheckoutPaymentForm
                         checkoutId={checkout.id}

@@ -73,7 +73,7 @@ export default async function RetailCheckoutPage({ searchParams }: CheckoutPageP
   let clinicPosMissing = false;
   let checkouts: ClinicCheckoutWithRelations[] = [];
   let checkoutCandidates: AppointmentWithRelations[] = [];
-  let services = [];
+  let services: Awaited<ReturnType<typeof getServices>> = [];
 
   try {
     [checkouts, checkoutCandidates, services] = await Promise.all([

@@ -45,6 +45,7 @@ export type TreatmentFollowUpForEngagement = {
 
 export type ExistingEngagementJob = {
   id: string;
+  job_type?: string;
   channel: string;
   status: string;
   scheduled_for: string;

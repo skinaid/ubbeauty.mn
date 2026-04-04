@@ -51,10 +51,10 @@ export default async function ReportsPage({
     rangeParam === "7d" || rangeParam === "30d" || rangeParam === "custom" ? rangeParam : "today";
 
   let migrationMissing = false;
-  let appointments = [];
-  let checkouts = [];
-  let engagementJobs = [];
-  let presets = [];
+  let appointments: Awaited<ReturnType<typeof getRecentAppointmentsForDesk>> = [];
+  let checkouts: Awaited<ReturnType<typeof getClinicCheckouts>> = [];
+  let engagementJobs: Awaited<ReturnType<typeof getClinicEngagementJobs>> = [];
+  let presets: Awaited<ReturnType<typeof getClinicReportPresets>> = [];
 
   try {
     [appointments, checkouts, engagementJobs, presets] = await Promise.all([

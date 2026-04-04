@@ -337,9 +337,9 @@ export default async function AppointmentsPage() {
                         </div>
                       ) : handoffState.kind === "draft_ready" ? (
                         <CreateCheckoutDraftButton appointmentId={appointment.id} />
-                      ) : (
+                      ) : handoffState.kind === "waiting_for_completion" ? (
                         <span className="ui-text-muted">{handoffState.message}</span>
-                      )}
+                      ) : null}
                     </div>
                   </li>
                 );

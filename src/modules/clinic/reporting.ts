@@ -364,7 +364,7 @@ export function buildOperationalReportCsv(params: {
       `${params.dashboard.noShowRate}%`,
       `${params.dashboard.noShowCount}/${params.dashboard.totalAppointments}`
     ],
-    ["summary", "follow_up_due", params.dashboard.followUpDueCount, ""],
+    ["summary", "follow_up_due", String(params.dashboard.followUpDueCount), ""],
     [
       "summary",
       "collection_outstanding",
@@ -374,14 +374,14 @@ export function buildOperationalReportCsv(params: {
   ];
 
   for (const item of params.statusBreakdown) {
-    rows.push(["appointment_status", item.status, item.count, ""]);
+    rows.push(["appointment_status", item.status, String(item.count), ""]);
   }
 
   for (const provider of params.providerLoad) {
     rows.push([
       "provider_load",
       provider.providerName,
-      provider.totalAppointments,
+      String(provider.totalAppointments),
       `${provider.activeVisits} active / ${provider.completedVisits} completed`
     ]);
   }

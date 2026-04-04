@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Database } from "@/types/database";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
@@ -104,6 +105,10 @@ function parseMoney(value: FormDataEntryValue | null): number | null {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return null;
   return Number(amount.toFixed(2));
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 async function recalculateClinicCheckoutTotals(checkoutId: string) {
@@ -2017,6 +2022,14 @@ export async function seedDemoClinicDataAction(
     }
 
     const patientByName = new Map(patients.map((item) => [item.full_name, item.id]));
+    const anuPatientId = patientByName.get("Anu Tsog");
+    const bataaPatientId = patientByName.get("Bataa Erdene");
+    const ceciliaPatientId = patientByName.get("Cecilia Bold");
+    const dulmaaPatientId = patientByName.get("Dulmaa T");
+
+    if (!anuPatientId || !bataaPatientId || !ceciliaPatientId || !dulmaaPatientId) {
+      return { error: "Demo patient seed incomplete байна. Дахин оролдоно уу." };
+    }
     const startBooked = addHoursToNow(24);
     const startConfirmed = addHoursToNow(3);
     const startArrived = addHoursToNow(-1);
@@ -2025,10 +2038,10 @@ export async function seedDemoClinicDataAction(
     const startCompletedThree = addHoursToNow(-26);
     const startNoShow = addHoursToNow(-30);
 
-    const appointmentPayload = [
+    const appointmentPayload: Database["public"]["Tables"]["appointments"]["Insert"][] = [
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Anu Tsog"),
+        patient_id: anuPatientId,
         service_id: laserService.id,
         staff_member_id: provider.id,
         location_id: centralLocation.id,
@@ -2042,7 +2055,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Bataa Erdene"),
+        patient_id: bataaPatientId,
         service_id: consultationService.id,
         staff_member_id: provider.id,
         location_id: centralLocation.id,
@@ -2056,7 +2069,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Cecilia Bold"),
+        patient_id: ceciliaPatientId,
         service_id: facialService.id,
         staff_member_id: provider.id,
         location_id: riverLocation.id,
@@ -2070,7 +2083,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Anu Tsog"),
+        patient_id: anuPatientId,
         service_id: laserService.id,
         staff_member_id: provider.id,
         location_id: centralLocation.id,
@@ -2085,7 +2098,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Dulmaa T"),
+        patient_id: dulmaaPatientId,
         service_id: facialService.id,
         staff_member_id: provider.id,
         location_id: riverLocation.id,
@@ -2100,7 +2113,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Cecilia Bold"),
+        patient_id: ceciliaPatientId,
         service_id: consultationService.id,
         staff_member_id: provider.id,
         location_id: centralLocation.id,
@@ -2115,7 +2128,7 @@ export async function seedDemoClinicDataAction(
       },
       {
         organization_id: context.organization.id,
-        patient_id: patientByName.get("Bataa Erdene"),
+        patient_id: bataaPatientId,
         service_id: consultationService.id,
         staff_member_id: provider.id,
         location_id: centralLocation.id,
@@ -2126,7 +2139,7 @@ export async function seedDemoClinicDataAction(
         duration_minutes: 45,
         created_by_user_id: context.user.id
       }
-    ].filter((item) => item.patient_id);
+    ];
 
     const { data: appointments, error: appointmentError } = await supabase
       .from("appointments")
