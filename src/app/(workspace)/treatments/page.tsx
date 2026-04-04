@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreateCheckoutDraftButton } from "@/components/clinic/create-checkout-draft-button";
 import { TreatmentRecordForm } from "@/components/clinic/treatment-record-form";
-import { Alert, Card, PageHeader } from "@/components/ui";
+import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import {
   type AppointmentWithRelations,
@@ -52,6 +52,22 @@ export default async function TreatmentsPage() {
     }
   }
 
+  const consentCompletedCount = recentRecords.filter((record) => record.consent_confirmed).length;
+  const evidenceCompletedCount = recentRecords.filter(
+    (record) => Boolean(record.before_photo_url || record.after_photo_url || record.before_after_asset_notes)
+  ).length;
+  const followUpOutcomeCount = recentRecords.filter((record) => Boolean(record.follow_up_outcome?.trim())).length;
+
+  const complianceTone = (record: TreatmentRecordWithRelations) => {
+    const hasConsent = record.consent_confirmed || Boolean(record.consent_artifact_url);
+    const hasEvidence = Boolean(record.before_photo_url || record.after_photo_url || record.before_after_asset_notes);
+    const hasOutcome = Boolean(record.follow_up_outcome?.trim());
+
+    if (hasConsent && hasEvidence && hasOutcome) return "success" as const;
+    if (hasConsent || hasEvidence || hasOutcome) return "warning" as const;
+    return "danger" as const;
+  };
+
   return (
     <section className="ui-customer-stack">
       <PageHeader
@@ -74,6 +90,26 @@ export default async function TreatmentsPage() {
           </Card>
         ))}
       </div>
+
+      {!migrationMissing ? (
+        <div className="ui-stat-grid">
+          <Card padded stack>
+            <span className="ui-text-muted">Consent captured</span>
+            <strong style={{ fontSize: "var(--text-2xl)" }}>{consentCompletedCount}</strong>
+            <p style={{ margin: 0 }}>Recent records with consent confirmation</p>
+          </Card>
+          <Card padded stack>
+            <span className="ui-text-muted">Evidence captured</span>
+            <strong style={{ fontSize: "var(--text-2xl)" }}>{evidenceCompletedCount}</strong>
+            <p style={{ margin: 0 }}>Before / after notes or references</p>
+          </Card>
+          <Card padded stack>
+            <span className="ui-text-muted">Follow-up outcomes</span>
+            <strong style={{ fontSize: "var(--text-2xl)" }}>{followUpOutcomeCount}</strong>
+            <p style={{ margin: 0 }}>Outcome status recorded after treatment</p>
+          </Card>
+        </div>
+      ) : null}
 
       {!migrationMissing ? (
         <>
@@ -128,7 +164,16 @@ export default async function TreatmentsPage() {
               <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
                 {recentRecords.map((record) => (
                   <li key={record.id} className="ui-card ui-card--padded ui-card--stack">
-                    <strong>{record.patient?.full_name ?? "Patient"}</strong>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                      <strong>{record.patient?.full_name ?? "Patient"}</strong>
+                      <Badge variant={complianceTone(record)}>
+                        {complianceTone(record) === "success"
+                          ? "Compliance OK"
+                          : complianceTone(record) === "warning"
+                            ? "Partial compliance"
+                            : "Needs completion"}
+                      </Badge>
+                    </div>
                     <span className="ui-text-muted">
                       {record.service?.name ?? record.service_id}
                       {record.appointment?.scheduled_start
@@ -136,6 +181,27 @@ export default async function TreatmentsPage() {
                         : ""}
                       {record.consent_confirmed ? " · consent confirmed" : ""}
                     </span>
+                    {record.consent_artifact_url ? (
+                      <span className="ui-text-muted">Consent artifact: {record.consent_artifact_url}</span>
+                    ) : null}
+                    {record.before_photo_url || record.after_photo_url ? (
+                      <span className="ui-text-muted">
+                        Evidence:
+                        {record.before_photo_url ? " before" : ""}
+                        {record.after_photo_url ? " / after" : ""}
+                      </span>
+                    ) : null}
+                    {record.before_after_asset_notes ? (
+                      <span className="ui-text-muted">{record.before_after_asset_notes}</span>
+                    ) : null}
+                    {record.follow_up_outcome ? (
+                      <span className="ui-text-muted">Outcome: {record.follow_up_outcome}</span>
+                    ) : null}
+                    {record.complication_notes ? (
+                      <span className="ui-text-warning-emphasis">
+                        Complication: {record.complication_notes}
+                      </span>
+                    ) : null}
                     <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                       <Link href={`/patients/${record.patient_id}`} className="ui-table__link">
                         Patient CRM

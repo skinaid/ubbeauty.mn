@@ -486,6 +486,85 @@ export type Database = {
           },
         ]
       }
+      clinic_notification_deliveries: {
+        Row: {
+          attempted_at: string
+          body_preview: string | null
+          channel: string
+          created_at: string
+          engagement_job_id: string
+          error_message: string | null
+          id: string
+          organization_id: string
+          patient_id: string
+          provider: string
+          provider_message_id: string | null
+          recipient: string | null
+          request_payload: Json
+          response_payload: Json
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          body_preview?: string | null
+          channel: string
+          created_at?: string
+          engagement_job_id: string
+          error_message?: string | null
+          id?: string
+          organization_id: string
+          patient_id: string
+          provider: string
+          provider_message_id?: string | null
+          recipient?: string | null
+          request_payload?: Json
+          response_payload?: Json
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          body_preview?: string | null
+          channel?: string
+          created_at?: string
+          engagement_job_id?: string
+          error_message?: string | null
+          id?: string
+          organization_id?: string
+          patient_id?: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient?: string | null
+          request_payload?: Json
+          response_payload?: Json
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_notification_deliveries_engagement_job_id_fkey"
+            columns: ["engagement_job_id"]
+            isOneToOne: false
+            referencedRelation: "clinic_engagement_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_notification_deliveries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_notification_deliveries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinic_report_presets: {
         Row: {
           created_at: string
@@ -1312,52 +1391,79 @@ export type Database = {
       }
       patients: {
         Row: {
+          allergy_notes: string | null
           birth_date: string | null
           cancellation_count: number
+          contraindication_flags: string | null
           created_at: string
           email: string | null
+          follow_up_owner_id: string | null
           full_name: string
           gender: string | null
           id: string
           last_visit_at: string | null
+          last_contacted_at: string | null
+          lifecycle_stage: string
+          next_follow_up_at: string | null
           no_show_count: number
           notes: string | null
           organization_id: string
           phone: string | null
+          preferred_contact_channel: string
+          preferred_service_id: string | null
+          preferred_staff_member_id: string | null
           source: string
           tags: Json
           updated_at: string
         }
         Insert: {
+          allergy_notes?: string | null
           birth_date?: string | null
           cancellation_count?: number
+          contraindication_flags?: string | null
           created_at?: string
           email?: string | null
+          follow_up_owner_id?: string | null
           full_name: string
           gender?: string | null
           id?: string
           last_visit_at?: string | null
+          last_contacted_at?: string | null
+          lifecycle_stage?: string
+          next_follow_up_at?: string | null
           no_show_count?: number
           notes?: string | null
           organization_id: string
           phone?: string | null
+          preferred_contact_channel?: string
+          preferred_service_id?: string | null
+          preferred_staff_member_id?: string | null
           source?: string
           tags?: Json
           updated_at?: string
         }
         Update: {
+          allergy_notes?: string | null
           birth_date?: string | null
           cancellation_count?: number
+          contraindication_flags?: string | null
           created_at?: string
           email?: string | null
+          follow_up_owner_id?: string | null
           full_name?: string
           gender?: string | null
           id?: string
           last_visit_at?: string | null
+          last_contacted_at?: string | null
+          lifecycle_stage?: string
+          next_follow_up_at?: string | null
           no_show_count?: number
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          preferred_contact_channel?: string
+          preferred_service_id?: string | null
+          preferred_staff_member_id?: string | null
           source?: string
           tags?: Json
           updated_at?: string
@@ -1368,6 +1474,27 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_follow_up_owner_id_fkey"
+            columns: ["follow_up_owner_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_preferred_service_id_fkey"
+            columns: ["preferred_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patients_preferred_staff_member_id_fkey"
+            columns: ["preferred_staff_member_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
         ]
@@ -2226,12 +2353,17 @@ export type Database = {
       treatment_records: {
         Row: {
           appointment_id: string
+          after_photo_url: string | null
           assessment_notes: string | null
           before_after_asset_notes: string | null
+          before_photo_url: string | null
+          complication_notes: string | null
+          consent_artifact_url: string | null
           consent_confirmed: boolean
           contraindications: string | null
           created_at: string
           follow_up_plan: string | null
+          follow_up_outcome: string | null
           id: string
           objective_notes: string | null
           organization_id: string
@@ -2244,12 +2376,17 @@ export type Database = {
         }
         Insert: {
           appointment_id: string
+          after_photo_url?: string | null
           assessment_notes?: string | null
           before_after_asset_notes?: string | null
+          before_photo_url?: string | null
+          complication_notes?: string | null
+          consent_artifact_url?: string | null
           consent_confirmed?: boolean
           contraindications?: string | null
           created_at?: string
           follow_up_plan?: string | null
+          follow_up_outcome?: string | null
           id?: string
           objective_notes?: string | null
           organization_id: string
@@ -2262,12 +2399,17 @@ export type Database = {
         }
         Update: {
           appointment_id?: string
+          after_photo_url?: string | null
           assessment_notes?: string | null
           before_after_asset_notes?: string | null
+          before_photo_url?: string | null
+          complication_notes?: string | null
+          consent_artifact_url?: string | null
           consent_confirmed?: boolean
           contraindications?: string | null
           created_at?: string
           follow_up_plan?: string | null
+          follow_up_outcome?: string | null
           id?: string
           objective_notes?: string | null
           organization_id?: string

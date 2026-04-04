@@ -36,3 +36,92 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+
+  clinic-browser-smoke:
+    name: Clinic Browser Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'push' || (secrets.NEXT_PUBLIC_SUPABASE_URL != '' && secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.CLINIC_SMOKE_EMAIL != '') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify clinic smoke secrets
+        run: |
+          missing=0
+          for var in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY CLINIC_SMOKE_EMAIL; do
+            if [ -z "${!var}" ]; then
+              echo "Missing required secret: $var"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "Clinic Browser Smoke is a required release gate on push/main."
+              exit 1
+            fi
+            echo "Skipping clinic browser smoke on pull_request because secrets are unavailable."
+            exit 78
+          fi
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLINIC_SMOKE_EMAIL: ${{ secrets.CLINIC_SMOKE_EMAIL }}
+
+      - name: Start dev server
+        run: |
+          npm run dev > /tmp/ubbeauty-dev.log 2>&1 &
+          echo $! > /tmp/ubbeauty-dev.pid
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Wait for localhost
+        run: |
+          for i in {1..60}; do
+            if curl -sf http://localhost:3000/login > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Dev server did not become ready in time"
+          cat /tmp/ubbeauty-dev.log
+          exit 1
+
+      - name: Run clinic browser smoke
+        run: npm run smoke:browser
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLINIC_SMOKE_EMAIL: ${{ secrets.CLINIC_SMOKE_EMAIL }}
+
+      - name: Stop dev server
+        if: always()
+        run: |
+          if [ -f /tmp/ubbeauty-dev.pid ]; then
+            kill $(cat /tmp/ubbeauty-dev.pid) || true
+          fi
+
+      - name: Show dev server log on failure
+        if: failure()
+        run: cat /tmp/ubbeauty-dev.log
+
+  release-gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
+    needs:
+      - validate
+      - clinic-browser-smoke
+    steps:
+      - run: echo "Validate + Clinic Browser Smoke passed. Release gate is green."

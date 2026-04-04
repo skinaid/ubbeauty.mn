@@ -47,16 +47,17 @@ describe("clinic engagement reminder flow", () => {
 
     expect(plannedJobs.map((job) => `${job.job_type}:${job.channel}`)).toEqual([
       "appointment_reminder_24h:sms",
+      "appointment_reminder_24h:email",
       "appointment_reminder_2h:call_task",
       "no_show_recovery_24h:call_task",
       "follow_up_24h:call_task",
       "follow_up_7d:call_task"
     ]);
 
-    expect(executableJobs.map((job) => job.id)).toEqual(["job-3", "job-4", "job-5"]);
+    expect(executableJobs.map((job) => job.id)).toEqual(["job-1", "job-2", "job-4", "job-5", "job-6"]);
   });
 
-  it("does not execute sms reminders even when their scheduled time is due", () => {
+  it("executes due reminder deliveries when their scheduled time is reached", () => {
     const plannedJobs = buildClinicEngagementJobPlan({
       organizationId: "org-2",
       upcomingAppointments: [
@@ -81,6 +82,6 @@ describe("clinic engagement reminder flow", () => {
       "2026-04-04T10:00:00.000Z"
     );
 
-    expect(executableJobs.map((job) => job.id)).toEqual([]);
+    expect(executableJobs.map((job) => job.id)).toEqual(["due-job-1", "due-job-2"]);
   });
 });

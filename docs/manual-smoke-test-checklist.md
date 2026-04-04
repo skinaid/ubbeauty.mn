@@ -8,6 +8,15 @@ Clinic OS oriented smoke checklist for UbBeauty.
 - plans seeded
 - environment variables configured
 - QPay sandbox credentials configured if billing paths are being tested
+- demo clinic seed applied for localhost/browser smoke
+
+## Automated browser smoke
+
+- `npm run smoke:browser`
+- uses localhost-only dev bootstrap to verify owner, front desk, provider, and billing flows
+- configurable owner login email via `CLINIC_SMOKE_EMAIL`
+- checks role-specific sidebar visibility and each role's primary focus page
+- on `main` push, GitHub Actions `Clinic Browser Smoke` is treated as a required release gate
 
 ## 1. Authentication and workspace bootstrap
 
@@ -100,6 +109,7 @@ Clinic OS oriented smoke checklist for UbBeauty.
 | 10.1 | Main public pages are usable on mobile width | No broken layout |
 | 10.2 | Main clinic workspace screens render without crashes | No blocking console or server errors |
 | 10.3 | Booking -> schedule -> treatment -> billing loop can be completed end to end | Core workflow succeeds |
+| 10.4 | `npm run smoke:browser` | 4 role scenarios pass locally or in CI |
 
 ## Quick regression subset
 

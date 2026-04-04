@@ -14,12 +14,19 @@ import {
   getExecutableClinicEngagementJobs
 } from "./engagement";
 import {
+  getNotificationRetryDecision,
+  sendClinicNotification,
+  toClinicNotificationDeliveryInsert
+} from "./notifications";
+import {
   buildClinicEnvironmentDiagnosticMessage,
   getClinicEnvironmentDiagnostics
 } from "./diagnostics";
 import { type ReportRangePreset } from "./reporting";
 import { isClinicFoundationMissingError } from "./data";
+import { buildClinicPermissionError, hasClinicRole, requireClinicActor } from "./guard";
 import { findAvailableStaffAssignment } from "./scheduling";
+import type { StaffRole } from "./types";
 
 export type ClinicSetupActionState = {
   error?: string;
@@ -75,6 +82,19 @@ async function requireClinicContext() {
   return { user, organization } as const;
 }
 
+async function requireClinicActionAccess(allowedRoles: StaffRole[]) {
+  const actor = await requireClinicActor();
+  if ("error" in actor) {
+    return actor;
+  }
+
+  if (!hasClinicRole(actor.role, allowedRoles)) {
+    return { error: buildClinicPermissionError(allowedRoles) } as const;
+  }
+
+  return actor;
+}
+
 function toFriendlyClinicError(error: unknown): string {
   if (isClinicFoundationMissingError(error)) {
     return "Clinic schema migration хараахан ажиллуулаагүй байна. Supabase migration-аа эхлээд apply хийнэ үү.";
@@ -109,6 +129,21 @@ function parseMoney(value: FormDataEntryValue | null): number | null {
 
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+async function getClinicNotificationAttemptCount(params: {
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>;
+  organizationId: string;
+  engagementJobId: string;
+}) {
+  const { count, error } = await params.supabase
+    .from("clinic_notification_deliveries")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", params.organizationId)
+    .eq("engagement_job_id", params.engagementJobId);
+
+  if (error) return 0;
+  return count ?? 0;
 }
 
 async function recalculateClinicCheckoutTotals(checkoutId: string) {
@@ -275,7 +310,7 @@ export async function queueClinicEngagementJobsAction(
   _prev: ClinicSetupActionState,
   _formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   try {
@@ -352,7 +387,7 @@ export async function executeDueClinicEngagementJobsAction(
   _prev: ClinicSetupActionState,
   _formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   try {
@@ -362,10 +397,12 @@ export async function executeDueClinicEngagementJobsAction(
 
     const { data: dueJobs, error } = await supabase
       .from("clinic_engagement_jobs")
-      .select("id,job_type,scheduled_for,status,channel")
+      .select(
+        "id,job_type,scheduled_for,status,channel,organization_id,patient_id,payload, patient:patients(full_name,phone,email), appointment:appointments(scheduled_start,status), treatment_record:treatment_records(follow_up_plan)"
+      )
       .eq("organization_id", context.organization.id)
       .eq("status", "queued")
-      .in("channel", ["manual_queue", "call_task"])
+      .in("channel", ["manual_queue", "call_task", "sms", "email"])
       .lte("scheduled_for", nowIso)
       .order("scheduled_for", { ascending: true })
       .limit(25);
@@ -382,21 +419,103 @@ export async function executeDueClinicEngagementJobsAction(
 
     let processed = 0;
     for (const job of executableJobs) {
-      const { error: updateError } = await supabase
+      const previousAttemptCount = await getClinicNotificationAttemptCount({
+        supabase,
+        organizationId: context.organization.id,
+        engagementJobId: job.id
+      });
+
+      const { error: runningError } = await supabase
         .from("clinic_engagement_jobs")
         .update({
-          status: "succeeded",
-          started_at: nowIso,
-          finished_at: new Date().toISOString(),
-          outcome_notes: `${job.channel} channel-аар operational queue боловсруулагдсан (${job.job_type})`
+          status: "running",
+          started_at: nowIso
         })
         .eq("id", job.id)
         .eq("organization_id", context.organization.id)
         .eq("status", "queued");
 
-      if (!updateError) {
-        processed += 1;
-      }
+      if (runningError) continue;
+
+      const deliveryResult = await sendClinicNotification({
+        job: {
+          id: job.id,
+          organization_id: context.organization.id,
+          patient_id: job.patient_id,
+          channel: job.channel,
+          job_type: job.job_type ?? "unknown",
+          payload: ("payload" in job ? job.payload : {}) as Database["public"]["Tables"]["clinic_engagement_jobs"]["Row"]["payload"],
+          scheduled_for: job.scheduled_for
+        },
+        patient: "patient" in job ? (job.patient as { full_name?: string | null; phone?: string | null; email?: string | null } | null) : null,
+        appointment:
+          "appointment" in job
+            ? (job.appointment as { scheduled_start?: string | null; status?: string | null } | null)
+            : null,
+        treatmentRecord:
+          "treatment_record" in job
+            ? (job.treatment_record as { follow_up_plan?: string | null } | null)
+            : null
+      });
+
+      await supabase.from("clinic_notification_deliveries").insert(
+        toClinicNotificationDeliveryInsert({
+          organizationId: context.organization.id,
+          patientId: job.patient_id,
+          engagementJobId: job.id,
+          result: deliveryResult
+        })
+      );
+
+      const finishedAt = new Date().toISOString();
+      const attemptCount = previousAttemptCount + 1;
+      const retryDecision =
+        deliveryResult.status === "failed"
+          ? getNotificationRetryDecision({
+              attemptCount,
+              nowIso: finishedAt,
+              errorMessage: deliveryResult.errorMessage
+            })
+          : null;
+
+      const outcomeNote =
+        deliveryResult.status === "succeeded"
+          ? `${deliveryResult.provider} delivery completed (${job.job_type ?? "unknown"})`
+          : retryDecision?.shouldRetry
+            ? `${deliveryResult.provider} delivery failed: ${deliveryResult.errorMessage ?? "unknown_error"} · retry ${attemptCount}/3 scheduled`
+            : `${deliveryResult.provider} delivery failed: ${deliveryResult.errorMessage ?? "unknown_error"}`;
+      const retryScheduledFor = retryDecision?.nextScheduledFor ?? finishedAt;
+
+      const nextJobState =
+        deliveryResult.status === "succeeded"
+          ? {
+              status: "succeeded" as const,
+              finished_at: finishedAt,
+              outcome_notes: outcomeNote
+            }
+          : retryDecision?.shouldRetry
+            ? {
+                status: "queued" as const,
+                scheduled_for: retryScheduledFor,
+                started_at: null,
+                finished_at: null,
+                outcome_notes: outcomeNote
+              }
+            : {
+                status: "failed" as const,
+                finished_at: finishedAt,
+                outcome_notes: retryDecision?.maxAttemptsReached
+                  ? `${outcomeNote} · max retry reached`
+                  : outcomeNote
+              };
+
+      const { error: finalUpdateError } = await supabase
+        .from("clinic_engagement_jobs")
+        .update(nextJobState)
+        .eq("id", job.id)
+        .eq("organization_id", context.organization.id);
+
+      if (!finalUpdateError) processed += 1;
     }
 
     revalidatePath("/dashboard");
@@ -405,6 +524,64 @@ export async function executeDueClinicEngagementJobsAction(
     revalidatePath("/treatments");
     return {
       message: `${processed} due reminder/follow-up job боловсруулагдлаа.`
+    };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function retryClinicEngagementJobAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
+  if ("error" in context) return { error: context.error };
+
+  const jobId = formData.get("jobId");
+  const mode = formData.get("mode");
+
+  if (typeof jobId !== "string" || !jobId) {
+    return { error: "Job тодорхойгүй байна." };
+  }
+
+  const retryMode = mode === "requeue" ? "requeue" : "retry_now";
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const scheduledFor =
+      retryMode === "retry_now"
+        ? new Date().toISOString()
+        : new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    const { error } = await supabase
+      .from("clinic_engagement_jobs")
+      .update({
+        status: "queued",
+        scheduled_for: scheduledFor,
+        started_at: null,
+        finished_at: null,
+        outcome_notes:
+          retryMode === "retry_now"
+            ? "Manual retry requested from workspace"
+            : "Job requeued for the next delivery window"
+      })
+      .eq("id", jobId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/schedule");
+    revalidatePath("/patients");
+    revalidatePath("/reports");
+
+    return {
+      message:
+        retryMode === "retry_now"
+          ? "Notification job шууд дахин ажиллуулахаар queue-д орлоо."
+          : "Notification job дараагийн цонхонд дахин queue-д орлоо."
     };
   } catch (error) {
     return { error: toFriendlyClinicError(error) };
@@ -463,7 +640,7 @@ export async function createClinicLocationAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };
 
   const name = formData.get("name");
@@ -499,7 +676,7 @@ export async function createStaffMemberAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };
 
   const fullName = formData.get("fullName");
@@ -539,7 +716,7 @@ export async function createServiceAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };
 
   const name = formData.get("name");
@@ -584,7 +761,7 @@ export async function createStaffAvailabilityRuleAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };
 
   const staffMemberId = formData.get("staffMemberId");
@@ -634,7 +811,7 @@ export async function createAdminAppointmentAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk"]);
   if ("error" in context) return { error: context.error };
 
   const fullName = formData.get("fullName");
@@ -772,7 +949,7 @@ export async function transitionAppointmentStatusAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "provider"]);
   if ("error" in context) return { error: context.error };
 
   const appointmentId = formData.get("appointmentId");
@@ -886,7 +1063,7 @@ export async function upsertTreatmentRecordAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "provider"]);
   if ("error" in context) return { error: context.error };
 
   const appointmentId = formData.get("appointmentId");
@@ -941,6 +1118,31 @@ export async function upsertTreatmentRecordAction(
         typeof formData.get("followUpPlan") === "string" && String(formData.get("followUpPlan")).trim()
           ? String(formData.get("followUpPlan")).trim()
           : null,
+      follow_up_outcome:
+        typeof formData.get("followUpOutcome") === "string" && String(formData.get("followUpOutcome")).trim()
+          ? String(formData.get("followUpOutcome")).trim()
+          : null,
+      complication_notes:
+        typeof formData.get("complicationNotes") === "string" && String(formData.get("complicationNotes")).trim()
+          ? String(formData.get("complicationNotes")).trim()
+          : null,
+      consent_artifact_url:
+        typeof formData.get("consentArtifactUrl") === "string" && String(formData.get("consentArtifactUrl")).trim()
+          ? String(formData.get("consentArtifactUrl")).trim()
+          : null,
+      before_photo_url:
+        typeof formData.get("beforePhotoUrl") === "string" && String(formData.get("beforePhotoUrl")).trim()
+          ? String(formData.get("beforePhotoUrl")).trim()
+          : null,
+      after_photo_url:
+        typeof formData.get("afterPhotoUrl") === "string" && String(formData.get("afterPhotoUrl")).trim()
+          ? String(formData.get("afterPhotoUrl")).trim()
+          : null,
+      before_after_asset_notes:
+        typeof formData.get("beforeAfterAssetNotes") === "string" &&
+        String(formData.get("beforeAfterAssetNotes")).trim()
+          ? String(formData.get("beforeAfterAssetNotes")).trim()
+          : null,
       consent_confirmed: formData.get("consentConfirmed") === "on"
     };
 
@@ -977,7 +1179,7 @@ export async function createCheckoutDraftAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const appointmentId = formData.get("appointmentId");
@@ -1017,7 +1219,7 @@ export async function createBulkCheckoutDraftsAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const appointmentIds = formData
@@ -1061,7 +1263,7 @@ export async function captureClinicCheckoutPaymentAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutId = formData.get("checkoutId");
@@ -1170,7 +1372,7 @@ export async function addClinicCheckoutItemAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutId = formData.get("checkoutId");
@@ -1275,7 +1477,7 @@ export async function removeClinicCheckoutItemAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutItemId = formData.get("checkoutItemId");
@@ -1358,7 +1560,7 @@ export async function updateClinicCheckoutItemAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutItemId = formData.get("checkoutItemId");
@@ -1466,7 +1668,7 @@ export async function refundClinicCheckoutAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutId = formData.get("checkoutId");
@@ -1556,7 +1758,7 @@ export async function voidClinicCheckoutAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "provider"]);
   if ("error" in context) return { error: context.error };
 
   const checkoutId = formData.get("checkoutId");
@@ -1609,12 +1811,19 @@ export async function updatePatientProfileAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk", "provider"]);
   if ("error" in context) return { error: context.error };
 
   const patientId = formData.get("patientId");
   const notes = formData.get("notes");
   const tags = formData.get("tags");
+  const lifecycleStage = formData.get("lifecycleStage");
+  const allergyNotes = formData.get("allergyNotes");
+  const contraindicationFlags = formData.get("contraindicationFlags");
+  const preferredContactChannel = formData.get("preferredContactChannel");
+  const preferredServiceId = formData.get("preferredServiceId");
+  const preferredStaffMemberId = formData.get("preferredStaffMemberId");
+  const followUpOwnerId = formData.get("followUpOwnerId");
 
   if (typeof patientId !== "string" || !patientId) {
     return { error: "Patient сонгогдоогүй байна." };
@@ -1627,6 +1836,12 @@ export async function updatePatientProfileAction(
           .map((tag) => tag.trim())
           .filter(Boolean)
       : [];
+  const normalizedLifecycleStage =
+    typeof lifecycleStage === "string" && lifecycleStage.trim() ? lifecycleStage.trim() : "new_lead";
+  const normalizedPreferredContactChannel =
+    typeof preferredContactChannel === "string" && preferredContactChannel.trim()
+      ? preferredContactChannel.trim()
+      : "phone";
 
   try {
     const supabase = await getSupabaseServerClient();
@@ -1634,7 +1849,22 @@ export async function updatePatientProfileAction(
       .from("patients")
       .update({
         notes: typeof notes === "string" && notes.trim() ? notes.trim() : null,
-        tags: normalizedTags
+        tags: normalizedTags,
+        lifecycle_stage: normalizedLifecycleStage,
+        allergy_notes: typeof allergyNotes === "string" && allergyNotes.trim() ? allergyNotes.trim() : null,
+        contraindication_flags:
+          typeof contraindicationFlags === "string" && contraindicationFlags.trim()
+            ? contraindicationFlags.trim()
+            : null,
+        preferred_contact_channel: normalizedPreferredContactChannel,
+        preferred_service_id:
+          typeof preferredServiceId === "string" && preferredServiceId.trim() ? preferredServiceId.trim() : null,
+        preferred_staff_member_id:
+          typeof preferredStaffMemberId === "string" && preferredStaffMemberId.trim()
+            ? preferredStaffMemberId.trim()
+            : null,
+        follow_up_owner_id:
+          typeof followUpOwnerId === "string" && followUpOwnerId.trim() ? followUpOwnerId.trim() : null
       })
       .eq("id", patientId)
       .eq("organization_id", context.organization.id);
@@ -1651,11 +1881,83 @@ export async function updatePatientProfileAction(
   }
 }
 
+export async function managePatientFollowUpAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager", "billing"]);
+  if ("error" in context) return { error: context.error };
+
+  const patientId = formData.get("patientId");
+  const operation = formData.get("operation");
+  const lifecycleStage = formData.get("lifecycleStage");
+  const followUpOwnerId = formData.get("followUpOwnerId");
+
+  if (typeof patientId !== "string" || !patientId) {
+    return { error: "Patient сонгогдоогүй байна." };
+  }
+
+  if (typeof operation !== "string" || !operation) {
+    return { error: "Үйлдэл тодорхойгүй байна." };
+  }
+
+  const nowIso = new Date().toISOString();
+  const updatePayload: Database["public"]["Tables"]["patients"]["Update"] = {};
+
+  if (operation === "complete") {
+    updatePayload.last_contacted_at = nowIso;
+    updatePayload.next_follow_up_at = null;
+    updatePayload.lifecycle_stage = "active";
+  } else if (operation === "snooze_3d" || operation === "snooze_7d") {
+    const days = operation === "snooze_3d" ? 3 : 7;
+    updatePayload.next_follow_up_at = addDays(new Date(), days).toISOString();
+    updatePayload.lifecycle_stage = "follow_up_due";
+  } else if (operation === "assign_owner") {
+    updatePayload.follow_up_owner_id =
+      typeof followUpOwnerId === "string" && followUpOwnerId.trim() ? followUpOwnerId.trim() : null;
+  } else if (operation === "update_stage") {
+    updatePayload.lifecycle_stage =
+      typeof lifecycleStage === "string" && lifecycleStage.trim() ? lifecycleStage.trim() : "active";
+  } else {
+    return { error: "Дэмжигдээгүй follow-up action байна." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("patients")
+      .update(updatePayload)
+      .eq("id", patientId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/patients");
+    revalidatePath(`/patients/${patientId}`);
+
+    return {
+      message:
+        operation === "complete"
+          ? "Follow-up completed болголоо."
+          : operation === "snooze_3d" || operation === "snooze_7d"
+            ? "Follow-up snooze хийлээ."
+            : operation === "assign_owner"
+              ? "Follow-up owner шинэчлэгдлээ."
+              : "Lifecycle stage шинэчлэгдлээ."
+    };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
 export async function saveClinicReportPresetAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager", "billing"]);
   if ("error" in context) return { error: context.error };
 
   const name = formData.get("name");
@@ -1710,7 +2012,7 @@ export async function deleteClinicReportPresetAction(
   _prev: ClinicSetupActionState,
   formData: FormData
 ): Promise<ClinicSetupActionState> {
-  const context = await requireClinicContext();
+  const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };
 
   const presetId = formData.get("presetId");
@@ -1879,6 +2181,7 @@ export async function seedDemoClinicDataAction(
     }
 
     const provider = staffMembers.find((item) => item.role === "provider");
+    const frontDesk = staffMembers.find((item) => item.role === "front_desk");
     if (!provider) {
       return { error: "Demo provider үүсгэж чадсангүй." };
     }
@@ -1989,7 +2292,15 @@ export async function seedDemoClinicDataAction(
           phone: "99110011",
           source: "online_booking",
           tags: ["vip", "laser"],
-          notes: "Prefers central branch"
+          notes: "Prefers central branch",
+          lifecycle_stage: "vip",
+          preferred_contact_channel: "sms",
+          preferred_service_id: laserService.id,
+          preferred_staff_member_id: provider.id,
+          follow_up_owner_id: frontDesk?.id ?? null,
+          allergy_notes: "Sensitive to strong fragrance",
+          contraindication_flags: "Avoid recent retinol use",
+          last_contacted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
           organization_id: context.organization.id,
@@ -1997,7 +2308,14 @@ export async function seedDemoClinicDataAction(
           phone: "99110022",
           source: "manual",
           tags: ["acne"],
-          notes: "First consultation"
+          notes: "First consultation",
+          lifecycle_stage: "consulted",
+          preferred_contact_channel: "phone",
+          preferred_service_id: consultationService.id,
+          preferred_staff_member_id: provider.id,
+          follow_up_owner_id: frontDesk?.id ?? null,
+          contraindication_flags: "Check isotretinoin history",
+          next_follow_up_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
         },
         {
           organization_id: context.organization.id,
@@ -2005,14 +2323,24 @@ export async function seedDemoClinicDataAction(
           phone: "99110033",
           source: "walk_in",
           tags: ["follow-up"],
-          notes: "Needs reminder call"
+          notes: "Needs reminder call",
+          lifecycle_stage: "follow_up_due",
+          preferred_contact_channel: "phone",
+          preferred_service_id: facialService.id,
+          follow_up_owner_id: frontDesk?.id ?? null,
+          allergy_notes: "Latex sensitivity",
+          next_follow_up_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
         },
         {
           organization_id: context.organization.id,
           full_name: "Dulmaa T",
           phone: "99110044",
           source: "online_booking",
-          tags: ["facial"]
+          tags: ["facial"],
+          lifecycle_stage: "active",
+          preferred_contact_channel: "any",
+          preferred_service_id: facialService.id,
+          preferred_staff_member_id: provider.id
         }
       ])
       .select("id,full_name");
@@ -2165,7 +2493,12 @@ export async function seedDemoClinicDataAction(
           assessment_notes: "Responding well to current plan.",
           plan_notes: "Continue hydration and sunscreen.",
           consent_confirmed: true,
+          consent_artifact_url: `consent://demo/${appointment.id}`,
           follow_up_plan: index === 2 ? "7 хоногийн дараа check-in call" : "24 цагийн дараа follow-up хийх",
+          follow_up_outcome: index === 0 ? "24h follow-up complete, redness settling" : null,
+          complication_notes: index === 1 ? "Mild irritation observed, monitor closely" : null,
+          before_photo_url: `https://demo.ubbeauty.mn/evidence/${appointment.id}/before.jpg`,
+          after_photo_url: `https://demo.ubbeauty.mn/evidence/${appointment.id}/after.jpg`,
           before_after_asset_notes: "Demo before/after note"
         }))
       )

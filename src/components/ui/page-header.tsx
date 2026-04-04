@@ -10,7 +10,11 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, subtitle, className = "" }: PageHeaderProps) {
   return (
-    <header className={["ui-page-header", className].filter(Boolean).join(" ")}>
+    <header
+      className={["ui-page-header", className].filter(Boolean).join(" ")}
+      data-page-header="true"
+      data-page-header-title={title}
+    >
       <h1 className="ui-page-header__title">{title}</h1>
       {subtitle ? <p className="ui-page-header__subtitle">{subtitle}</p> : null}
       {description ? <p className="ui-page-header__description">{description}</p> : null}

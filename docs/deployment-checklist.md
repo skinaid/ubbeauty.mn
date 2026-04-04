@@ -8,6 +8,8 @@ Use this before every production deployment.
 - [ ] `npm run lint` — zero warnings
 - [ ] `npm run test` — all 85+ tests pass
 - [ ] `npm run build` — clean production build
+- [ ] `npm run smoke:browser` — owner/front desk/provider/billing localhost smoke passes against seeded clinic data
+- [ ] GitHub Actions `Release Gate` job passes on `main` push
 
 ## 2. Environment Variables (Vercel)
 
@@ -55,6 +57,12 @@ Compare against `.env.example` for descriptions.
 |----------|---------|-------|
 | `MARTECH_INTERNAL_OPS_EMAILS` | `admin@martech.mn` | Comma-separated. Bootstrap when `system_admins` is empty; also grants **legacy internal ops page access** and **env-based operator mutations** without a DB row. **`/admin`** still requires a `system_admins` row (or bootstrap) — see `docs/admin-auth-v1.md`. If empty and table non-empty with no row for a user, that user has no env path. |
 
+### Required for clinic browser smoke in CI
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `CLINIC_SMOKE_EMAIL` | `hello@skinaid.mn` | Existing owner user with organization membership and seeded clinic data for localhost smoke bootstrap |
+
 ### Auto-provided (do NOT set manually)
 
 | Variable | Notes |
@@ -101,6 +109,8 @@ Compare against `.env.example` for descriptions.
 - [ ] System admin at `/admin` (DB `system_admins` + bootstrap) and legacy internal ops under `/internal/ops/*` work for operators
 - [ ] 404 page renders at `/nonexistent-page`
 - [ ] Privacy, Terms, Data Deletion pages load
+- [ ] If CI smoke secrets are configured, `Clinic Browser Smoke` GitHub Actions job passes
+- [ ] `main` push дээр `Release Gate` green байна
 
 ## 5. Monitoring
 

@@ -26,11 +26,26 @@ export const getCurrentUserOrganization = cache(async (userId: string) => {
     throw error;
   }
 
-  if (!data?.organization || Array.isArray(data.organization)) {
+  if (data?.organization && !Array.isArray(data.organization)) {
+    return data.organization as OrganizationSummary;
+  }
+
+  const { data: staffData, error: staffError } = await supabase
+    .from("staff_members")
+    .select("organization:organizations(id,name,slug,status)")
+    .eq("profile_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (staffError) {
+    throw staffError;
+  }
+
+  if (!staffData?.organization || Array.isArray(staffData.organization)) {
     return null;
   }
 
-  return data.organization as OrganizationSummary;
+  return staffData.organization as OrganizationSummary;
 });
 
 export const getCurrentUserOwnerMembership = cache(

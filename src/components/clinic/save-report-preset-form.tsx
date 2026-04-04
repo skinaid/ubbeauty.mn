@@ -26,7 +26,12 @@ export function SaveReportPresetForm({
   const [state, formAction, pending] = useActionState(saveClinicReportPresetAction, initialState);
 
   return (
-    <form action={formAction} className="ui-form-stack" style={{ gap: "0.65rem" }}>
+    <form
+      action={formAction}
+      className="ui-form-stack"
+      style={{ gap: "0.65rem" }}
+      data-smoke-form="report-preset"
+    >
       <input type="hidden" name="rangePreset" value={rangePreset} />
       <input type="hidden" name="startDate" value={startDate} />
       <input type="hidden" name="endDate" value={endDate} />
@@ -42,6 +47,7 @@ export function SaveReportPresetForm({
           name="name"
           className="ui-input"
           placeholder="Жишээ нь: 7 хоногийн Central report"
+          data-smoke-field="preset-name"
         />
       </div>
 

@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/modules/auth/session";
 import {
   getClinicCheckouts,
   getClinicEngagementJobs,
+  getClinicNotificationDeliveries,
   getClinicReportPresets,
   getRecentAppointmentsForDesk,
   isClinicFoundationMissingError
@@ -18,10 +19,12 @@ import {
   buildCheckoutCollectionSummary,
   buildDashboardReportSummary,
   buildExportableReportSummary,
+  buildNotificationDeliverySummary,
   buildReportPresetHref,
   filterReportAppointments,
   filterReportCheckouts,
   filterReportEngagementJobs,
+  filterReportNotificationDeliveries,
   formatReportRangeLabel,
   resolveCustomReportDateRange,
   resolveReportDateRange,
@@ -54,13 +57,15 @@ export default async function ReportsPage({
   let appointments: Awaited<ReturnType<typeof getRecentAppointmentsForDesk>> = [];
   let checkouts: Awaited<ReturnType<typeof getClinicCheckouts>> = [];
   let engagementJobs: Awaited<ReturnType<typeof getClinicEngagementJobs>> = [];
+  let notificationDeliveries: Awaited<ReturnType<typeof getClinicNotificationDeliveries>> = [];
   let presets: Awaited<ReturnType<typeof getClinicReportPresets>> = [];
 
   try {
-    [appointments, checkouts, engagementJobs, presets] = await Promise.all([
+    [appointments, checkouts, engagementJobs, notificationDeliveries, presets] = await Promise.all([
       getRecentAppointmentsForDesk(user.id, 40),
       getClinicCheckouts(user.id, 30),
       getClinicEngagementJobs(user.id, 30),
+      getClinicNotificationDeliveries(user.id, 60),
       getClinicReportPresets(user.id, 12)
     ]);
   } catch (error) {
@@ -98,10 +103,12 @@ export default async function ReportsPage({
     location: locationParam
   });
   const filteredEngagementJobs = filterReportEngagementJobs(engagementJobs, { range });
+  const filteredNotificationDeliveries = filterReportNotificationDeliveries(notificationDeliveries, { range });
   const reportSummary = buildDashboardReportSummary({
     appointments: filteredAppointments,
     checkouts: filteredCheckouts,
     engagementJobs: filteredEngagementJobs,
+    notificationDeliveries: filteredNotificationDeliveries,
     range
   });
   const statusBreakdown = buildAppointmentStatusBreakdown({
@@ -109,6 +116,7 @@ export default async function ReportsPage({
     range
   });
   const collectionSummary = buildCheckoutCollectionSummary(filteredCheckouts);
+  const notificationSummary = buildNotificationDeliverySummary(filteredNotificationDeliveries);
   const exportSummary = buildExportableReportSummary({
     clinicName: organization.name,
     rangeLabel,
@@ -306,6 +314,13 @@ export default async function ReportsPage({
           </strong>
           <p style={{ margin: 0 }}>{collectionSummary.collectingCount} collecting checkout</p>
         </Card>
+        <Card padded stack>
+          <span className="ui-text-muted">Delivery success</span>
+          <strong style={{ fontSize: "var(--text-2xl)" }}>{reportSummary.deliverySuccessRate}%</strong>
+          <p style={{ margin: 0 }}>
+            {reportSummary.deliverySuccessCount} succeeded · {reportSummary.deliveryFailureCount} failed
+          </p>
+        </Card>
       </div>
 
       {!migrationMissing ? (
@@ -418,6 +433,57 @@ export default async function ReportsPage({
                 Dashboard queue
               </Link>
             </div>
+          </Card>
+
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Notification delivery mix
+            </h2>
+            {notificationSummary.channelBreakdown.length === 0 ? (
+              <p style={{ margin: 0 }}>Энэ range-д notification attempt хараахан алга байна.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
+                {notificationSummary.channelBreakdown.map((item) => (
+                  <li key={item.channel} className="ui-card ui-card--padded ui-card--stack">
+                    <strong>{item.channel}</strong>
+                    <span className="ui-text-muted">
+                      {item.total} attempt · {item.succeeded} succeeded · {item.failed} failed
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/notifications" className="ui-table__link">
+              Delivery operations харах
+            </Link>
+          </Card>
+
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Failed delivery attempts
+            </h2>
+            {notificationSummary.failedItems.length === 0 ? (
+              <p style={{ margin: 0 }}>Failed delivery одоогоор алга байна.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
+                {notificationSummary.failedItems.map((item) => (
+                  <li
+                    key={`${item.channel}-${item.provider}-${item.attemptedAt}-${item.recipient ?? "unknown"}`}
+                    className="ui-card ui-card--padded ui-card--stack"
+                  >
+                    <strong>{item.channel}</strong>
+                    <span className="ui-text-muted">
+                      {item.provider} · {new Date(item.attemptedAt).toLocaleString("mn-MN")}
+                    </span>
+                    <span className="ui-text-muted">{item.recipient ?? "Recipient unknown"}</span>
+                    <span className="ui-text-muted">{item.errorMessage ?? "Unknown delivery error"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/notifications?status=failed" className="ui-table__link">
+              Failed queue нээх
+            </Link>
           </Card>
         </div>
       ) : null}

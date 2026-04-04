@@ -3,8 +3,15 @@ import { isProtectedPath, isPublicAuthPath } from "./middleware";
 
 describe("isProtectedPath", () => {
   it.each([
+    "/pulse",
     "/dashboard",
     "/dashboard/settings",
+    "/schedule",
+    "/schedule/day",
+    "/checkout",
+    "/reports",
+    "/reports/export",
+    "/notifications",
     "/setup-organization",
     "/billing",
     "/billing/checkout",

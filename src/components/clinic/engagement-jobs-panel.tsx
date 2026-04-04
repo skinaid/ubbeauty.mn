@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, Card } from "@/components/ui";
+import { RetryClinicEngagementJobButton } from "@/components/clinic/retry-clinic-engagement-job-button";
 
 type EngagementJob = {
   id: string;
@@ -11,7 +12,15 @@ type EngagementJob = {
   channel: string;
   status: string;
   scheduled_for: string;
+  outcome_notes?: string | null;
   patient?: { full_name?: string | null } | null;
+  latest_delivery?: {
+    status?: string | null;
+    recipient?: string | null;
+    provider?: string | null;
+    attempted_at?: string | null;
+    error_message?: string | null;
+  } | null;
 };
 
 function getEngagementJobLabel(jobType: string) {
@@ -54,8 +63,8 @@ export function EngagementJobsPanel({
   limit?: number;
 }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "queued" | "succeeded">("all");
-  const [channelFilter, setChannelFilter] = useState<"all" | "sms" | "call_task">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "queued" | "succeeded" | "failed">("all");
+  const [channelFilter, setChannelFilter] = useState<"all" | "sms" | "call_task" | "email">("all");
 
   const filteredJobs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -101,6 +110,7 @@ export function EngagementJobsPanel({
             <option value="all">All status</option>
             <option value="queued">Queued</option>
             <option value="succeeded">Succeeded</option>
+            <option value="failed">Failed</option>
           </select>
 
           <select
@@ -110,6 +120,7 @@ export function EngagementJobsPanel({
           >
             <option value="all">All channels</option>
             <option value="sms">SMS</option>
+            <option value="email">Email</option>
             <option value="call_task">Call task</option>
           </select>
         </div>
@@ -129,6 +140,24 @@ export function EngagementJobsPanel({
                 {getEngagementJobLabel(job.job_type)} · {job.channel}
               </span>
               <span className="ui-text-muted">{new Date(job.scheduled_for).toLocaleString("mn-MN")}</span>
+              {job.latest_delivery ? (
+                <span className="ui-text-muted">
+                  Last delivery: {job.latest_delivery.status ?? "unknown"} ·{" "}
+                  {job.latest_delivery.provider ?? "provider"} ·{" "}
+                  {job.latest_delivery.recipient ?? "recipient"}
+                </span>
+              ) : null}
+              {job.outcome_notes ? (
+                <span className="ui-text-muted">{job.outcome_notes}</span>
+              ) : null}
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                {job.status === "failed" ? (
+                  <RetryClinicEngagementJobButton jobId={job.id} mode="retry_now" />
+                ) : null}
+                {job.status === "succeeded" || job.status === "failed" ? (
+                  <RetryClinicEngagementJobButton jobId={job.id} mode="requeue" />
+                ) : null}
+              </div>
               <Link href={`/patients/${job.patient_id}`} className="ui-table__link">
                 Patient CRM
               </Link>

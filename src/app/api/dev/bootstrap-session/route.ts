@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseEnv } from "@/lib/env/server";
+import { DEV_CLINIC_ROLE_COOKIE, parseDevClinicRoleOverride } from "@/modules/clinic/guard";
 
 function isDevBootstrapAllowed(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
 
   const email = request.nextUrl.searchParams.get("email") || "hello@skinaid.mn";
   const next = request.nextUrl.searchParams.get("next") || "/dashboard";
+  const role = parseDevClinicRoleOverride(request.nextUrl.searchParams.get("role"));
 
   const { url, anonKey } = getSupabaseEnv();
   const admin = getSupabaseAdminClient();
@@ -68,6 +70,17 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       maxAge: 60 * 60 * 8
     });
+  }
+
+  if (role) {
+    response.cookies.set(DEV_CLINIC_ROLE_COOKIE, role, {
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+      maxAge: 60 * 60 * 8
+    });
+  } else {
+    response.cookies.delete(DEV_CLINIC_ROLE_COOKIE);
   }
 
   return response;

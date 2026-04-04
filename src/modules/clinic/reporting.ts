@@ -32,6 +32,15 @@ type ReportEngagementJob = {
   scheduled_for: string;
 };
 
+type ReportNotificationDelivery = {
+  channel: string;
+  provider: string;
+  status: string;
+  attempted_at: string;
+  recipient?: string | null;
+  error_message?: string | null;
+};
+
 export type ReportRangePreset = "today" | "7d" | "30d" | "custom";
 export type ReportDateRange = {
   startIso: string;
@@ -52,7 +61,31 @@ export type DashboardReportSummary = {
   todayRevenue: number;
   revenueCurrency: string;
   followUpDueCount: number;
+  deliverySuccessRate: number;
+  deliverySuccessCount: number;
+  deliveryFailureCount: number;
+  failedDeliveryCount: number;
   providerLoad: ProviderLoadSummary[];
+};
+
+export type NotificationDeliverySummary = {
+  totalAttempts: number;
+  successCount: number;
+  failedCount: number;
+  successRate: number;
+  channelBreakdown: Array<{
+    channel: string;
+    total: number;
+    succeeded: number;
+    failed: number;
+  }>;
+  failedItems: Array<{
+    channel: string;
+    provider: string;
+    attemptedAt: string;
+    recipient: string | null;
+    errorMessage: string | null;
+  }>;
 };
 
 export type AppointmentStatusBreakdownItem = {
@@ -200,6 +233,15 @@ export function filterReportEngagementJobs(
   return jobs.filter((job) => isWithinRange(job.scheduled_for, params.range));
 }
 
+export function filterReportNotificationDeliveries<T extends ReportNotificationDelivery>(
+  deliveries: T[],
+  params: {
+    range: ReportDateRange;
+  }
+) {
+  return deliveries.filter((delivery) => isWithinRange(delivery.attempted_at, params.range));
+}
+
 function getSignedPaymentAmount(payment: ReportCheckoutPayment) {
   const amount = Number(payment.amount ?? 0);
   return payment.payment_kind === "refund" ? -amount : amount;
@@ -218,6 +260,7 @@ export function buildDashboardReportSummary(params: {
   appointments: ReportAppointment[];
   checkouts: ReportCheckout[];
   engagementJobs: ReportEngagementJob[];
+  notificationDeliveries?: ReportNotificationDelivery[];
   range: ReportDateRange;
 }): DashboardReportSummary {
   const rangeAppointments = params.appointments.filter((appointment) =>
@@ -274,6 +317,14 @@ export function buildDashboardReportSummary(params: {
       new Date(job.scheduled_for).getTime() <= new Date(params.range.endIso).getTime()
   ).length;
 
+  const deliveryAttempts = params.notificationDeliveries ?? [];
+  const deliverySuccessCount = deliveryAttempts.filter((delivery) => delivery.status === "succeeded").length;
+  const deliveryFailureCount = deliveryAttempts.filter((delivery) => delivery.status === "failed").length;
+  const deliverySuccessRate =
+    deliveryAttempts.length === 0
+      ? 0
+      : Number(((deliverySuccessCount / deliveryAttempts.length) * 100).toFixed(1));
+
   return {
     noShowRate,
     noShowCount,
@@ -281,7 +332,59 @@ export function buildDashboardReportSummary(params: {
     todayRevenue,
     revenueCurrency,
     followUpDueCount,
+    deliverySuccessRate,
+    deliverySuccessCount,
+    deliveryFailureCount,
+    failedDeliveryCount: deliveryFailureCount,
     providerLoad
+  };
+}
+
+export function buildNotificationDeliverySummary(
+  deliveries: ReportNotificationDelivery[]
+): NotificationDeliverySummary {
+  const successCount = deliveries.filter((delivery) => delivery.status === "succeeded").length;
+  const failedCount = deliveries.filter((delivery) => delivery.status === "failed").length;
+  const successRate =
+    deliveries.length === 0 ? 0 : Number(((successCount / deliveries.length) * 100).toFixed(1));
+
+  const channelBreakdown = Array.from(
+    deliveries.reduce((map, delivery) => {
+      const current = map.get(delivery.channel) ?? {
+        channel: delivery.channel,
+        total: 0,
+        succeeded: 0,
+        failed: 0
+      };
+
+      current.total += 1;
+      if (delivery.status === "succeeded") current.succeeded += 1;
+      if (delivery.status === "failed") current.failed += 1;
+      map.set(delivery.channel, current);
+      return map;
+    }, new Map<string, { channel: string; total: number; succeeded: number; failed: number }>())
+  )
+    .map(([, value]) => value)
+    .sort((left, right) => right.total - left.total);
+
+  const failedItems = deliveries
+    .filter((delivery) => delivery.status === "failed")
+    .slice(0, 8)
+    .map((delivery) => ({
+      channel: delivery.channel,
+      provider: delivery.provider,
+      attemptedAt: delivery.attempted_at,
+      recipient: delivery.recipient ?? null,
+      errorMessage: delivery.error_message ?? null
+    }));
+
+  return {
+    totalAttempts: deliveries.length,
+    successCount,
+    failedCount,
+    successRate,
+    channelBreakdown,
+    failedItems
   };
 }
 
@@ -333,6 +436,7 @@ export function buildExportableReportSummary(params: {
       `Revenue: ${params.dashboard.todayRevenue.toLocaleString("en-US")} ${params.dashboard.revenueCurrency}`,
       `No-show: ${params.dashboard.noShowRate}% (${params.dashboard.noShowCount}/${params.dashboard.totalAppointments})`,
       `Follow-up due: ${params.dashboard.followUpDueCount}`,
+      `Delivery success: ${params.dashboard.deliverySuccessRate}% (${params.dashboard.deliverySuccessCount} succeeded / ${params.dashboard.deliveryFailureCount} failed)`,
       `Collection outstanding: ${params.collection.outstandingAmount.toLocaleString("en-US")} ${params.collection.currency}`,
       `Collecting checkouts: ${params.collection.collectingCount}`,
       params.topProvider
@@ -348,6 +452,7 @@ export function buildOperationalReportCsv(params: {
   collection: CheckoutCollectionSummary;
   statusBreakdown: AppointmentStatusBreakdownItem[];
   providerLoad: ProviderLoadSummary[];
+  notificationSummary?: NotificationDeliverySummary;
 }) {
   const rows: string[][] = [
     ["section", "label", "value", "meta"],
@@ -367,6 +472,12 @@ export function buildOperationalReportCsv(params: {
     ["summary", "follow_up_due", String(params.dashboard.followUpDueCount), ""],
     [
       "summary",
+      "delivery_success_rate",
+      `${params.dashboard.deliverySuccessRate}%`,
+      `${params.dashboard.deliverySuccessCount} succeeded / ${params.dashboard.deliveryFailureCount} failed`
+    ],
+    [
+      "summary",
       "collection_outstanding",
       `${params.collection.outstandingAmount.toLocaleString("en-US")} ${params.collection.currency}`,
       `${params.collection.collectingCount} collecting`
@@ -384,6 +495,17 @@ export function buildOperationalReportCsv(params: {
       String(provider.totalAppointments),
       `${provider.activeVisits} active / ${provider.completedVisits} completed`
     ]);
+  }
+
+  if (params.notificationSummary) {
+    for (const item of params.notificationSummary.channelBreakdown) {
+      rows.push([
+        "notification_channel",
+        item.channel,
+        String(item.total),
+        `${item.succeeded} succeeded / ${item.failed} failed`
+      ]);
+    }
   }
 
   return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");

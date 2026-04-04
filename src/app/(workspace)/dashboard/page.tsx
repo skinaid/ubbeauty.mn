@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PatientFollowUpActions } from "@/components/clinic/patient-follow-up-actions";
 import { SeedDemoClinicDataButton } from "@/components/clinic/seed-demo-clinic-data-button";
 import { EngagementJobsPanel } from "@/components/clinic/engagement-jobs-panel";
 import { ExecuteDueClinicEngagementJobsButton } from "@/components/clinic/execute-due-clinic-engagement-jobs-button";
@@ -11,8 +12,10 @@ import {
   getClinicEngagementJobs,
   getClinicCheckouts,
   getClinicLocations,
+  getClinicNotificationDeliveries,
   getClinicReportPresets,
   getCompletedAppointmentsForTreatmentQueue,
+  getPatientFollowUpQueue,
   getPatientTimelineSummaries,
   getRecentAppointmentsForDesk,
   getServices,
@@ -25,6 +28,7 @@ import {
 } from "@/modules/clinic/data";
 import {
   buildDashboardReportSummary,
+  buildNotificationDeliverySummary,
   buildReportPresetHref,
   type ReportRangePreset
 } from "@/modules/clinic/reporting";
@@ -126,13 +130,16 @@ export default async function DashboardPage() {
   let checkouts: ClinicCheckoutWithRelations[] = [];
   let engagementJobs: ClinicEngagementJobWithRelations[] = [];
   let patients: PatientTimelineSummary[] = [];
+  let patientFollowUpQueue: Awaited<ReturnType<typeof getPatientFollowUpQueue>> = [];
+  let staffOptions: Array<{ id: string; full_name: string }> = [];
   let reportPresets: Awaited<ReturnType<typeof getClinicReportPresets>> = [];
+  let notificationDeliveries: Awaited<ReturnType<typeof getClinicNotificationDeliveries>> = [];
   let locationCount = 0;
   let serviceCount = 0;
   let staffCount = 0;
 
   try {
-    const [appointmentsData, treatmentQueueData, checkoutDraftData, checkoutsData, engagementJobsData, patientData, locations, services, staff, presetData] =
+    const [appointmentsData, treatmentQueueData, checkoutDraftData, checkoutsData, engagementJobsData, patientData, followUpQueueData, locations, services, staff, presetData, deliveryData] =
       await Promise.all([
         getRecentAppointmentsForDesk(user.id, 16),
         getCompletedAppointmentsForTreatmentQueue(user.id, 8),
@@ -140,10 +147,12 @@ export default async function DashboardPage() {
         getClinicCheckouts(user.id, 12),
         getClinicEngagementJobs(user.id, 12),
         getPatientTimelineSummaries(user.id, 6),
+        getPatientFollowUpQueue(user.id, 6),
         getClinicLocations(user.id),
         getServices(user.id),
         getStaffMembers(user.id),
-        getClinicReportPresets(user.id, 4)
+        getClinicReportPresets(user.id, 4),
+        getClinicNotificationDeliveries(user.id, 20)
       ]);
 
     recentAppointments = appointmentsData;
@@ -152,7 +161,10 @@ export default async function DashboardPage() {
     checkouts = checkoutsData;
     engagementJobs = engagementJobsData;
     patients = patientData;
+    patientFollowUpQueue = followUpQueueData;
+    staffOptions = staff.map((member) => ({ id: member.id, full_name: member.full_name }));
     reportPresets = presetData;
+    notificationDeliveries = deliveryData;
     locationCount = locations.length;
     serviceCount = services.length;
     staffCount = staff.length;
@@ -184,11 +196,13 @@ export default async function DashboardPage() {
     appointments: recentAppointments,
     checkouts,
     engagementJobs,
+    notificationDeliveries,
     range: {
       startIso: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toISOString(),
       endIso: new Date().toISOString()
     }
   });
+  const notificationSummary = buildNotificationDeliverySummary(notificationDeliveries);
   const activityItems: DashboardActivityItem[] = [
     ...recentAppointments.slice(0, 6).map((appointment) => ({
       id: `appointment-${appointment.id}`,
@@ -291,6 +305,13 @@ export default async function DashboardPage() {
             {reportSummary.providerLoad[0]
               ? `${reportSummary.providerLoad[0].totalAppointments} appointment`
               : "Өнөөдрийн provider data алга"}
+          </p>
+        </Card>
+        <Card padded stack>
+          <span className="ui-text-muted">Delivery success</span>
+          <strong style={{ fontSize: "var(--text-2xl)" }}>{reportSummary.deliverySuccessRate}%</strong>
+          <p style={{ margin: 0 }}>
+            {reportSummary.deliverySuccessCount} succeeded · {reportSummary.deliveryFailureCount} failed
           </p>
         </Card>
       </div>
@@ -456,6 +477,54 @@ export default async function DashboardPage() {
         </Card>
       ) : null : null}
 
+      {!migrationMissing ? notificationSummary.totalAttempts > 0 ? (
+        <div className="ui-stat-grid">
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Notification delivery
+            </h2>
+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
+              {notificationSummary.channelBreakdown.map((item) => (
+                <li key={item.channel} className="ui-card ui-card--padded ui-card--stack">
+                  <strong>{item.channel}</strong>
+                  <span className="ui-text-muted">
+                    {item.total} total · {item.succeeded} succeeded · {item.failed} failed
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Link href="/notifications" className="ui-table__link">
+              Delivery operations харах
+            </Link>
+          </Card>
+
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Failed delivery queue
+            </h2>
+            {notificationSummary.failedItems.length === 0 ? (
+              <p style={{ margin: 0 }}>Сүүлийн хугацаанд failed delivery алга байна.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
+                {notificationSummary.failedItems.map((item) => (
+                  <li key={`${item.channel}-${item.attemptedAt}-${item.recipient ?? "unknown"}`} className="ui-card ui-card--padded ui-card--stack">
+                    <strong>{item.channel} · {item.provider}</strong>
+                    <span className="ui-text-muted">
+                      {new Date(item.attemptedAt).toLocaleString("mn-MN")}
+                      {item.recipient ? ` · ${item.recipient}` : ""}
+                    </span>
+                    {item.errorMessage ? <span className="ui-text-warning-emphasis">{item.errorMessage}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/notifications?status=failed" className="ui-table__link">
+              Failed queue нээх
+            </Link>
+          </Card>
+        </div>
+      ) : null : null}
+
       {!migrationMissing ? (
         <div className="ui-stat-grid">
           <Card padded stack>
@@ -513,6 +582,42 @@ export default async function DashboardPage() {
 
       {!migrationMissing ? (
         <div className="ui-stat-grid">
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              CRM follow-up queue
+            </h2>
+            {patientFollowUpQueue.length === 0 ? (
+              <p style={{ margin: 0 }}>Due follow-up patient алга байна.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
+                {patientFollowUpQueue.map((patient) => (
+                  <li key={patient.id} className="ui-card ui-card--padded ui-card--stack">
+                    <strong>{patient.full_name}</strong>
+                    <span className="ui-text-muted">
+                      {patient.priority} · {patient.dueReason}
+                    </span>
+                    <span className="ui-text-muted">
+                      {patient.followUpOwnerName ? `${patient.followUpOwnerName} · ` : ""}
+                      {patient.suggestedAction}
+                    </span>
+                    <PatientFollowUpActions
+                      patientId={patient.id}
+                      currentLifecycleStage={patient.lifecycle_stage}
+                      currentOwnerId={patient.follow_up_owner_id}
+                      staffOptions={staffOptions}
+                    />
+                    <Link href={`/patients/${patient.id}`} className="ui-table__link">
+                      Patient CRM нээх
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/patients#follow-up-queue" className="ui-table__link">
+              CRM queue руу орох
+            </Link>
+          </Card>
+
           <div style={{ display: "grid", gap: "var(--space-3)" }}>
             <Card padded stack>
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>

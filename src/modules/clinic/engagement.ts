@@ -90,6 +90,22 @@ export function buildClinicEngagementJobPlan(params: {
       patient_id: appointment.patient_id,
       appointment_id: appointment.id,
       treatment_record_id: null,
+      job_type: "appointment_reminder_24h",
+      channel: "email",
+      status: "queued",
+      idempotency_key: `appointment:${appointment.id}:reminder_24h_email`,
+      scheduled_for: addHours(scheduledStart, -24).toISOString(),
+      payload: {
+        trigger: "appointment_reminder_24h_email",
+        appointmentStatus: appointment.status,
+        phase: "phase_b"
+      }
+    });
+    rows.push({
+      organization_id: params.organizationId,
+      patient_id: appointment.patient_id,
+      appointment_id: appointment.id,
+      treatment_record_id: null,
       job_type: "appointment_reminder_2h",
       channel: "call_task",
       status: "queued",
@@ -161,14 +177,14 @@ export function buildClinicEngagementJobPlan(params: {
   return rows;
 }
 
-export function getExecutableClinicEngagementJobs(
-  jobs: ExistingEngagementJob[],
+export function getExecutableClinicEngagementJobs<T extends ExistingEngagementJob>(
+  jobs: T[],
   nowIso: string
-): ExistingEngagementJob[] {
+): T[] {
   const nowTs = new Date(nowIso).getTime();
   return jobs.filter((job) => {
     if (job.status !== "queued") return false;
-    if (!["manual_queue", "call_task"].includes(job.channel)) return false;
+    if (!["manual_queue", "call_task", "sms", "email"].includes(job.channel)) return false;
     return new Date(job.scheduled_for).getTime() <= nowTs;
   });
 }

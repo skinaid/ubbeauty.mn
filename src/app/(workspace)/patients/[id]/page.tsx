@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { PatientFollowUpActions } from "@/components/clinic/patient-follow-up-actions";
 import { PatientProfileForm } from "@/components/clinic/patient-profile-form";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import {
+  getServices,
+  getStaffMembers,
   getPatientDetail,
   isClinicFoundationMissingError,
   type ClinicCheckoutWithRelations
@@ -20,6 +23,27 @@ function getPaymentSummary(checkout: ClinicCheckoutWithRelations) {
   return `${netPaid.toFixed(2)}/${Number(checkout.total).toFixed(2)} ${checkout.currency}`;
 }
 
+function formatLifecycleStage(stage: string | null | undefined) {
+  switch (stage) {
+    case "new_lead":
+      return "New lead";
+    case "consulted":
+      return "Consulted";
+    case "active":
+      return "Active";
+    case "follow_up_due":
+      return "Follow-up due";
+    case "at_risk":
+      return "At risk";
+    case "vip":
+      return "VIP";
+    case "inactive":
+      return "Inactive";
+    default:
+      return stage ?? "Unknown";
+  }
+}
+
 export default async function PatientDetailPage({
   params
 }: {
@@ -34,9 +58,16 @@ export default async function PatientDetailPage({
   const { id } = await params;
 
   try {
-    const patient = await getPatientDetail(user.id, id);
+    const [patient, services, staffMembers] = await Promise.all([
+      getPatientDetail(user.id, id),
+      getServices(user.id),
+      getStaffMembers(user.id)
+    ]);
     if (!patient) notFound();
     const patientTags = Array.isArray(patient.tags) ? patient.tags.map(String) : [];
+    const preferredService = services.find((service) => service.id === patient.preferred_service_id);
+    const preferredProvider = staffMembers.find((staff) => staff.id === patient.preferred_staff_member_id);
+    const followUpOwner = staffMembers.find((staff) => staff.id === patient.follow_up_owner_id);
 
     return (
       <section className="ui-customer-stack">
@@ -72,6 +103,40 @@ export default async function PatientDetailPage({
               {patient.appointments.length + patient.treatments.length + patient.checkouts.length}
             </strong>
             <p style={{ margin: 0 }}>Appointment, treatment, payment events</p>
+          </Card>
+          <Card padded stack>
+            <span className="ui-text-muted">Lifecycle</span>
+            <strong style={{ fontSize: "var(--text-xl)" }}>{formatLifecycleStage(patient.lifecycle_stage)}</strong>
+            <p style={{ margin: 0 }}>Preferred channel: {patient.preferred_contact_channel ?? "phone"}</p>
+          </Card>
+        </div>
+
+        <div className="ui-stat-grid">
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Care preferences
+            </h2>
+            <p style={{ margin: 0 }}>
+              Preferred service: <strong>{preferredService?.name ?? "Not set"}</strong>
+            </p>
+            <p style={{ margin: 0 }}>
+              Preferred provider: <strong>{preferredProvider?.full_name ?? "Not set"}</strong>
+            </p>
+            <p style={{ margin: 0 }}>
+              Follow-up owner: <strong>{followUpOwner?.full_name ?? "Not set"}</strong>
+            </p>
+          </Card>
+
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Risk flags
+            </h2>
+            <p style={{ margin: 0 }}>
+              Allergy notes: <strong>{patient.allergy_notes ?? "Not set"}</strong>
+            </p>
+            <p style={{ margin: 0 }}>
+              Contraindications: <strong>{patient.contraindication_flags ?? "Not set"}</strong>
+            </p>
           </Card>
         </div>
 
@@ -113,6 +178,15 @@ export default async function PatientDetailPage({
             patientId={patient.id}
             notes={patient.notes}
             tags={patientTags}
+            lifecycleStage={patient.lifecycle_stage}
+            allergyNotes={patient.allergy_notes}
+            contraindicationFlags={patient.contraindication_flags}
+            preferredContactChannel={patient.preferred_contact_channel}
+            preferredServiceId={patient.preferred_service_id}
+            preferredStaffMemberId={patient.preferred_staff_member_id}
+            followUpOwnerId={patient.follow_up_owner_id}
+            serviceOptions={services.map((service) => ({ id: service.id, name: service.name }))}
+            staffOptions={staffMembers.map((staff) => ({ id: staff.id, full_name: staff.full_name }))}
           />
         </Card>
 
@@ -120,6 +194,24 @@ export default async function PatientDetailPage({
           <h2 className="ui-section-title" style={{ marginTop: 0 }}>
             Follow-up summary
           </h2>
+          <p style={{ margin: 0 }}>
+            Last contacted:{" "}
+            <strong>
+              {patient.last_contacted_at ? new Date(patient.last_contacted_at).toLocaleString("mn-MN") : "Not yet"}
+            </strong>
+          </p>
+          <p style={{ margin: 0 }}>
+            Next follow-up:{" "}
+            <strong>
+              {patient.next_follow_up_at ? new Date(patient.next_follow_up_at).toLocaleString("mn-MN") : "Not scheduled"}
+            </strong>
+          </p>
+          <PatientFollowUpActions
+            patientId={patient.id}
+            currentLifecycleStage={patient.lifecycle_stage}
+            currentOwnerId={patient.follow_up_owner_id}
+            staffOptions={staffMembers.map((staff) => ({ id: staff.id, full_name: staff.full_name }))}
+          />
           {patient.followUpItems.length === 0 ? (
             <p style={{ margin: 0 }}>Treatment record дээр follow-up plan хараахан бүртгэгдээгүй байна.</p>
           ) : (
@@ -128,6 +220,39 @@ export default async function PatientDetailPage({
                 <li key={`${patient.id}-${index}`}>{item}</li>
               ))}
             </ul>
+          )}
+        </Card>
+
+        <Card padded stack>
+          <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+            Notification history
+          </h2>
+          {patient.notifications.length === 0 ? (
+            <p style={{ margin: 0 }}>Reminder эсвэл follow-up delivery хараахан бүртгэгдээгүй байна.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "var(--space-3)" }}>
+              {patient.notifications.map((notification) => (
+                <div key={notification.id} className="ui-card ui-card--padded ui-card--stack">
+                  <strong>
+                    {(notification.engagement_job?.job_type ?? "notification").replaceAll("_", " ")}
+                  </strong>
+                  <span className="ui-text-muted">
+                    {notification.channel} · {notification.provider} · {notification.status}
+                  </span>
+                  <span className="ui-text-muted">
+                    {new Date(notification.attempted_at).toLocaleString("mn-MN")}
+                    {notification.recipient ? ` · ${notification.recipient}` : ""}
+                  </span>
+                  {notification.subject ? <span className="ui-text-muted">{notification.subject}</span> : null}
+                  {notification.body_preview ? (
+                    <span className="ui-text-muted">{notification.body_preview}</span>
+                  ) : null}
+                  {notification.error_message ? (
+                    <span className="ui-text-warning-emphasis">{notification.error_message}</span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           )}
         </Card>
 
@@ -164,7 +289,23 @@ export default async function PatientDetailPage({
                     : "Visit time unknown"}
                   {treatment.consent_confirmed ? " · consent" : ""}
                 </span>
+                {treatment.consent_artifact_url ? (
+                  <span className="ui-text-muted">Consent artifact: {treatment.consent_artifact_url}</span>
+                ) : null}
                 {treatment.follow_up_plan ? <span className="ui-text-muted">{treatment.follow_up_plan}</span> : null}
+                {treatment.follow_up_outcome ? (
+                  <span className="ui-text-muted">Outcome: {treatment.follow_up_outcome}</span>
+                ) : null}
+                {treatment.complication_notes ? (
+                  <span className="ui-text-warning-emphasis">Complication: {treatment.complication_notes}</span>
+                ) : null}
+                {treatment.before_photo_url || treatment.after_photo_url ? (
+                  <span className="ui-text-muted">
+                    Evidence:
+                    {treatment.before_photo_url ? " before" : ""}
+                    {treatment.after_photo_url ? " / after" : ""}
+                  </span>
+                ) : null}
                 <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <Link href="/treatments" className="ui-table__link">
                     Treatment module
@@ -194,6 +335,32 @@ export default async function PatientDetailPage({
                   </Link>
                   <Link href="/schedule" className="ui-table__link">
                     Schedule
+                  </Link>
+                </div>
+              </div>
+            ))}
+
+            {patient.notifications.map((notification) => (
+              <div key={`notification-${notification.id}`} className="ui-card ui-card--padded ui-card--stack">
+                <strong>
+                  Notification · {(notification.engagement_job?.job_type ?? notification.channel).replaceAll("_", " ")}
+                </strong>
+                <span className="ui-text-muted">
+                  {new Date(notification.attempted_at).toLocaleString("mn-MN")} · {notification.status}
+                  {notification.recipient ? ` · ${notification.recipient}` : ""}
+                </span>
+                <span className="ui-text-muted">
+                  {notification.channel} · {notification.provider}
+                </span>
+                {notification.body_preview ? (
+                  <span className="ui-text-muted">{notification.body_preview}</span>
+                ) : null}
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <Link href="/schedule" className="ui-table__link">
+                    Schedule нээх
+                  </Link>
+                  <Link href="/dashboard" className="ui-table__link">
+                    Dashboard queue
                   </Link>
                 </div>
               </div>

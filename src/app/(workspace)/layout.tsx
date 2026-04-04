@@ -7,6 +7,8 @@ import { SidebarNav } from "@/components/ui/sidebar-nav";
 import { signOutAction } from "@/modules/auth/actions";
 import { getCurrentUser } from "@/modules/auth/session";
 import { hasActiveSystemAdminRecord } from "@/modules/admin/guard";
+import { getClinicActorOrNull } from "@/modules/clinic/guard";
+import { getClinicWorkspaceNavItems } from "@/modules/clinic/workspace-access";
 import { isInternalOpsEmail } from "@/lib/internal-ops";
 
 type WorkspaceLayoutProps = {
@@ -23,14 +25,10 @@ export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps
   const showSystemAdminNav =
     Boolean(user.id) &&
     (isInternalOpsEmail(user.email) || (await hasActiveSystemAdminRecord(user.id)));
+  const clinicActor = await getClinicActorOrNull();
 
   const navItems = [
-    { href: "/pulse", label: "Pulse" },
-    { href: "/schedule", label: "Schedule" },
-    { href: "/patients", label: "Patients" },
-    { href: "/checkout", label: "Checkout" },
-    { href: "/reports", label: "Reports" },
-    { href: "/settings", label: "Settings" },
+    ...(clinicActor ? getClinicWorkspaceNavItems(clinicActor.role) : [{ href: "/pulse", label: "Pulse" }]),
     ...(showSystemAdminNav
       ? [{ href: "/admin", label: "System Admin", accent: true }]
       : []),

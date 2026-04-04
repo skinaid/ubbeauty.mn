@@ -35,7 +35,7 @@ describe("buildClinicEngagementJobPlan", () => {
       ]
     });
 
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
 
     expect(rows[0]).toMatchObject({
       organization_id: "org-1",
@@ -46,21 +46,26 @@ describe("buildClinicEngagementJobPlan", () => {
       idempotency_key: "appointment:appt-1:reminder_24h"
     });
     expect(rows[1]).toMatchObject({
+      job_type: "appointment_reminder_24h",
+      channel: "email",
+      idempotency_key: "appointment:appt-1:reminder_24h_email"
+    });
+    expect(rows[2]).toMatchObject({
       job_type: "appointment_reminder_2h",
       channel: "call_task",
       idempotency_key: "appointment:appt-1:reminder_2h"
     });
-    expect(rows[2]).toMatchObject({
+    expect(rows[3]).toMatchObject({
       job_type: "no_show_recovery_24h",
       channel: "call_task",
       idempotency_key: "appointment:appt-2:no_show_recovery_24h"
     });
-    expect(rows[3]).toMatchObject({
+    expect(rows[4]).toMatchObject({
       job_type: "follow_up_24h",
       channel: "call_task",
       treatment_record_id: "tx-1"
     });
-    expect(rows[4]).toMatchObject({
+    expect(rows[5]).toMatchObject({
       job_type: "follow_up_7d",
       channel: "call_task",
       treatment_record_id: "tx-1"
@@ -86,12 +91,18 @@ describe("getExecutableClinicEngagementJobs", () => {
         },
         {
           id: "job-3",
+          channel: "email",
+          status: "queued",
+          scheduled_for: "2026-04-04T08:00:00.000Z"
+        },
+        {
+          id: "job-4",
           channel: "manual_queue",
           status: "queued",
           scheduled_for: "2026-04-04T12:00:00.000Z"
         },
         {
-          id: "job-4",
+          id: "job-5",
           channel: "call_task",
           status: "succeeded",
           scheduled_for: "2026-04-04T07:00:00.000Z"
@@ -100,6 +111,6 @@ describe("getExecutableClinicEngagementJobs", () => {
       "2026-04-04T10:00:00.000Z"
     );
 
-    expect(jobs.map((job) => job.id)).toEqual(["job-1"]);
+    expect(jobs.map((job) => job.id)).toEqual(["job-1", "job-2", "job-3"]);
   });
 });

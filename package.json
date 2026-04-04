@@ -9,6 +9,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "smoke:browser": "node scripts/run-clinic-browser-smoke.mjs",
     "validate": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {

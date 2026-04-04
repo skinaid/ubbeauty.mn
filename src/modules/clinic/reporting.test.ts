@@ -3,12 +3,14 @@ import {
   buildAppointmentStatusBreakdown,
   buildCheckoutCollectionSummary,
   buildDashboardReportSummary,
+  buildNotificationDeliverySummary,
   buildReportPresetHref,
   buildOperationalReportCsv,
   buildExportableReportSummary,
   filterReportAppointments,
   filterReportCheckouts,
   filterReportEngagementJobs,
+  filterReportNotificationDeliveries,
   formatReportRangeLabel,
   resolveCustomReportDateRange,
   resolveReportDateRange
@@ -92,6 +94,22 @@ describe("buildDashboardReportSummary", () => {
           status: "queued",
           scheduled_for: "2026-04-04T07:00:00.000Z"
         }
+      ],
+      notificationDeliveries: [
+        {
+          channel: "sms",
+          provider: "twilio",
+          status: "succeeded",
+          attempted_at: "2026-04-04T06:30:00.000Z"
+        },
+        {
+          channel: "email",
+          provider: "resend",
+          status: "failed",
+          attempted_at: "2026-04-04T07:15:00.000Z",
+          recipient: "demo@ubbeauty.mn",
+          error_message: "Mailbox unavailable"
+        }
       ]
     });
 
@@ -101,6 +119,10 @@ describe("buildDashboardReportSummary", () => {
     expect(summary.todayRevenue).toBe(90000);
     expect(summary.revenueCurrency).toBe("MNT");
     expect(summary.followUpDueCount).toBe(1);
+    expect(summary.deliverySuccessRate).toBe(50);
+    expect(summary.deliverySuccessCount).toBe(1);
+    expect(summary.deliveryFailureCount).toBe(1);
+    expect(summary.failedDeliveryCount).toBe(1);
     expect(summary.providerLoad).toEqual([
       {
         providerName: "Dr. Saraa",
@@ -129,6 +151,10 @@ describe("buildOperationalReportCsv", () => {
         todayRevenue: 250000,
         revenueCurrency: "MNT",
         followUpDueCount: 2,
+        deliverySuccessRate: 80,
+        deliverySuccessCount: 4,
+        deliveryFailureCount: 1,
+        failedDeliveryCount: 1,
         providerLoad: []
       },
       collection: {
@@ -146,13 +172,70 @@ describe("buildOperationalReportCsv", () => {
           activeVisits: 1,
           completedVisits: 3
         }
-      ]
+      ],
+      notificationSummary: {
+        totalAttempts: 5,
+        successCount: 4,
+        failedCount: 1,
+        successRate: 80,
+        channelBreakdown: [{ channel: "sms", total: 3, succeeded: 2, failed: 1 }],
+        failedItems: []
+      }
     });
 
     expect(csv).toContain("section,label,value,meta");
     expect(csv).toContain("summary,range,2026.04.01 - 2026.04.03,");
+    expect(csv).toContain("summary,delivery_success_rate,80%,4 succeeded / 1 failed");
     expect(csv).toContain("appointment_status,completed,7,");
     expect(csv).toContain("provider_load,Dr. Saraa,5,1 active / 3 completed");
+    expect(csv).toContain("notification_channel,sms,3,2 succeeded / 1 failed");
+  });
+});
+
+describe("buildNotificationDeliverySummary", () => {
+  it("builds channel breakdown and failed item list", () => {
+    const summary = buildNotificationDeliverySummary([
+      {
+        channel: "sms",
+        provider: "twilio",
+        status: "succeeded",
+        attempted_at: "2026-04-04T06:00:00.000Z",
+        recipient: "+97699112233"
+      },
+      {
+        channel: "sms",
+        provider: "twilio",
+        status: "failed",
+        attempted_at: "2026-04-04T07:00:00.000Z",
+        recipient: "+97699112244",
+        error_message: "Rate limited"
+      },
+      {
+        channel: "email",
+        provider: "resend",
+        status: "succeeded",
+        attempted_at: "2026-04-04T08:00:00.000Z",
+        recipient: "demo@ubbeauty.mn"
+      }
+    ]);
+
+    expect(summary.totalAttempts).toBe(3);
+    expect(summary.successCount).toBe(2);
+    expect(summary.failedCount).toBe(1);
+    expect(summary.successRate).toBe(66.7);
+    expect(summary.channelBreakdown).toEqual([
+      { channel: "sms", total: 2, succeeded: 1, failed: 1 },
+      { channel: "email", total: 1, succeeded: 1, failed: 0 }
+    ]);
+    expect(summary.failedItems).toEqual([
+      {
+        channel: "sms",
+        provider: "twilio",
+        attemptedAt: "2026-04-04T07:00:00.000Z",
+        recipient: "+97699112244",
+        errorMessage: "Rate limited"
+      }
+    ]);
   });
 });
 
@@ -324,10 +407,29 @@ describe("report filters", () => {
       { range }
     );
 
+    const deliveries = filterReportNotificationDeliveries(
+      [
+        {
+          channel: "sms",
+          provider: "twilio",
+          status: "succeeded",
+          attempted_at: "2026-04-04T08:30:00.000Z"
+        },
+        {
+          channel: "email",
+          provider: "resend",
+          status: "failed",
+          attempted_at: "2026-03-01T08:30:00.000Z"
+        }
+      ],
+      { range }
+    );
+
     expect(range.startIso).toBe("2026-03-28T16:00:00.000Z");
     expect(appointments).toHaveLength(1);
     expect(checkouts).toHaveLength(1);
     expect(jobs).toHaveLength(1);
+    expect(deliveries).toHaveLength(1);
   });
 });
 
@@ -349,6 +451,10 @@ describe("custom report range and export summary", () => {
         todayRevenue: 450000,
         revenueCurrency: "MNT",
         followUpDueCount: 2,
+        deliverySuccessRate: 75,
+        deliverySuccessCount: 3,
+        deliveryFailureCount: 1,
+        failedDeliveryCount: 1,
         providerLoad: [
           {
             providerName: "Dr. Saraa",
@@ -376,6 +482,7 @@ describe("custom report range and export summary", () => {
     expect(range.startIso).toBe("2026-03-31T16:00:00.000Z");
     expect(summary.title).toBe("UbBeauty Central operational summary");
     expect(summary.lines).toContain("Follow-up due: 2");
+    expect(summary.lines).toContain("Delivery success: 75% (3 succeeded / 1 failed)");
     expect(summary.lines.at(-1)).toBe("Top provider: Dr. Saraa (5 appointments)");
   });
 });

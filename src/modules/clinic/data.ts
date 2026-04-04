@@ -8,6 +8,7 @@ import type {
   ClinicCheckoutPaymentRow,
   ClinicCheckoutRow,
   ClinicEngagementJobRow,
+  ClinicNotificationDeliveryRow,
   ClinicReportPresetRow,
   PatientRow,
   ServiceRow,
@@ -36,10 +37,21 @@ export type PatientTimelineSummary = PatientRow & {
   recentCheckouts: ClinicCheckoutWithRelations[];
 };
 
+export type PatientFollowUpQueueItem = PatientTimelineSummary & {
+  priority: "high" | "normal";
+  dueReason: string;
+  suggestedAction: string;
+  followUpOwnerName: string | null;
+  preferredProviderName: string | null;
+  preferredServiceName: string | null;
+  isDueNow: boolean;
+};
+
 export type PatientDetail = PatientRow & {
   appointments: AppointmentWithRelations[];
   treatments: TreatmentRecordWithRelations[];
   checkouts: ClinicCheckoutWithRelations[];
+  notifications: NotificationDeliveryWithRelations[];
   followUpItems: string[];
 };
 
@@ -65,7 +77,36 @@ export type ClinicEngagementJobWithRelations = ClinicEngagementJobRow & {
   patient?: Pick<PatientRow, "full_name" | "phone"> | null;
   appointment?: Pick<AppointmentRow, "scheduled_start" | "status"> | null;
   treatment_record?: Pick<TreatmentRecordRow, "id" | "follow_up_plan"> | null;
+  latest_delivery?: ClinicNotificationDeliveryRow | null;
 };
+
+export type NotificationDeliveryWithRelations = ClinicNotificationDeliveryRow & {
+  patient?: Pick<PatientRow, "full_name" | "phone" | "email"> | null;
+  engagement_job?:
+    | Pick<ClinicEngagementJobRow, "id" | "job_type" | "channel" | "status" | "scheduled_for">
+    | null;
+};
+
+export async function getClinicNotificationDeliveries(
+  userId: string,
+  limit = 30
+): Promise<NotificationDeliveryWithRelations[]> {
+  const organizationId = await requireOrganizationId(userId);
+  if (!organizationId) return [];
+
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("clinic_notification_deliveries")
+    .select(
+      "*, patient:patients(full_name,phone,email), engagement_job:clinic_engagement_jobs(id,job_type,channel,status,scheduled_for)"
+    )
+    .eq("organization_id", organizationId)
+    .order("attempted_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as NotificationDeliveryWithRelations[];
+}
 
 export type ClinicReportPresetSummary = ClinicReportPresetRow;
 
@@ -345,12 +386,102 @@ export async function getPatientTimelineSummaries(
   }));
 }
 
+export async function getPatientFollowUpQueue(
+  userId: string,
+  limit = 12
+): Promise<PatientFollowUpQueueItem[]> {
+  const [patients, services, staffMembers] = await Promise.all([
+    getPatientTimelineSummaries(userId, Math.max(limit, 20)),
+    getServices(userId),
+    getStaffMembers(userId)
+  ]);
+
+  const serviceById = new Map(services.map((service) => [service.id, service.name]));
+  const staffById = new Map(staffMembers.map((staff) => [staff.id, staff.full_name]));
+
+  const queue = patients
+    .map((patient) => {
+      const nextFollowUpAt = patient.next_follow_up_at ? new Date(patient.next_follow_up_at).getTime() : null;
+      const isDueNow = nextFollowUpAt === null || nextFollowUpAt <= Date.now();
+      const hasFollowUpPlan = patient.recentTreatments.some((treatment) => Boolean(treatment.follow_up_plan?.trim()));
+      const dueReason =
+        patient.lifecycle_stage === "follow_up_due"
+          ? "Follow-up due lifecycle stage"
+          : patient.lifecycle_stage === "at_risk"
+            ? "At-risk patient recovery"
+            : patient.no_show_count > 0
+              ? "No-show recovery needed"
+              : patient.cancellation_count >= 2
+                ? "Repeat cancellation pattern"
+                : hasFollowUpPlan
+                  ? "Treatment follow-up plan pending"
+                  : patient.lifecycle_stage === "vip"
+                  ? "VIP retention touchpoint"
+                    : null;
+
+      if (!dueReason) return null;
+      if (!isDueNow) return null;
+
+      const priority: "high" | "normal" =
+        patient.lifecycle_stage === "follow_up_due" ||
+        patient.lifecycle_stage === "at_risk" ||
+        patient.no_show_count > 0
+          ? "high"
+          : "normal";
+
+      const suggestedAction =
+        patient.preferred_contact_channel === "email"
+          ? "Email follow-up"
+          : patient.preferred_contact_channel === "sms"
+            ? "SMS follow-up"
+            : "Phone follow-up";
+
+      return {
+        ...patient,
+        priority,
+        dueReason,
+        suggestedAction,
+        followUpOwnerName: patient.follow_up_owner_id ? staffById.get(patient.follow_up_owner_id) ?? null : null,
+        preferredProviderName: patient.preferred_staff_member_id
+          ? staffById.get(patient.preferred_staff_member_id) ?? null
+          : null,
+        preferredServiceName: patient.preferred_service_id
+          ? serviceById.get(patient.preferred_service_id) ?? null
+          : null,
+        isDueNow
+      };
+    })
+    .filter(Boolean) as PatientFollowUpQueueItem[];
+
+  return queue
+    .sort((left, right) => {
+      if (left.priority !== right.priority) {
+        return left.priority === "high" ? -1 : 1;
+      }
+
+      const leftVisit = left.last_visit_at ? new Date(left.last_visit_at).getTime() : 0;
+      const rightVisit = right.last_visit_at ? new Date(right.last_visit_at).getTime() : 0;
+      if (rightVisit !== leftVisit) {
+        return rightVisit - leftVisit;
+      }
+
+      return right.no_show_count - left.no_show_count;
+    })
+    .slice(0, limit);
+}
+
 export async function getPatientDetail(userId: string, patientId: string): Promise<PatientDetail | null> {
   const organizationId = await requireOrganizationId(userId);
   if (!organizationId) return null;
 
   const supabase = await getSupabaseServerClient();
-  const [{ data: patient, error: patientError }, { data: appointments, error: appointmentError }, treatments, checkouts] =
+  const [
+    { data: patient, error: patientError },
+    { data: appointments, error: appointmentError },
+    { data: notifications, error: notificationError },
+    treatments,
+    checkouts
+  ] =
     await Promise.all([
       supabase
         .from("patients")
@@ -367,12 +498,22 @@ export async function getPatientDetail(userId: string, patientId: string): Promi
         .eq("patient_id", patientId)
         .order("scheduled_start", { ascending: false })
         .limit(30),
+      supabase
+        .from("clinic_notification_deliveries")
+        .select(
+          "*, engagement_job:clinic_engagement_jobs(id,job_type,channel,status,scheduled_for)"
+        )
+        .eq("organization_id", organizationId)
+        .eq("patient_id", patientId)
+        .order("attempted_at", { ascending: false })
+        .limit(20),
       getRecentTreatmentRecords(userId, 50).then((rows) => rows.filter((row) => row.patient_id === patientId)),
       getClinicCheckouts(userId, 50).then((rows) => rows.filter((row) => row.patient_id === patientId))
     ]);
 
   if (patientError) throw patientError;
   if (appointmentError) throw appointmentError;
+  if (notificationError) throw notificationError;
   if (!patient) return null;
 
   const followUpItems = treatments
@@ -385,6 +526,7 @@ export async function getPatientDetail(userId: string, patientId: string): Promi
     appointments: (appointments ?? []) as AppointmentWithRelations[],
     treatments,
     checkouts,
+    notifications: (notifications ?? []) as NotificationDeliveryWithRelations[],
     followUpItems
   };
 }
@@ -495,8 +637,42 @@ export async function getClinicEngagementJobs(
     .limit(limit);
 
   if (error) throw error;
+  const jobs = (data ?? []) as ClinicEngagementJobWithRelations[];
+  if (jobs.length === 0) return jobs;
 
-  return (data ?? []) as ClinicEngagementJobWithRelations[];
+  try {
+    const { data: deliveries, error: deliveryError } = await supabase
+      .from("clinic_notification_deliveries")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .in(
+        "engagement_job_id",
+        jobs.map((job) => job.id)
+      )
+      .order("attempted_at", { ascending: false });
+
+    if (deliveryError) throw deliveryError;
+
+    const latestByJobId = new Map<string, ClinicNotificationDeliveryRow>();
+    for (const delivery of (deliveries ?? []) as ClinicNotificationDeliveryRow[]) {
+      if (!latestByJobId.has(delivery.engagement_job_id)) {
+        latestByJobId.set(delivery.engagement_job_id, delivery);
+      }
+    }
+
+    return jobs.map((job) => ({
+      ...job,
+      latest_delivery: latestByJobId.get(job.id) ?? null
+    }));
+  } catch (deliveryError) {
+    if (isClinicFoundationMissingError(deliveryError)) {
+      return jobs.map((job) => ({
+        ...job,
+        latest_delivery: null
+      }));
+    }
+    throw deliveryError;
+  }
 }
 
 export async function getClinicReportPresets(

@@ -3,16 +3,19 @@ import { getCurrentUser } from "@/modules/auth/session";
 import {
   getClinicCheckouts,
   getClinicEngagementJobs,
+  getClinicNotificationDeliveries,
   getRecentAppointmentsForDesk
 } from "@/modules/clinic/data";
 import {
   buildAppointmentStatusBreakdown,
   buildCheckoutCollectionSummary,
   buildDashboardReportSummary,
+  buildNotificationDeliverySummary,
   buildOperationalReportCsv,
   filterReportAppointments,
   filterReportCheckouts,
   filterReportEngagementJobs,
+  filterReportNotificationDeliveries,
   formatReportRangeLabel,
   resolveCustomReportDateRange,
   resolveReportDateRange,
@@ -40,10 +43,11 @@ export async function GET(request: Request) {
   const rangePreset: ReportRangePreset =
     rangeParam === "7d" || rangeParam === "30d" || rangeParam === "custom" ? rangeParam : "today";
 
-  const [appointments, checkouts, engagementJobs] = await Promise.all([
+  const [appointments, checkouts, engagementJobs, notificationDeliveries] = await Promise.all([
     getRecentAppointmentsForDesk(user.id, 200),
     getClinicCheckouts(user.id, 200),
-    getClinicEngagementJobs(user.id, 200)
+    getClinicEngagementJobs(user.id, 200),
+    getClinicNotificationDeliveries(user.id, 200)
   ]);
 
   const nowIso = new Date().toISOString();
@@ -67,14 +71,17 @@ export async function GET(request: Request) {
     location: locationParam
   });
   const filteredEngagementJobs = filterReportEngagementJobs(engagementJobs, { range });
+  const filteredNotificationDeliveries = filterReportNotificationDeliveries(notificationDeliveries, { range });
 
   const dashboard = buildDashboardReportSummary({
     appointments: filteredAppointments,
     checkouts: filteredCheckouts,
     engagementJobs: filteredEngagementJobs,
+    notificationDeliveries: filteredNotificationDeliveries,
     range
   });
   const collection = buildCheckoutCollectionSummary(filteredCheckouts);
+  const notificationSummary = buildNotificationDeliverySummary(filteredNotificationDeliveries);
   const statusBreakdown = buildAppointmentStatusBreakdown({
     appointments: filteredAppointments,
     range
@@ -84,7 +91,8 @@ export async function GET(request: Request) {
     dashboard,
     collection,
     statusBreakdown,
-    providerLoad: dashboard.providerLoad
+    providerLoad: dashboard.providerLoad,
+    notificationSummary
   });
 
   const filename = `ubbeauty-report-${new Date().toISOString().slice(0, 10)}.csv`;

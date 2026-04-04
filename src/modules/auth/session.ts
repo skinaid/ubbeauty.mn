@@ -4,6 +4,18 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const getCurrentUser = cache(async () => {
+  if (process.env.NODE_ENV !== "production") {
+    const cookieStore = await cookies();
+    const devUserId = cookieStore.get("ubbeauty-dev-user-id")?.value;
+    if (devUserId) {
+      const admin = getSupabaseAdminClient();
+      const adminUser = await admin.auth.admin.getUserById(devUserId);
+      if (!adminUser.error) {
+        return adminUser.data.user;
+      }
+    }
+  }
+
   const supabase = await getSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (!error && data.user) {
@@ -17,18 +29,6 @@ export const getCurrentUser = cache(async () => {
       error.message.includes("Refresh Token Not Found");
     if (!missingSession) {
       console.error("[auth/session] getUser failed:", error.message);
-    }
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    const cookieStore = await cookies();
-    const devUserId = cookieStore.get("ubbeauty-dev-user-id")?.value;
-    if (devUserId) {
-      const admin = getSupabaseAdminClient();
-      const adminUser = await admin.auth.admin.getUserById(devUserId);
-      if (!adminUser.error) {
-        return adminUser.data.user;
-      }
     }
   }
 
