@@ -29,6 +29,7 @@ export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps
     { href: "/schedule", label: "Schedule" },
     { href: "/patients", label: "Patients" },
     { href: "/checkout", label: "Checkout" },
+    { href: "/reports", label: "Reports" },
     { href: "/settings", label: "Settings" },
     ...(showSystemAdminNav
       ? [{ href: "/admin", label: "System Admin", accent: true }]

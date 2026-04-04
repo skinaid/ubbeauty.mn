@@ -400,6 +400,149 @@ export type Database = {
           },
         ]
       }
+      clinic_engagement_jobs: {
+        Row: {
+          appointment_id: string | null
+          channel: string
+          created_at: string
+          finished_at: string | null
+          id: string
+          idempotency_key: string
+          job_type: string
+          organization_id: string
+          outcome_notes: string | null
+          patient_id: string
+          payload: Json
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          treatment_record_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          channel?: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          idempotency_key: string
+          job_type: string
+          organization_id: string
+          outcome_notes?: string | null
+          patient_id: string
+          payload?: Json
+          scheduled_for: string
+          started_at?: string | null
+          status?: string
+          treatment_record_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          channel?: string
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          idempotency_key?: string
+          job_type?: string
+          organization_id?: string
+          outcome_notes?: string | null
+          patient_id?: string
+          payload?: Json
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          treatment_record_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_engagement_jobs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_engagement_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_engagement_jobs_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_engagement_jobs_treatment_record_id_fkey"
+            columns: ["treatment_record_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinic_report_presets: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          location_filter: string
+          name: string
+          organization_id: string
+          provider_filter: string
+          range_preset: string
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          location_filter?: string
+          name: string
+          organization_id: string
+          provider_filter?: string
+          range_preset?: string
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          location_filter?: string
+          name?: string
+          organization_id?: string
+          provider_filter?: string
+          range_preset?: string
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_report_presets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinic_report_presets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinic_checkouts: {
         Row: {
           appointment_id: string

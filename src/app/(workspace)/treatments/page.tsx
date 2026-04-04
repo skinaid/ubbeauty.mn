@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CreateCheckoutDraftButton } from "@/components/clinic/create-checkout-draft-button";
 import { TreatmentRecordForm } from "@/components/clinic/treatment-record-form";
@@ -98,6 +99,17 @@ export default async function TreatmentsPage() {
                       {appointment.staff_member?.full_name ? (
                         <span className="ui-text-muted">Provider: {appointment.staff_member.full_name}</span>
                       ) : null}
+                      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                        <Link href={`/patients/${appointment.patient_id}`} className="ui-table__link">
+                          Patient CRM
+                        </Link>
+                        <Link href="/schedule" className="ui-table__link">
+                          Schedule
+                        </Link>
+                        <Link href="/checkout" className="ui-table__link">
+                          POS queue
+                        </Link>
+                      </div>
                     </div>
                     <TreatmentRecordForm appointmentId={appointment.id} />
                   </Card>
@@ -113,15 +125,28 @@ export default async function TreatmentsPage() {
             {recentRecords.length === 0 ? (
               <p style={{ margin: 0 }}>Одоогоор treatment record хадгалагдаагүй байна.</p>
             ) : (
-              <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
                 {recentRecords.map((record) => (
-                  <li key={record.id}>
-                    <strong>{record.patient?.full_name ?? "Patient"}</strong> ·{" "}
-                    {record.service?.name ?? record.service_id}
-                    {record.appointment?.scheduled_start
-                      ? ` · ${new Date(record.appointment.scheduled_start).toLocaleDateString("mn-MN")}`
-                      : ""}
-                    {record.consent_confirmed ? " · consent confirmed" : ""}
+                  <li key={record.id} className="ui-card ui-card--padded ui-card--stack">
+                    <strong>{record.patient?.full_name ?? "Patient"}</strong>
+                    <span className="ui-text-muted">
+                      {record.service?.name ?? record.service_id}
+                      {record.appointment?.scheduled_start
+                        ? ` · ${new Date(record.appointment.scheduled_start).toLocaleDateString("mn-MN")}`
+                        : ""}
+                      {record.consent_confirmed ? " · consent confirmed" : ""}
+                    </span>
+                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                      <Link href={`/patients/${record.patient_id}`} className="ui-table__link">
+                        Patient CRM
+                      </Link>
+                      <Link href="/treatments" className="ui-table__link">
+                        Treatment module
+                      </Link>
+                      <Link href="/checkout" className="ui-table__link">
+                        POS queue
+                      </Link>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -144,6 +169,17 @@ export default async function TreatmentsPage() {
                         {appointment.service?.name ?? appointment.service_id} ·{" "}
                         {new Date(appointment.scheduled_start).toLocaleString("mn-MN")}
                       </span>
+                      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                        <Link href={`/patients/${appointment.patient_id}`} className="ui-table__link">
+                          Patient CRM
+                        </Link>
+                        <Link href="/schedule" className="ui-table__link">
+                          Schedule
+                        </Link>
+                        <Link href="/checkout" className="ui-table__link">
+                          POS queue
+                        </Link>
+                      </div>
                     </div>
                     <CreateCheckoutDraftButton appointmentId={appointment.id} />
                   </Card>

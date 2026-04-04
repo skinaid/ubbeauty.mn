@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button, Input } from "@/components/ui";
 import {
   captureClinicCheckoutPaymentAction,
@@ -19,6 +19,15 @@ export function CaptureCheckoutPaymentForm({
   outstanding: number;
 }) {
   const [state, formAction, pending] = useActionState(captureClinicCheckoutPaymentAction, initialState);
+  const [amountValue, setAmountValue] = useState(outstanding.toFixed(2));
+
+  const quickAmounts = Array.from(
+    new Set([
+      Number(outstanding.toFixed(2)),
+      Number((outstanding / 2).toFixed(2)),
+      Number((outstanding / 3).toFixed(2))
+    ])
+  ).filter((amount) => amount > 0);
 
   return (
     <form action={formAction} className="ui-form-stack" style={{ gap: "0.5rem", marginTop: "0.6rem" }}>
@@ -35,7 +44,8 @@ export function CaptureCheckoutPaymentForm({
             type="number"
             min="0"
             step="0.01"
-            defaultValue={outstanding.toFixed(2)}
+            value={amountValue}
+            onChange={(event) => setAmountValue(event.target.value)}
           />
         </div>
 
@@ -51,6 +61,20 @@ export function CaptureCheckoutPaymentForm({
             <option value="other">Other</option>
           </select>
         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+        {quickAmounts.map((amount) => (
+          <Button
+            key={amount}
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setAmountValue(amount.toFixed(2))}
+          >
+            {amount.toFixed(2)} {currency}
+          </Button>
+        ))}
       </div>
 
       <div>

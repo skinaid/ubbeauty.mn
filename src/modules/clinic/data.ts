@@ -7,6 +7,8 @@ import type {
   ClinicCheckoutItemRow,
   ClinicCheckoutPaymentRow,
   ClinicCheckoutRow,
+  ClinicEngagementJobRow,
+  ClinicReportPresetRow,
   PatientRow,
   ServiceRow,
   StaffAvailabilityRuleRow,
@@ -43,7 +45,12 @@ export type PatientDetail = PatientRow & {
 
 export type ClinicCheckoutWithRelations = ClinicCheckoutRow & {
   patient?: Pick<PatientRow, "full_name" | "phone"> | null;
-  appointment?: Pick<AppointmentRow, "scheduled_start" | "status"> | null;
+  appointment?:
+    | (Pick<AppointmentRow, "scheduled_start" | "status"> & {
+        staff_member?: Pick<StaffMemberRow, "full_name"> | null;
+        location?: Pick<ClinicLocationRow, "name"> | null;
+      })
+    | null;
   treatment_record?: Pick<TreatmentRecordRow, "id" | "consent_confirmed"> | null;
   items?: ClinicCheckoutItemRow[] | null;
   payments?: ClinicCheckoutPaymentRow[] | null;
@@ -53,6 +60,14 @@ export type AppointmentCheckoutSummary = Pick<
   ClinicCheckoutRow,
   "id" | "appointment_id" | "status" | "payment_status" | "total" | "currency"
 >;
+
+export type ClinicEngagementJobWithRelations = ClinicEngagementJobRow & {
+  patient?: Pick<PatientRow, "full_name" | "phone"> | null;
+  appointment?: Pick<AppointmentRow, "scheduled_start" | "status"> | null;
+  treatment_record?: Pick<TreatmentRecordRow, "id" | "follow_up_plan"> | null;
+};
+
+export type ClinicReportPresetSummary = ClinicReportPresetRow;
 
 async function requireOrganizationId(userId: string): Promise<string | null> {
   const organization = await getCurrentUserOrganization(userId);
@@ -416,7 +431,7 @@ export async function getClinicCheckouts(
   const { data, error } = await supabase
     .from("clinic_checkouts")
     .select(
-      "*, patient:patients(full_name,phone), appointment:appointments(scheduled_start,status), treatment_record:treatment_records(id,consent_confirmed), items:clinic_checkout_items(*)"
+      "*, patient:patients(full_name,phone), appointment:appointments(scheduled_start,status,staff_member:staff_members(full_name),location:clinic_locations(name)), treatment_record:treatment_records(id,consent_confirmed), items:clinic_checkout_items(*)"
     )
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
@@ -460,6 +475,51 @@ export async function getClinicCheckouts(
     }
     throw paymentError;
   }
+}
+
+export async function getClinicEngagementJobs(
+  userId: string,
+  limit = 20
+): Promise<ClinicEngagementJobWithRelations[]> {
+  const organizationId = await requireOrganizationId(userId);
+  if (!organizationId) return [];
+
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("clinic_engagement_jobs")
+    .select(
+      "*, patient:patients(full_name,phone), appointment:appointments(scheduled_start,status), treatment_record:treatment_records(id,follow_up_plan)"
+    )
+    .eq("organization_id", organizationId)
+    .order("scheduled_for", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data ?? []) as ClinicEngagementJobWithRelations[];
+}
+
+export async function getClinicReportPresets(
+  userId: string,
+  limit = 12
+): Promise<ClinicReportPresetSummary[]> {
+  const organizationId = await requireOrganizationId(userId);
+  if (!organizationId) return [];
+
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("clinic_report_presets")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as ClinicReportPresetSummary[];
 }
 
 export async function getAppointmentCheckoutSummaries(

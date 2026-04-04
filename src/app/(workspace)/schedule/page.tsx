@@ -3,12 +3,17 @@ import { redirect } from "next/navigation";
 import { AppointmentStatusActions } from "@/components/clinic/appointment-status-actions";
 import { CreateCheckoutDraftButton } from "@/components/clinic/create-checkout-draft-button";
 import { CreateAdminAppointmentForm } from "@/components/clinic/create-admin-appointment-form";
+import { EngagementJobsPanel } from "@/components/clinic/engagement-jobs-panel";
+import { ExecuteDueClinicEngagementJobsButton } from "@/components/clinic/execute-due-clinic-engagement-jobs-button";
+import { QueueClinicEngagementJobsButton } from "@/components/clinic/queue-clinic-engagement-jobs-button";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import {
   type AppointmentCheckoutSummary,
   type AppointmentWithRelations,
+  type ClinicEngagementJobWithRelations,
   getAppointmentCheckoutSummaries,
+  getClinicEngagementJobs,
   getClinicLocations,
   getRecentAppointmentsForDesk,
   getServices,
@@ -16,6 +21,12 @@ import {
   getUpcomingAppointments,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import {
+  getBillingAuditHref,
+  getCheckoutOpenHref,
+  getScheduleHandoffState,
+  isScheduleHandoffEligible
+} from "@/modules/clinic/workflow-handoffs";
 import type { ClinicLocationRow, ServiceRow, StaffMemberRow } from "@/modules/clinic/types";
 import type { AppointmentStatus } from "@/modules/clinic/types";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
@@ -73,15 +84,17 @@ export default async function AppointmentsPage() {
   let services: ServiceRow[] = [];
   let staffMembers: StaffMemberRow[] = [];
   let checkoutSummaries: AppointmentCheckoutSummary[] = [];
+  let engagementJobs: ClinicEngagementJobWithRelations[] = [];
   let migrationMissing = false;
 
   try {
-    [appointments, recentAppointments, locations, services, staffMembers] = await Promise.all([
+    [appointments, recentAppointments, locations, services, staffMembers, engagementJobs] = await Promise.all([
       getUpcomingAppointments(user.id, 20),
       getRecentAppointmentsForDesk(user.id, 30),
       getClinicLocations(user.id),
       getServices(user.id),
-      getStaffMembers(user.id)
+      getStaffMembers(user.id),
+      getClinicEngagementJobs(user.id, 8)
     ]);
     checkoutSummaries = await getAppointmentCheckoutSummaries(
       user.id,
@@ -97,7 +110,10 @@ export default async function AppointmentsPage() {
 
   const checkoutByAppointmentId = new Map(checkoutSummaries.map((checkout) => [checkout.appointment_id, checkout]));
   const handoffAppointments = recentAppointments.filter((appointment) =>
-    ["completed", "in_progress", "arrived"].includes(appointment.status)
+    isScheduleHandoffEligible(appointment.status)
+  );
+  const dueEngagementJobs = engagementJobs.filter(
+    (job) => job.status === "queued" && new Date(job.scheduled_for).getTime() <= Date.now()
   );
 
   return (
@@ -237,10 +253,31 @@ export default async function AppointmentsPage() {
       ) : null}
 
       {!migrationMissing ? (
+        <div style={{ display: "grid", gap: "var(--space-3)" }}>
+          <Card padded stack>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              Reminder queue
+            </h2>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "start" }}>
+              <QueueClinicEngagementJobsButton />
+              <ExecuteDueClinicEngagementJobsButton />
+            </div>
+            <span className="ui-text-muted">
+              {dueEngagementJobs.length} due / {engagementJobs.length} нийт queue
+            </span>
+          </Card>
+          <EngagementJobsPanel title="Queue detail" jobs={engagementJobs} limit={5} />
+        </div>
+      ) : null}
+
+      {!migrationMissing ? (
         <Card padded stack>
           <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-            Billing handoff
+            POS handoff
           </h2>
+          <p className="ui-text-muted" style={{ margin: 0 }}>
+            Front desk completed эсвэл check-in болсон visit-ээс POS, billing, patient CRM руу шууд шилжинэ.
+          </p>
           {handoffAppointments.length === 0 ? (
             <p style={{ margin: 0 }}>
               Completed эсвэл check-in болсон visit одоогоор алга байна.
@@ -249,6 +286,20 @@ export default async function AppointmentsPage() {
             <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "grid", gap: "var(--space-3)" }}>
               {handoffAppointments.slice(0, 10).map((appointment) => {
                 const checkout = checkoutByAppointmentId.get(appointment.id);
+                const handoffState = getScheduleHandoffState({
+                  appointment: {
+                    id: appointment.id,
+                    patient_id: appointment.patient_id,
+                    status: appointment.status
+                  },
+                  checkout: checkout
+                    ? {
+                        id: checkout.id,
+                        status: checkout.status,
+                        payment_status: checkout.payment_status
+                      }
+                    : undefined
+                });
 
                 return (
                   <li key={appointment.id} className="ui-card ui-card--padded ui-card--stack">
@@ -263,24 +314,31 @@ export default async function AppointmentsPage() {
                           Visit status: {appointment.status}
                           {checkout ? ` · checkout ${checkout.payment_status}` : " · checkout үүсээгүй"}
                         </span>
+                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                          {handoffState.links.map((link) => (
+                            <Link key={link.href} href={link.href} className="ui-table__link">
+                              {link.label}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
 
-                      {checkout ? (
+                      {handoffState.kind === "checkout_ready" && checkout ? (
                         <div style={{ display: "grid", gap: "0.45rem", justifyItems: "start" }}>
                           <Badge variant={getCheckoutBadgeVariant(checkout.payment_status)}>
-                            {checkout.status} / {checkout.payment_status}
+                            {handoffState.badgeLabel}
                           </Badge>
-                          <Link
-                            href={`/billing?checkoutStatus=${checkout.payment_status === "paid" ? "paid" : "collecting"}#checkout-${checkout.id}`}
-                            className="ui-table__link"
-                          >
-                            Checkout нээх
+                          <Link href={getCheckoutOpenHref(checkout)} className="ui-table__link">
+                            POS дээр нээх
+                          </Link>
+                          <Link href={getBillingAuditHref(checkout)} className="ui-table__link">
+                            Billing audit
                           </Link>
                         </div>
-                      ) : appointment.status === "completed" ? (
+                      ) : handoffState.kind === "draft_ready" ? (
                         <CreateCheckoutDraftButton appointmentId={appointment.id} />
                       ) : (
-                        <span className="ui-text-muted">Checkout нь completed дээр идэвхжинэ</span>
+                        <span className="ui-text-muted">{handoffState.message}</span>
                       )}
                     </div>
                   </li>

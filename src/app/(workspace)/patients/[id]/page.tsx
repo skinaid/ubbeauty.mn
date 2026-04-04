@@ -23,7 +23,7 @@ function getPaymentSummary(checkout: ClinicCheckoutWithRelations) {
 export default async function PatientDetailPage({
   params
 }: {
-  params: Promise<{ patientId: string }>;
+  params: Promise<{ id: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -31,10 +31,10 @@ export default async function PatientDetailPage({
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");
 
-  const { patientId } = await params;
+  const { id } = await params;
 
   try {
-    const patient = await getPatientDetail(user.id, patientId);
+    const patient = await getPatientDetail(user.id, id);
     if (!patient) notFound();
     const patientTags = Array.isArray(patient.tags) ? patient.tags.map(String) : [];
 
@@ -74,6 +74,23 @@ export default async function PatientDetailPage({
             <p style={{ margin: 0 }}>Appointment, treatment, payment events</p>
           </Card>
         </div>
+
+        <Card padded stack>
+          <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+            Quick handoff
+          </h2>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <Link href="/schedule" className="ui-table__link">
+              Schedule нээх
+            </Link>
+            <Link href="/checkout" className="ui-table__link">
+              POS queue
+            </Link>
+            <Link href="/billing" className="ui-table__link">
+              Billing workspace
+            </Link>
+          </div>
+        </Card>
 
         <Card padded stack>
           <h2 className="ui-section-title" style={{ marginTop: 0 }}>
@@ -127,6 +144,14 @@ export default async function PatientDetailPage({
                   {appointment.staff_member?.full_name ? ` · ${appointment.staff_member.full_name}` : ""}
                   {appointment.location?.name ? ` · ${appointment.location.name}` : ""}
                 </span>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <Link href="/schedule" className="ui-table__link">
+                    Schedule нээх
+                  </Link>
+                  <Link href="/checkout" className="ui-table__link">
+                    POS queue
+                  </Link>
+                </div>
               </div>
             ))}
 
@@ -140,6 +165,14 @@ export default async function PatientDetailPage({
                   {treatment.consent_confirmed ? " · consent" : ""}
                 </span>
                 {treatment.follow_up_plan ? <span className="ui-text-muted">{treatment.follow_up_plan}</span> : null}
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <Link href="/treatments" className="ui-table__link">
+                    Treatment module
+                  </Link>
+                  <Link href="/checkout" className="ui-table__link">
+                    POS queue
+                  </Link>
+                </div>
               </div>
             ))}
 
@@ -152,11 +185,17 @@ export default async function PatientDetailPage({
                     ? ` · ${new Date(checkout.appointment.scheduled_start).toLocaleString("mn-MN")}`
                     : ""}
                 </span>
-                <span className="ui-text-muted">
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <Link href={`/checkout?checkoutId=${checkout.id}`} className="ui-table__link">
+                    POS дээр нээх
+                  </Link>
                   <Link href={`/billing#checkout-${checkout.id}`} className="ui-table__link">
                     Billing дээр нээх
                   </Link>
-                </span>
+                  <Link href="/schedule" className="ui-table__link">
+                    Schedule
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

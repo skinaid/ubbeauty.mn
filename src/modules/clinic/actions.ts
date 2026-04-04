@@ -4,6 +4,19 @@ import { revalidatePath } from "next/cache";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
+import {
+  summarizeBulkCheckoutDraftResults,
+  type CheckoutDraftCreationResult
+} from "./checkout-drafts";
+import {
+  buildClinicEngagementJobPlan,
+  getExecutableClinicEngagementJobs
+} from "./engagement";
+import {
+  buildClinicEnvironmentDiagnosticMessage,
+  getClinicEnvironmentDiagnostics
+} from "./diagnostics";
+import { type ReportRangePreset } from "./reporting";
 import { isClinicFoundationMissingError } from "./data";
 import { findAvailableStaffAssignment } from "./scheduling";
 
@@ -156,6 +169,241 @@ async function getCheckoutLedgerSummary(params: { checkoutId: string; organizati
     netPaid: Number(netPaid.toFixed(2)),
     latestPaymentAt: existingPayments?.find((payment) => payment.payment_kind !== "refund")?.paid_at ?? null
   };
+}
+
+async function createCheckoutDraftForAppointment(params: {
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>>;
+  organizationId: string;
+  userId: string;
+  appointmentId: string;
+}): Promise<CheckoutDraftCreationResult> {
+  const { data: appointment, error } = await params.supabase
+    .from("appointments")
+    .select("id,organization_id,status,patient_id,service_id")
+    .eq("id", params.appointmentId)
+    .eq("organization_id", params.organizationId)
+    .maybeSingle();
+
+  if (error || !appointment) {
+    return { kind: "error" as const, message: "Appointment олдсонгүй." };
+  }
+
+  if (appointment.status !== "completed") {
+    return { kind: "skipped" as const, message: "Completed биш appointment алгасагдлаа." };
+  }
+
+  const { data: existingCheckout } = await params.supabase
+    .from("clinic_checkouts")
+    .select("id")
+    .eq("appointment_id", appointment.id)
+    .maybeSingle();
+
+  if (existingCheckout?.id) {
+    return { kind: "exists" as const, message: "Checkout draft аль хэдийн үүссэн байна." };
+  }
+
+  const [{ data: service, error: serviceError }, { data: treatmentRecord, error: treatmentError }] =
+    await Promise.all([
+      params.supabase
+        .from("services")
+        .select("id,name,price_from,currency")
+        .eq("id", appointment.service_id)
+        .eq("organization_id", params.organizationId)
+        .maybeSingle(),
+      params.supabase
+        .from("treatment_records")
+        .select("id")
+        .eq("appointment_id", appointment.id)
+        .eq("organization_id", params.organizationId)
+        .maybeSingle()
+    ]);
+
+  if (serviceError || !service) {
+    return { kind: "error" as const, message: "Checkout үүсгэхэд service мэдээлэл олдсонгүй." };
+  }
+  if (treatmentError) {
+    return { kind: "error" as const, message: toFriendlyClinicError(treatmentError) };
+  }
+
+  const subtotal = Number(service.price_from ?? 0);
+  const { data: checkout, error: checkoutError } = await params.supabase
+    .from("clinic_checkouts")
+    .insert({
+      organization_id: params.organizationId,
+      appointment_id: appointment.id,
+      patient_id: appointment.patient_id,
+      treatment_record_id: treatmentRecord?.id ?? null,
+      status: "draft",
+      payment_status: "unpaid",
+      subtotal,
+      total: subtotal,
+      currency: service.currency ?? "MNT",
+      created_by_user_id: params.userId
+    })
+    .select("id")
+    .single();
+
+  if (checkoutError || !checkout) {
+    return { kind: "error" as const, message: toFriendlyClinicError(checkoutError) };
+  }
+
+  const { error: itemError } = await params.supabase.from("clinic_checkout_items").insert({
+    checkout_id: checkout.id,
+    organization_id: params.organizationId,
+    service_id: service.id,
+    treatment_record_id: treatmentRecord?.id ?? null,
+    item_type: "service",
+    label: service.name,
+    quantity: 1,
+    unit_price: subtotal,
+    line_total: subtotal
+  });
+
+  if (itemError) {
+    return { kind: "error" as const, message: toFriendlyClinicError(itemError) };
+  }
+
+  return { kind: "created" as const, message: "Checkout draft амжилттай үүслээ." };
+}
+
+export async function queueClinicEngagementJobsAction(
+  _prev: ClinicSetupActionState,
+  _formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const now = new Date();
+    const appointmentWindowEnd = addDays(now, 14).toISOString();
+    const recentNoShowStart = addDays(now, -3).toISOString();
+    const recentTreatmentStart = addDays(now, -14).toISOString();
+
+    const [upcomingAppointments, noShowAppointments, followUpTreatments] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id,patient_id,scheduled_start,status")
+        .eq("organization_id", context.organization.id)
+        .in("status", ["booked", "confirmed"])
+        .gte("scheduled_start", now.toISOString())
+        .lte("scheduled_start", appointmentWindowEnd),
+      supabase
+        .from("appointments")
+        .select("id,patient_id,updated_at,scheduled_start,status")
+        .eq("organization_id", context.organization.id)
+        .eq("status", "no_show")
+        .gte("updated_at", recentNoShowStart),
+      supabase
+        .from("treatment_records")
+        .select("id,patient_id,appointment_id,updated_at,follow_up_plan")
+        .eq("organization_id", context.organization.id)
+        .not("follow_up_plan", "is", null)
+        .gte("updated_at", recentTreatmentStart)
+    ]);
+
+    if (upcomingAppointments.error) {
+      return { error: toFriendlyClinicError(upcomingAppointments.error) };
+    }
+    if (noShowAppointments.error) {
+      return { error: toFriendlyClinicError(noShowAppointments.error) };
+    }
+    if (followUpTreatments.error) {
+      return { error: toFriendlyClinicError(followUpTreatments.error) };
+    }
+
+    const rows = buildClinicEngagementJobPlan({
+      organizationId: context.organization.id,
+      upcomingAppointments: upcomingAppointments.data ?? [],
+      noShowAppointments: noShowAppointments.data ?? [],
+      followUpTreatments: followUpTreatments.data ?? []
+    });
+
+    if (rows.length === 0) {
+      return { message: "Reminder queue-д оруулах appointment эсвэл follow-up candidate алга байна." };
+    }
+
+    const { error: upsertError } = await supabase
+      .from("clinic_engagement_jobs")
+      .upsert(rows, { onConflict: "organization_id,idempotency_key", ignoreDuplicates: true });
+
+    if (upsertError) {
+      return { error: toFriendlyClinicError(upsertError) };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/schedule");
+    revalidatePath("/patients");
+    revalidatePath("/treatments");
+    return {
+      message: `Reminder/follow-up queue шинэчлэгдлээ. ${rows.length} automation job төлөвлөгдөв.`
+    };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function executeDueClinicEngagementJobsAction(
+  _prev: ClinicSetupActionState,
+  _formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    const { data: dueJobs, error } = await supabase
+      .from("clinic_engagement_jobs")
+      .select("id,job_type,scheduled_for,status,channel")
+      .eq("organization_id", context.organization.id)
+      .eq("status", "queued")
+      .in("channel", ["manual_queue", "call_task"])
+      .lte("scheduled_for", nowIso)
+      .order("scheduled_for", { ascending: true })
+      .limit(25);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    const executableJobs = getExecutableClinicEngagementJobs(dueJobs ?? [], nowIso);
+
+    if (executableJobs.length === 0) {
+      return { message: "Одоогоор ажиллуулах due reminder/follow-up job алга байна." };
+    }
+
+    let processed = 0;
+    for (const job of executableJobs) {
+      const { error: updateError } = await supabase
+        .from("clinic_engagement_jobs")
+        .update({
+          status: "succeeded",
+          started_at: nowIso,
+          finished_at: new Date().toISOString(),
+          outcome_notes: `${job.channel} channel-аар operational queue боловсруулагдсан (${job.job_type})`
+        })
+        .eq("id", job.id)
+        .eq("organization_id", context.organization.id)
+        .eq("status", "queued");
+
+      if (!updateError) {
+        processed += 1;
+      }
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/schedule");
+    revalidatePath("/patients");
+    revalidatePath("/treatments");
+    return {
+      message: `${processed} due reminder/follow-up job боловсруулагдлаа.`
+    };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
 }
 
 async function findOrCreatePatient(params: {
@@ -734,95 +982,71 @@ export async function createCheckoutDraftAction(
 
   try {
     const supabase = await getSupabaseServerClient();
-    const { data: appointment, error } = await supabase
-      .from("appointments")
-      .select("id,organization_id,status,patient_id,service_id")
-      .eq("id", appointmentId)
-      .eq("organization_id", context.organization.id)
-      .maybeSingle();
+    const result = await createCheckoutDraftForAppointment({
+      supabase,
+      organizationId: context.organization.id,
+      userId: context.user.id,
+      appointmentId
+    });
 
-    if (error || !appointment) {
-      return { error: "Appointment олдсонгүй." };
+    if (result.kind === "error") {
+      return { error: result.message };
     }
-
-    if (appointment.status !== "completed") {
+    if (result.kind === "skipped") {
       return { error: "Checkout draft зөвхөн completed appointment дээр үүснэ." };
     }
-
-    const { data: existingCheckout } = await supabase
-      .from("clinic_checkouts")
-      .select("id")
-      .eq("appointment_id", appointment.id)
-      .maybeSingle();
-
-    if (existingCheckout?.id) {
+    if (result.kind === "exists") {
       return { message: "Энэ appointment дээр checkout draft аль хэдийн үүссэн байна." };
     }
 
-    const [{ data: service, error: serviceError }, { data: treatmentRecord, error: treatmentError }] =
-      await Promise.all([
-        supabase
-          .from("services")
-          .select("id,name,price_from,currency")
-          .eq("id", appointment.service_id)
-          .eq("organization_id", context.organization.id)
-          .maybeSingle(),
-        supabase
-          .from("treatment_records")
-          .select("id")
-          .eq("appointment_id", appointment.id)
-          .eq("organization_id", context.organization.id)
-          .maybeSingle()
-      ]);
+    revalidatePath("/billing");
+    revalidatePath("/checkout");
+    revalidatePath("/treatments");
+    return { message: result.message };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
 
-    if (serviceError || !service) {
-      return { error: "Checkout үүсгэхэд шаардлагатай service мэдээлэл олдсонгүй." };
-    }
-    if (treatmentError) {
-      return { error: toFriendlyClinicError(treatmentError) };
-    }
+export async function createBulkCheckoutDraftsAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
 
-    const subtotal = Number(service.price_from ?? 0);
-    const { data: checkout, error: checkoutError } = await supabase
-      .from("clinic_checkouts")
-      .insert({
-        organization_id: context.organization.id,
-        appointment_id: appointment.id,
-        patient_id: appointment.patient_id,
-        treatment_record_id: treatmentRecord?.id ?? null,
-        status: "draft",
-        payment_status: "unpaid",
-        subtotal,
-        total: subtotal,
-        currency: service.currency ?? "MNT",
-        created_by_user_id: context.user.id
-      })
-      .select("id")
-      .single();
+  const appointmentIds = formData
+    .getAll("appointmentIds")
+    .map((value) => (typeof value === "string" ? value : ""))
+    .filter(Boolean);
 
-    if (checkoutError || !checkout) {
-      return { error: toFriendlyClinicError(checkoutError) };
+  if (appointmentIds.length === 0) {
+    return { error: "Ядаж нэг completed visit сонгоно уу." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const results: CheckoutDraftCreationResult[] = [];
+
+    for (const appointmentId of appointmentIds) {
+      const result = await createCheckoutDraftForAppointment({
+        supabase,
+        organizationId: context.organization.id,
+        userId: context.user.id,
+        appointmentId
+      });
+      results.push(result);
     }
 
-    const { error: itemError } = await supabase.from("clinic_checkout_items").insert({
-      checkout_id: checkout.id,
-      organization_id: context.organization.id,
-      service_id: service.id,
-      treatment_record_id: treatmentRecord?.id ?? null,
-      item_type: "service",
-      label: service.name,
-      quantity: 1,
-      unit_price: subtotal,
-      line_total: subtotal
-    });
-
-    if (itemError) {
-      return { error: toFriendlyClinicError(itemError) };
-    }
+    const summary = summarizeBulkCheckoutDraftResults(results);
 
     revalidatePath("/billing");
+    revalidatePath("/checkout");
     revalidatePath("/treatments");
-    return { message: "Checkout draft амжилттай үүслээ." };
+
+    return {
+      message: summary.message
+    };
   } catch (error) {
     return { error: toFriendlyClinicError(error) };
   }
@@ -925,6 +1149,7 @@ export async function captureClinicCheckoutPaymentAction(
     }
 
     revalidatePath("/billing");
+    revalidatePath("/checkout");
     revalidatePath("/patients");
     return {
       message: fullyPaid
@@ -1033,8 +1258,200 @@ export async function addClinicCheckoutItemAction(
     }
 
     revalidatePath("/billing");
+    revalidatePath("/checkout");
     revalidatePath("/patients");
     return { message: "Checkout item амжилттай нэмэгдлээ." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function removeClinicCheckoutItemAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  const checkoutItemId = formData.get("checkoutItemId");
+  if (typeof checkoutItemId !== "string" || !checkoutItemId) {
+    return { error: "Checkout item сонгогдоогүй байна." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { data: item, error } = await supabase
+      .from("clinic_checkout_items")
+      .select("id,checkout_id,organization_id")
+      .eq("id", checkoutItemId)
+      .eq("organization_id", context.organization.id)
+      .maybeSingle();
+
+    if (error || !item) {
+      return { error: "Checkout item олдсонгүй." };
+    }
+
+    const { data: checkout, error: checkoutError } = await supabase
+      .from("clinic_checkouts")
+      .select("id,status,payment_status")
+      .eq("id", item.checkout_id)
+      .eq("organization_id", context.organization.id)
+      .maybeSingle();
+
+    if (checkoutError || !checkout) {
+      return { error: "Checkout олдсонгүй." };
+    }
+
+    if (checkout.payment_status === "paid") {
+      return { error: "Paid checkout-с item хасахын өмнө refund урсгал ашиглана уу." };
+    }
+
+    const { error: deleteError } = await supabase
+      .from("clinic_checkout_items")
+      .delete()
+      .eq("id", item.id)
+      .eq("organization_id", context.organization.id);
+
+    if (deleteError) {
+      return { error: toFriendlyClinicError(deleteError) };
+    }
+
+    const totals = await recalculateClinicCheckoutTotals(checkout.id);
+    const { netPaid: paidSoFar, latestPaymentAt } = await getCheckoutLedgerSummary({
+      checkoutId: checkout.id,
+      organizationId: context.organization.id
+    });
+    const paymentStatus =
+      paidSoFar <= 0 ? "unpaid" : paidSoFar >= totals.total ? "paid" : "partial";
+
+    const { error: updateError } = await supabase
+      .from("clinic_checkouts")
+      .update({
+        subtotal: totals.subtotal,
+        discount_total: totals.discountTotal,
+        total: totals.total,
+        payment_status: paymentStatus,
+        paid_at: paymentStatus === "paid" ? latestPaymentAt : null,
+        status: checkout.status === "voided" ? checkout.status : paymentStatus === "paid" ? "paid" : "draft"
+      })
+      .eq("id", checkout.id);
+
+    if (updateError) {
+      return { error: toFriendlyClinicError(updateError) };
+    }
+
+    revalidatePath("/billing");
+    revalidatePath("/checkout");
+    revalidatePath("/patients");
+    return { message: "Checkout item хасагдлаа." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function updateClinicCheckoutItemAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  const checkoutItemId = formData.get("checkoutItemId");
+  const label = formData.get("label");
+  const quantityRaw = formData.get("quantity");
+  const unitPrice = parseMoney(formData.get("unitPrice"));
+
+  if (typeof checkoutItemId !== "string" || !checkoutItemId) {
+    return { error: "Checkout item сонгогдоогүй байна." };
+  }
+  if (typeof label !== "string" || !label.trim()) {
+    return { error: "Item нэр оруулна уу." };
+  }
+  if (unitPrice === null) {
+    return { error: "Үнэ буруу байна." };
+  }
+
+  const quantity = Number(quantityRaw);
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return { error: "Тоо ширхэгийг зөв оруулна уу." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { data: item, error } = await supabase
+      .from("clinic_checkout_items")
+      .select("id,checkout_id,organization_id,item_type")
+      .eq("id", checkoutItemId)
+      .eq("organization_id", context.organization.id)
+      .maybeSingle();
+
+    if (error || !item) {
+      return { error: "Checkout item олдсонгүй." };
+    }
+
+    const { data: checkout, error: checkoutError } = await supabase
+      .from("clinic_checkouts")
+      .select("id,status,payment_status")
+      .eq("id", item.checkout_id)
+      .eq("organization_id", context.organization.id)
+      .maybeSingle();
+
+    if (checkoutError || !checkout) {
+      return { error: "Checkout олдсонгүй." };
+    }
+
+    if (checkout.payment_status === "paid") {
+      return { error: "Paid checkout дээр item засварлахын өмнө refund урсгал ашиглана уу." };
+    }
+
+    if (item.item_type !== "adjustment" && unitPrice <= 0) {
+      return { error: "Эерэг үнэ оруулна уу." };
+    }
+
+    const lineTotal = Number((unitPrice * quantity).toFixed(2));
+    const { error: updateItemError } = await supabase
+      .from("clinic_checkout_items")
+      .update({
+        label: label.trim(),
+        quantity,
+        unit_price: unitPrice,
+        line_total: lineTotal
+      })
+      .eq("id", item.id)
+      .eq("organization_id", context.organization.id);
+
+    if (updateItemError) {
+      return { error: toFriendlyClinicError(updateItemError) };
+    }
+
+    const totals = await recalculateClinicCheckoutTotals(checkout.id);
+    const { netPaid: paidSoFar, latestPaymentAt } = await getCheckoutLedgerSummary({
+      checkoutId: checkout.id,
+      organizationId: context.organization.id
+    });
+    const paymentStatus =
+      paidSoFar <= 0 ? "unpaid" : paidSoFar >= totals.total ? "paid" : "partial";
+
+    const { error: updateCheckoutError } = await supabase
+      .from("clinic_checkouts")
+      .update({
+        subtotal: totals.subtotal,
+        discount_total: totals.discountTotal,
+        total: totals.total,
+        payment_status: paymentStatus,
+        paid_at: paymentStatus === "paid" ? latestPaymentAt : null,
+        status: checkout.status === "voided" ? checkout.status : paymentStatus === "paid" ? "paid" : "draft"
+      })
+      .eq("id", checkout.id);
+
+    if (updateCheckoutError) {
+      return { error: toFriendlyClinicError(updateCheckoutError) };
+    }
+
+    revalidatePath("/billing");
+    revalidatePath("/checkout");
+    revalidatePath("/patients");
+    return { message: "Checkout item шинэчлэгдлээ." };
   } catch (error) {
     return { error: toFriendlyClinicError(error) };
   }
@@ -1122,6 +1539,7 @@ export async function refundClinicCheckoutAction(
     }
 
     revalidatePath("/billing");
+    revalidatePath("/checkout");
     revalidatePath("/patients");
     return { message: "Refund амжилттай бүртгэгдлээ." };
   } catch (error) {
@@ -1175,6 +1593,7 @@ export async function voidClinicCheckoutAction(
     }
 
     revalidatePath("/billing");
+    revalidatePath("/checkout");
     return { message: "Checkout void боллоо." };
   } catch (error) {
     return { error: toFriendlyClinicError(error) };
@@ -1223,6 +1642,723 @@ export async function updatePatientProfileAction(
     revalidatePath(`/patients/${patientId}`);
     return { message: "Patient profile шинэчлэгдлээ." };
   } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function saveClinicReportPresetAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  const name = formData.get("name");
+  const rangePreset = formData.get("rangePreset");
+  const startDate = formData.get("startDate");
+  const endDate = formData.get("endDate");
+  const provider = formData.get("provider");
+  const location = formData.get("location");
+
+  if (typeof name !== "string" || !name.trim()) {
+    return { error: "Preset нэр оруулна уу." };
+  }
+
+  const normalizedRangePreset: ReportRangePreset =
+    typeof rangePreset === "string" &&
+    (rangePreset === "today" || rangePreset === "7d" || rangePreset === "30d" || rangePreset === "custom")
+      ? rangePreset
+      : "today";
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const payload = {
+      organization_id: context.organization.id,
+      user_id: context.user.id,
+      name: name.trim(),
+      range_preset: normalizedRangePreset,
+      start_date:
+        normalizedRangePreset === "custom" && typeof startDate === "string" && startDate ? startDate : null,
+      end_date:
+        normalizedRangePreset === "custom" && typeof endDate === "string" && endDate ? endDate : null,
+      provider_filter: typeof provider === "string" && provider ? provider : "all",
+      location_filter: typeof location === "string" && location ? location : "all",
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from("clinic_report_presets").upsert(payload, {
+      onConflict: "organization_id,user_id,name"
+    });
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/reports");
+    return { message: "Report preset хадгалагдлаа." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function deleteClinicReportPresetAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+
+  const presetId = formData.get("presetId");
+  if (typeof presetId !== "string" || !presetId) {
+    return { error: "Preset сонгогдоогүй байна." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("clinic_report_presets")
+      .delete()
+      .eq("id", presetId)
+      .eq("organization_id", context.organization.id)
+      .eq("user_id", context.user.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/reports");
+    return { message: "Preset устгагдлаа." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+function addHoursToNow(hours: number) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+export async function seedDemoClinicDataAction(
+  _prev: ClinicSetupActionState
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicContext();
+  if ("error" in context) return { error: context.error };
+  const diagnostics = await getClinicEnvironmentDiagnostics();
+  const diagnosticMessage = buildClinicEnvironmentDiagnosticMessage(diagnostics);
+
+  if (diagnosticMessage) {
+    return { error: diagnosticMessage };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+
+    const [
+      existingLocations,
+      existingStaff,
+      existingServices,
+      existingPatients,
+      existingAppointments,
+      existingCheckouts
+    ] = await Promise.all([
+      supabase
+        .from("clinic_locations")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id),
+      supabase
+        .from("staff_members")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id),
+      supabase
+        .from("services")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id),
+      supabase
+        .from("patients")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id),
+      supabase
+        .from("appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id),
+      supabase
+        .from("clinic_checkouts")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", context.organization.id)
+    ]);
+
+    const existingCount =
+      Number(existingLocations.count ?? 0) +
+      Number(existingStaff.count ?? 0) +
+      Number(existingServices.count ?? 0) +
+      Number(existingPatients.count ?? 0) +
+      Number(existingAppointments.count ?? 0) +
+      Number(existingCheckouts.count ?? 0);
+
+    if (existingCount > 0) {
+      return {
+        message: "Demo seed алгасагдлаа. Энэ clinic дээр аль хэдийн operational data байна."
+      };
+    }
+
+    const { data: locations, error: locationError } = await supabase
+      .from("clinic_locations")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          name: "Central Branch",
+          slug: "central-branch",
+          address_line1: "Olympic street 12",
+          district: "Sukhbaatar",
+          city: "Ulaanbaatar",
+          phone: "77112233"
+        },
+        {
+          organization_id: context.organization.id,
+          name: "River Branch",
+          slug: "river-branch",
+          address_line1: "Tokyo street 44",
+          district: "Khan-Uul",
+          city: "Ulaanbaatar",
+          phone: "77114455"
+        }
+      ])
+      .select("id,name")
+      .order("name", { ascending: true });
+
+    if (locationError || !locations || locations.length < 2) {
+      return { error: toFriendlyClinicError(locationError) };
+    }
+
+    const centralLocation = locations[0];
+    const riverLocation = locations[1];
+
+    const { data: staffMembers, error: staffError } = await supabase
+      .from("staff_members")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          location_id: centralLocation.id,
+          profile_id: context.user.id,
+          full_name: "Owner Demo",
+          role: "owner",
+          accepts_online_booking: false,
+          status: "active",
+          email: context.user.email ?? null
+        },
+        {
+          organization_id: context.organization.id,
+          location_id: centralLocation.id,
+          full_name: "Dr. Saraa",
+          role: "provider",
+          specialty: "Laser & acne care",
+          accepts_online_booking: true,
+          status: "active",
+          phone: "88112233",
+          email: "saraa@ubbeauty.mn"
+        },
+        {
+          organization_id: context.organization.id,
+          location_id: riverLocation.id,
+          full_name: "Naraa Front Desk",
+          role: "front_desk",
+          accepts_online_booking: false,
+          status: "active",
+          phone: "88114455",
+          email: "desk@ubbeauty.mn"
+        }
+      ])
+      .select("id,full_name,role,location_id");
+
+    if (staffError || !staffMembers) {
+      return { error: toFriendlyClinicError(staffError) };
+    }
+
+    const provider = staffMembers.find((item) => item.role === "provider");
+    if (!provider) {
+      return { error: "Demo provider үүсгэж чадсангүй." };
+    }
+
+    const { error: availabilityError } = await supabase.from("staff_availability_rules").insert(
+      [1, 2, 3, 4, 5].map((weekday) => ({
+        organization_id: context.organization.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        weekday,
+        start_local: "10:00",
+        end_local: "18:00",
+        is_available: true
+      }))
+    );
+
+    if (availabilityError) {
+      return { error: toFriendlyClinicError(availabilityError) };
+    }
+
+    const { data: categories, error: categoryError } = await supabase
+      .from("service_categories")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          name: "Consultation",
+          slug: "consultation",
+          sort_order: 1
+        },
+        {
+          organization_id: context.organization.id,
+          name: "Procedures",
+          slug: "procedures",
+          sort_order: 2
+        }
+      ])
+      .select("id,name");
+
+    if (categoryError || !categories || categories.length < 2) {
+      return { error: toFriendlyClinicError(categoryError) };
+    }
+
+    const consultationCategory = categories.find((item) => item.name === "Consultation");
+    const proceduresCategory = categories.find((item) => item.name === "Procedures");
+    if (!consultationCategory || !proceduresCategory) {
+      return { error: "Demo service category үүсгэж чадсангүй." };
+    }
+
+    const { data: services, error: serviceError } = await supabase
+      .from("services")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          category_id: consultationCategory.id,
+          location_id: centralLocation.id,
+          name: "Skin consultation",
+          slug: "skin-consultation",
+          description: "First visit assessment and plan",
+          duration_minutes: 45,
+          price_from: 50000,
+          currency: "MNT",
+          is_bookable: true
+        },
+        {
+          organization_id: context.organization.id,
+          category_id: proceduresCategory.id,
+          location_id: centralLocation.id,
+          name: "Laser treatment",
+          slug: "laser-treatment",
+          description: "Targeted laser session",
+          duration_minutes: 60,
+          price_from: 180000,
+          currency: "MNT",
+          is_bookable: true
+        },
+        {
+          organization_id: context.organization.id,
+          category_id: proceduresCategory.id,
+          location_id: riverLocation.id,
+          name: "Hydra facial",
+          slug: "hydra-facial",
+          description: "Deep cleansing facial package",
+          duration_minutes: 50,
+          price_from: 120000,
+          currency: "MNT",
+          is_bookable: true
+        }
+      ])
+      .select("id,name,price_from,currency");
+
+    if (serviceError || !services || services.length < 3) {
+      return { error: toFriendlyClinicError(serviceError) };
+    }
+
+    const consultationService = services.find((item) => item.name === "Skin consultation");
+    const laserService = services.find((item) => item.name === "Laser treatment");
+    const facialService = services.find((item) => item.name === "Hydra facial");
+    if (!consultationService || !laserService || !facialService) {
+      return { error: "Demo services бүрэн үүсээгүй байна." };
+    }
+
+    const { data: patients, error: patientError } = await supabase
+      .from("patients")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          full_name: "Anu Tsog",
+          phone: "99110011",
+          source: "online_booking",
+          tags: ["vip", "laser"],
+          notes: "Prefers central branch"
+        },
+        {
+          organization_id: context.organization.id,
+          full_name: "Bataa Erdene",
+          phone: "99110022",
+          source: "manual",
+          tags: ["acne"],
+          notes: "First consultation"
+        },
+        {
+          organization_id: context.organization.id,
+          full_name: "Cecilia Bold",
+          phone: "99110033",
+          source: "walk_in",
+          tags: ["follow-up"],
+          notes: "Needs reminder call"
+        },
+        {
+          organization_id: context.organization.id,
+          full_name: "Dulmaa T",
+          phone: "99110044",
+          source: "online_booking",
+          tags: ["facial"]
+        }
+      ])
+      .select("id,full_name");
+
+    if (patientError || !patients || patients.length < 4) {
+      return { error: toFriendlyClinicError(patientError) };
+    }
+
+    const patientByName = new Map(patients.map((item) => [item.full_name, item.id]));
+    const startBooked = addHoursToNow(24);
+    const startConfirmed = addHoursToNow(3);
+    const startArrived = addHoursToNow(-1);
+    const startCompletedOne = addHoursToNow(-5);
+    const startCompletedTwo = addHoursToNow(-3);
+    const startCompletedThree = addHoursToNow(-26);
+    const startNoShow = addHoursToNow(-30);
+
+    const appointmentPayload = [
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Anu Tsog"),
+        service_id: laserService.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        source: "online_booking",
+        status: "booked",
+        scheduled_start: startBooked,
+        scheduled_end: addHoursToNow(25),
+        duration_minutes: 60,
+        booking_notes: "Booked from public flow",
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Bataa Erdene"),
+        service_id: consultationService.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        source: "admin",
+        status: "confirmed",
+        scheduled_start: startConfirmed,
+        scheduled_end: addHoursToNow(3.75),
+        duration_minutes: 45,
+        confirmation_sent_at: addHoursToNow(-2),
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Cecilia Bold"),
+        service_id: facialService.id,
+        staff_member_id: provider.id,
+        location_id: riverLocation.id,
+        source: "walk_in",
+        status: "arrived",
+        scheduled_start: startArrived,
+        scheduled_end: addHoursToNow(-0.2),
+        duration_minutes: 50,
+        checked_in_at: addHoursToNow(-0.8),
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Anu Tsog"),
+        service_id: laserService.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        source: "admin",
+        status: "completed",
+        scheduled_start: startCompletedOne,
+        scheduled_end: addHoursToNow(-4),
+        duration_minutes: 60,
+        checked_in_at: addHoursToNow(-5),
+        completed_at: addHoursToNow(-4),
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Dulmaa T"),
+        service_id: facialService.id,
+        staff_member_id: provider.id,
+        location_id: riverLocation.id,
+        source: "online_booking",
+        status: "completed",
+        scheduled_start: startCompletedTwo,
+        scheduled_end: addHoursToNow(-2.2),
+        duration_minutes: 50,
+        checked_in_at: addHoursToNow(-3),
+        completed_at: addHoursToNow(-2.2),
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Cecilia Bold"),
+        service_id: consultationService.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        source: "admin",
+        status: "completed",
+        scheduled_start: startCompletedThree,
+        scheduled_end: addHoursToNow(-25.25),
+        duration_minutes: 45,
+        checked_in_at: addHoursToNow(-26),
+        completed_at: addHoursToNow(-25.25),
+        created_by_user_id: context.user.id
+      },
+      {
+        organization_id: context.organization.id,
+        patient_id: patientByName.get("Bataa Erdene"),
+        service_id: consultationService.id,
+        staff_member_id: provider.id,
+        location_id: centralLocation.id,
+        source: "online_booking",
+        status: "no_show",
+        scheduled_start: startNoShow,
+        scheduled_end: addHoursToNow(-29.25),
+        duration_minutes: 45,
+        created_by_user_id: context.user.id
+      }
+    ].filter((item) => item.patient_id);
+
+    const { data: appointments, error: appointmentError } = await supabase
+      .from("appointments")
+      .insert(appointmentPayload)
+      .select("id,patient_id,service_id,status,scheduled_start");
+
+    if (appointmentError || !appointments) {
+      return { error: toFriendlyClinicError(appointmentError) };
+    }
+
+    const completedAppointments = appointments.filter((item) => item.status === "completed");
+    const { data: treatmentRecords, error: treatmentError } = await supabase
+      .from("treatment_records")
+      .insert(
+        completedAppointments.map((appointment, index) => ({
+          organization_id: context.organization.id,
+          appointment_id: appointment.id,
+          patient_id: appointment.patient_id,
+          service_id: appointment.service_id,
+          staff_member_id: provider.id,
+          subjective_notes: index === 0 ? "Pigmentation concerns improved." : "Skin texture improving.",
+          objective_notes: "No immediate complications.",
+          assessment_notes: "Responding well to current plan.",
+          plan_notes: "Continue hydration and sunscreen.",
+          consent_confirmed: true,
+          follow_up_plan: index === 2 ? "7 хоногийн дараа check-in call" : "24 цагийн дараа follow-up хийх",
+          before_after_asset_notes: "Demo before/after note"
+        }))
+      )
+      .select("id,appointment_id");
+
+    if (treatmentError || !treatmentRecords) {
+      return { error: toFriendlyClinicError(treatmentError) };
+    }
+
+    const treatmentByAppointmentId = new Map(
+      treatmentRecords.map((item) => [item.appointment_id, item.id])
+    );
+
+    const [completedOne, completedTwo] = completedAppointments;
+    const { data: checkouts, error: checkoutError } = await supabase
+      .from("clinic_checkouts")
+      .insert([
+        {
+          organization_id: context.organization.id,
+          appointment_id: completedOne.id,
+          patient_id: completedOne.patient_id,
+          treatment_record_id: treatmentByAppointmentId.get(completedOne.id) ?? null,
+          status: "draft",
+          payment_status: "partial",
+          subtotal: Number(laserService.price_from ?? 0),
+          total: Number(laserService.price_from ?? 0),
+          currency: laserService.currency ?? "MNT",
+          created_by_user_id: context.user.id
+        },
+        {
+          organization_id: context.organization.id,
+          appointment_id: completedTwo.id,
+          patient_id: completedTwo.patient_id,
+          treatment_record_id: treatmentByAppointmentId.get(completedTwo.id) ?? null,
+          status: "paid",
+          payment_status: "paid",
+          subtotal: Number(facialService.price_from ?? 0),
+          total: Number(facialService.price_from ?? 0),
+          currency: facialService.currency ?? "MNT",
+          created_by_user_id: context.user.id,
+          paid_at: addHoursToNow(-2)
+        }
+      ])
+      .select("id,appointment_id,patient_id,currency,total");
+
+    if (checkoutError || !checkouts || checkouts.length < 2) {
+      return { error: toFriendlyClinicError(checkoutError) };
+    }
+
+    const partialCheckout = checkouts[0];
+    const paidCheckout = checkouts[1];
+
+    const { error: itemError } = await supabase.from("clinic_checkout_items").insert([
+      {
+        checkout_id: partialCheckout.id,
+        organization_id: context.organization.id,
+        service_id: laserService.id,
+        treatment_record_id: treatmentByAppointmentId.get(completedOne.id) ?? null,
+        item_type: "service",
+        label: laserService.name,
+        quantity: 1,
+        unit_price: Number(laserService.price_from ?? 0),
+        line_total: Number(laserService.price_from ?? 0)
+      },
+      {
+        checkout_id: paidCheckout.id,
+        organization_id: context.organization.id,
+        service_id: facialService.id,
+        treatment_record_id: treatmentByAppointmentId.get(completedTwo.id) ?? null,
+        item_type: "service",
+        label: facialService.name,
+        quantity: 1,
+        unit_price: Number(facialService.price_from ?? 0),
+        line_total: Number(facialService.price_from ?? 0)
+      }
+    ]);
+
+    if (itemError) {
+      return { error: toFriendlyClinicError(itemError) };
+    }
+
+    const { error: paymentError } = await supabase.from("clinic_checkout_payments").insert([
+      {
+        checkout_id: partialCheckout.id,
+        organization_id: context.organization.id,
+        patient_id: partialCheckout.patient_id,
+        amount: 80000,
+        currency: partialCheckout.currency,
+        payment_method: "card",
+        payment_kind: "payment",
+        reference_code: "DEMO-PARTIAL-01",
+        notes: "Partial demo payment",
+        paid_at: addHoursToNow(-3.5),
+        received_by_user_id: context.user.id
+      },
+      {
+        checkout_id: paidCheckout.id,
+        organization_id: context.organization.id,
+        patient_id: paidCheckout.patient_id,
+        amount: Number(paidCheckout.total ?? 0),
+        currency: paidCheckout.currency,
+        payment_method: "cash",
+        payment_kind: "payment",
+        reference_code: "DEMO-PAID-01",
+        notes: "Paid demo checkout",
+        paid_at: addHoursToNow(-2),
+        received_by_user_id: context.user.id
+      }
+    ]);
+
+    if (paymentError) {
+      return { error: toFriendlyClinicError(paymentError) };
+    }
+
+    const pastTreatmentId = treatmentByAppointmentId.get(completedAppointments[2]?.id ?? "");
+    if (pastTreatmentId) {
+      const { error: engagementError } = await supabase.from("clinic_engagement_jobs").insert([
+        {
+          organization_id: context.organization.id,
+          patient_id: completedAppointments[2].patient_id,
+          appointment_id: completedAppointments[2].id,
+          treatment_record_id: pastTreatmentId,
+          job_type: "follow_up_24h",
+          channel: "call_task",
+          status: "queued",
+          idempotency_key: `demo:${completedAppointments[2].id}:follow_up_24h`,
+          scheduled_for: addHoursToNow(-1),
+          payload: { trigger: "demo_follow_up_due", phase: "seed" }
+        },
+        {
+          organization_id: context.organization.id,
+          patient_id: appointments[0].patient_id,
+          appointment_id: appointments[0].id,
+          treatment_record_id: null,
+          job_type: "appointment_reminder_24h",
+          channel: "sms",
+          status: "queued",
+          idempotency_key: `demo:${appointments[0].id}:reminder_24h`,
+          scheduled_for: addHoursToNow(1),
+          payload: { trigger: "demo_upcoming_reminder", phase: "seed" }
+        }
+      ]);
+
+      if (engagementError) {
+        return { error: toFriendlyClinicError(engagementError) };
+      }
+    }
+
+    const presetSeedPayload = [
+      {
+        organization_id: context.organization.id,
+        user_id: context.user.id,
+        name: "Өнөөдрийн owner report",
+        range_preset: "today",
+        provider_filter: "all",
+        location_filter: "all"
+      },
+      {
+        organization_id: context.organization.id,
+        user_id: context.user.id,
+        name: "Central 7d report",
+        range_preset: "7d",
+        provider_filter: "all",
+        location_filter: "Central Branch"
+      }
+    ];
+
+    const { data: existingPresets, error: existingPresetError } = await supabase
+      .from("clinic_report_presets")
+      .select("name")
+      .eq("organization_id", context.organization.id)
+      .eq("user_id", context.user.id);
+
+    if (existingPresetError) {
+      return { error: toFriendlyClinicError(existingPresetError) };
+    }
+
+    const existingPresetNames = new Set((existingPresets ?? []).map((preset) => preset.name));
+    const missingPresetPayload = presetSeedPayload.filter((preset) => !existingPresetNames.has(preset.name));
+
+    if (missingPresetPayload.length > 0) {
+      const { error: presetError } = await supabase
+        .from("clinic_report_presets")
+        .insert(missingPresetPayload);
+
+      if (presetError) {
+        return { error: toFriendlyClinicError(presetError) };
+      }
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    revalidatePath("/patients");
+    revalidatePath("/treatments");
+    revalidatePath("/checkout");
+    revalidatePath("/reports");
+
+    return {
+      message:
+        "Demo clinic data үүслээ. Одоо dashboard, schedule, POS, reports, reminder queue-г live smoke test хийж болно."
+    };
+  } catch (error) {
+    if (isClinicFoundationMissingError(error) && diagnosticMessage) {
+      return { error: diagnosticMessage };
+    }
     return { error: toFriendlyClinicError(error) };
   }
 }

@@ -13,6 +13,8 @@ export type TreatmentRecordRow = Database["public"]["Tables"]["treatment_records
 export type ClinicCheckoutRow = Database["public"]["Tables"]["clinic_checkouts"]["Row"];
 export type ClinicCheckoutItemRow = Database["public"]["Tables"]["clinic_checkout_items"]["Row"];
 export type ClinicCheckoutPaymentRow = Database["public"]["Tables"]["clinic_checkout_payments"]["Row"];
+export type ClinicEngagementJobRow = Database["public"]["Tables"]["clinic_engagement_jobs"]["Row"];
+export type ClinicReportPresetRow = Database["public"]["Tables"]["clinic_report_presets"]["Row"];
 
 export type AppointmentStatus =
   | "booked"
