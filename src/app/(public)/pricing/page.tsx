@@ -58,34 +58,104 @@ export default async function PricingPage() {
   const [plans, user] = await Promise.all([getPublicActivePlans(), getCurrentUser()]);
   const organization = user ? await getCurrentUserOrganization(user.id) : null;
   const subscription = user ? await getCurrentOrganizationSubscription(user.id) : null;
+  const isConsumerMode = !user;
   const subscriptionDisplay = getSubscriptionDisplay(subscription?.status);
+  const primaryReturnHref = user ? "/dashboard" : "/";
+  const primaryReturnLabel = user ? "Dashboard руу буцах" : "Нүүр хуудас руу буцах";
+  const secondaryReturnHref = user ? "/billing" : "/clinics";
+  const secondaryReturnLabel = user ? "Billing рүү орох" : "Эмнэлэг хайх";
 
   return (
     <main className="ui-page-main">
-      {user ? (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--space-3)"
+        }}
+      >
         <p className="ui-text-muted" style={{ margin: 0 }}>
-          <Link href="/dashboard">← Dashboard</Link>
-          {organization ? (
-            <>
-              {" · "}
-              <Link href="/billing">Billing</Link>
-            </>
-          ) : null}
+          <Link href={primaryReturnHref}>← {primaryReturnLabel}</Link>
+          {" · "}
+          <Link href={secondaryReturnHref}>{secondaryReturnLabel}</Link>
         </p>
-      ) : null}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+          <Link href={primaryReturnHref} className="ui-button ui-button--secondary ui-button--sm">
+            {primaryReturnLabel}
+          </Link>
+          <Link href={secondaryReturnHref} className="ui-button ui-button--ghost ui-button--sm">
+            {secondaryReturnLabel}
+          </Link>
+        </div>
+      </div>
 
       <PageHeader
-        title="Төлөвлөгөө ба төлбөр"
+        title={isConsumerMode ? "Үнэ, багц, special offer" : "Төлөвлөгөө ба төлбөр"}
         description={
-          <>
-            UbBeauty-ийн төлөвлөгөөнүүд нь clinic workspace, team size, operational growth-ийг дэмжих subscription
-            суурь болно. Төлбөртэй төлөвлөгөөний төлбөрийг <strong>QPay</strong>-аар хийж, баталгаажсаны дараа
-            subscription идэвхжинэ.
-          </>
+          isConsumerMode ? (
+            <>
+              Энгийн хэрэглэгчдэд зориулсан service price band, starter offer, booking decision хийхэд туслах
+              ерөнхий үнийн мэдээллийг энд харуулна. Яг clinic бүрийн бодит үнэ, slot, provider мэдээлэл нь{" "}
+              <Link href="/clinics">эмнэлгийн жагсаалт</Link> болон clinic detail дээр харагдана.
+            </>
+          ) : (
+            <>
+              UbBeauty-ийн төлөвлөгөөнүүд нь clinic workspace, team size, operational growth-ийг дэмжих subscription
+              суурь болно. Төлбөртэй төлөвлөгөөний төлбөрийг <strong>QPay</strong>-аар хийж, баталгаажсаны дараа
+              subscription идэвхжинэ.
+            </>
+          )
         }
       />
 
-      <section style={{ display: "grid", gap: "var(--space-4)" }}>
+      {isConsumerMode ? (
+        <>
+          <section style={{ display: "grid", gap: "var(--space-4)" }}>
+            <Card padded stack>
+              <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Service price guide</h2>
+              <div style={{ display: "grid", gap: "0.9rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <strong>Consultation</strong>
+                  <span>49,000₮ - 79,000₮</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <strong>Hydrafacial / deep care</strong>
+                  <span>120,000₮ - 180,000₮</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <strong>Laser toning</strong>
+                  <span>180,000₮ - 320,000₮</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+                  <strong>Seasonal bundle</strong>
+                  <span>149,000₮-с</span>
+                </div>
+              </div>
+            </Card>
+
+            <Card padded stack>
+              <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Үнэ хараад дараа нь юу хийх вэ?</h2>
+              <ol style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "var(--space-2)" }}>
+                <li>Өөрт тохирох service category-гаа баримжаална.</li>
+                <li>Эмнэлгүүдээс service menu, provider, location-оо харьцуулна.</li>
+                <li>Clinic detail дээрээс сул цагаа сонгоод booking request илгээнэ.</li>
+              </ol>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                <Link href="/clinics" className="ui-button ui-button--primary ui-button--sm">
+                  Эмнэлэг харьцуулах
+                </Link>
+                <Link href="/" className="ui-button ui-button--secondary ui-button--sm">
+                  Нүүр рүү буцах
+                </Link>
+              </div>
+            </Card>
+          </section>
+        </>
+      ) : null}
+
+      {!isConsumerMode ? <section style={{ display: "grid", gap: "var(--space-4)" }}>
         <Card padded stack>
           <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Төлбөр хэрхэн явагдах вэ?</h2>
           <ol style={{ margin: 0, paddingLeft: "1.2rem", display: "grid", gap: "var(--space-2)" }}>
@@ -127,9 +197,9 @@ export default async function PricingPage() {
             </p>
           </Card>
         )}
-      </section>
+      </section> : null}
 
-      <section style={{ display: "grid", gap: "var(--space-4)", marginTop: "var(--space-4)" }}>
+      {!isConsumerMode ? <section style={{ display: "grid", gap: "var(--space-4)", marginTop: "var(--space-4)" }}>
         {plans.map((plan) => {
           const paid = Number(plan.price_monthly) > 0;
           const isCurrentPlan = subscription?.plan_id === plan.id;
@@ -204,7 +274,31 @@ export default async function PricingPage() {
             </Card>
           );
         })}
-      </section>
+      </section> : null}
+
+      <Card
+        padded
+        stack
+        style={{
+          marginTop: "var(--space-4)",
+          display: "grid",
+          gap: "var(--space-3)",
+          alignItems: "start"
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 600 }}>Дараагийн алхам</h2>
+        <p className="ui-text-muted" style={{ margin: 0 }}>
+          Төлөвлөгөөгөө харьцуулж дууссан бол шууд буцаж clinic workflow-оо үргэлжлүүлж болно.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+          <Link href={primaryReturnHref} className="ui-button ui-button--primary ui-button--sm">
+            {primaryReturnLabel}
+          </Link>
+          <Link href={secondaryReturnHref} className="ui-button ui-button--secondary ui-button--sm">
+            {secondaryReturnLabel}
+          </Link>
+        </div>
+      </Card>
     </main>
   );
 }

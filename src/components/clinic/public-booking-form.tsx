@@ -74,6 +74,7 @@ export function PublicBookingForm({
 
   const activeSuggestions =
     liveSuggestions.length > 0 || preferredStaffId || preferredLocationId ? liveSuggestions : baseSuggestions;
+  const hasSubmitted = Boolean(state.message && !state.error);
 
   useEffect(() => {
     let ignore = false;
@@ -120,185 +121,221 @@ export function PublicBookingForm({
 
   return (
     <div className="consumer-booking-form-shell">
-      <form action={formAction} className="ui-card consumer-booking-form">
-        <input type="hidden" name="clinicSlug" value={clinicSlug} />
-
-        <div className="consumer-booking-form__header">
-          <div>
-            <p className="consumer-panel-label">Booking request</p>
-            <h2>{clinicName}</h2>
+      {hasSubmitted ? (
+        <div className="ui-card consumer-booking-form" style={{ display: "grid", gap: "1rem" }}>
+          <div className="consumer-booking-form__header">
+            <div>
+              <p className="consumer-panel-label">Booking request received</p>
+              <h2>{clinicName}</h2>
+            </div>
+            <span className="consumer-live-badge">Амжилттай</span>
           </div>
-          <span className="consumer-live-badge">{services.length} үйлчилгээ</span>
+          <p className="ui-inline-feedback ui-inline-feedback--success" style={{ margin: 0 }}>
+            {state.message}
+          </p>
+          <div className="consumer-booking-form__summary-grid">
+            <article className="consumer-provider-card">
+              <strong>Сонгосон үйлчилгээ</strong>
+              <p>{selectedService ? selectedService.name : "Clinic баг service-ийг баталгаажуулна"}</p>
+            </article>
+            <article className="consumer-provider-card">
+              <strong>Хүссэн цаг</strong>
+              <p>{scheduledStart ? formatSlotLabel(scheduledStart) : "Clinic баг тантай цагийг тулгана"}</p>
+            </article>
+          </div>
+          <div className="consumer-provider-card">
+            <strong>Дараа нь юу болох вэ?</strong>
+            <p>Clinic баг таны хүсэлтийг шалгаад баталгаажуулах эсвэл ойролцоо сул цаг санал болгохоор холбогдоно.</p>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+            <Button type="button" variant="primary" size="sm" onClick={() => window.location.assign(`/clinics/${clinicSlug}`)}>
+              Clinic profile руу буцах
+            </Button>
+            <Button type="button" variant="secondary" size="sm" onClick={() => window.location.assign("/clinics")}>
+              Өөр эмнэлэг үзэх
+            </Button>
+          </div>
         </div>
+      ) : (
+        <form action={formAction} className="ui-card consumer-booking-form">
+          <input type="hidden" name="clinicSlug" value={clinicSlug} />
 
-        <div className="ui-form-stack">
-          <div>
-            <label className="ui-label" htmlFor="serviceId">
-              Үйлчилгээ
-            </label>
-            <select
-              id="serviceId"
-              name="serviceId"
-              className="ui-input"
-              required
-              defaultValue=""
-              onChange={(event) => {
-                setSelectedServiceId(event.target.value);
-                setPreferredStaffId("");
-                setPreferredLocationId("");
-                setScheduledStart("");
-              }}
-            >
-              <option value="" disabled>
-                Үйлчилгээ сонгоно уу
-              </option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} · {service.duration_minutes} мин · {service.price_from} {service.currency}
+          <div className="consumer-booking-form__header">
+            <div>
+              <p className="consumer-panel-label">Booking request</p>
+              <h2>{clinicName}</h2>
+            </div>
+            <span className="consumer-live-badge">{services.length} үйлчилгээ</span>
+          </div>
+
+          <div className="ui-form-stack">
+            <div>
+              <label className="ui-label" htmlFor="serviceId">
+                Үйлчилгээ
+              </label>
+              <select
+                id="serviceId"
+                name="serviceId"
+                className="ui-input"
+                required
+                defaultValue=""
+                onChange={(event) => {
+                  setSelectedServiceId(event.target.value);
+                  setPreferredStaffId("");
+                  setPreferredLocationId("");
+                  setScheduledStart("");
+                }}
+              >
+                <option value="" disabled>
+                  Үйлчилгээ сонгоно уу
                 </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="consumer-booking-form__grid">
-            <div>
-              <label className="ui-label" htmlFor="preferredStaffId">
-                Preferred provider
-              </label>
-              <select
-                id="preferredStaffId"
-                name="preferredStaffId"
-                className="ui-input"
-                value={preferredStaffId}
-                onChange={(event) => {
-                  setPreferredStaffId(event.target.value);
-                  setScheduledStart("");
-                }}
-              >
-                <option value="">Clinic тохируулах</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.full_name}
-                    {provider.specialty ? ` · ${provider.specialty}` : ""}
+                {services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name} · {service.duration_minutes} мин · {service.price_from} {service.currency}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="ui-label" htmlFor="preferredLocationId">
-                Preferred location
-              </label>
-              <select
-                id="preferredLocationId"
-                name="preferredLocationId"
-                className="ui-input"
-                value={preferredLocationId}
-                onChange={(event) => {
-                  setPreferredLocationId(event.target.value);
-                  setScheduledStart("");
-                }}
-              >
-                <option value="">Clinic тохируулах</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                    {location.district ? ` · ${location.district}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="ui-label" htmlFor="scheduledStart">
-              Хүссэн цаг
-            </label>
-            <Input
-              id="scheduledStart"
-              name="scheduledStart"
-              type="datetime-local"
-              required
-              value={scheduledStart}
-              onChange={(event) => setScheduledStart(event.target.value)}
-            />
-            {activeSuggestions.length > 0 ? (
-              <div className="consumer-booking-form__slot-block">
-                <strong>
-                  Suggested slots{loadingSlots ? " · шинэчилж байна..." : ""}
-                </strong>
-                <div className="consumer-booking-form__slot-row">
-                  {activeSuggestions.map((slot) => {
-                    const localValue = toDateTimeLocalValue(slot);
-                    const isSelected = scheduledStart === localValue;
-
-                    return (
-                      <Button
-                        key={slot}
-                        type="button"
-                        size="sm"
-                        variant={isSelected ? "primary" : "secondary"}
-                        onClick={() => setScheduledStart(localValue)}
-                      >
-                        {formatSlotLabel(slot)}
-                      </Button>
-                    );
-                  })}
-                </div>
+            <div className="consumer-booking-form__grid">
+              <div>
+                <label className="ui-label" htmlFor="preferredStaffId">
+                  Preferred provider
+                </label>
+                <select
+                  id="preferredStaffId"
+                  name="preferredStaffId"
+                  className="ui-input"
+                  value={preferredStaffId}
+                  onChange={(event) => {
+                    setPreferredStaffId(event.target.value);
+                    setScheduledStart("");
+                  }}
+                >
+                  <option value="">Clinic тохируулах</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.full_name}
+                      {provider.specialty ? ` · ${provider.specialty}` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : selectedServiceId ? (
-              <p className="consumer-fallback-note" style={{ marginTop: "0.55rem" }}>
-                {loadingSlots
-                  ? "Сул цаг хайж байна..."
-                  : "Санал болгох slot одоогоор алга байна. Өөр provider/location эсвэл өөр цаг туршина уу."}
-              </p>
-            ) : null}
-          </div>
 
-          <div className="consumer-booking-form__grid">
-            <div>
-              <label className="ui-label" htmlFor="fullName">
-                Нэр
-              </label>
-              <Input id="fullName" name="fullName" required maxLength={120} />
+              <div>
+                <label className="ui-label" htmlFor="preferredLocationId">
+                  Preferred location
+                </label>
+                <select
+                  id="preferredLocationId"
+                  name="preferredLocationId"
+                  className="ui-input"
+                  value={preferredLocationId}
+                  onChange={(event) => {
+                    setPreferredLocationId(event.target.value);
+                    setScheduledStart("");
+                  }}
+                >
+                  <option value="">Clinic тохируулах</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.name}
+                      {location.district ? ` · ${location.district}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
-              <label className="ui-label" htmlFor="phone">
-                Утас
+              <label className="ui-label" htmlFor="scheduledStart">
+                Хүссэн цаг
               </label>
-              <Input id="phone" name="phone" required maxLength={40} />
+              <Input
+                id="scheduledStart"
+                name="scheduledStart"
+                type="datetime-local"
+                required
+                value={scheduledStart}
+                onChange={(event) => setScheduledStart(event.target.value)}
+              />
+              {activeSuggestions.length > 0 ? (
+                <div className="consumer-booking-form__slot-block">
+                  <strong>
+                    Suggested slots{loadingSlots ? " · шинэчилж байна..." : ""}
+                  </strong>
+                  <div className="consumer-booking-form__slot-row">
+                    {activeSuggestions.map((slot) => {
+                      const localValue = toDateTimeLocalValue(slot);
+                      const isSelected = scheduledStart === localValue;
+
+                      return (
+                        <Button
+                          key={slot}
+                          type="button"
+                          size="sm"
+                          variant={isSelected ? "primary" : "secondary"}
+                          onClick={() => setScheduledStart(localValue)}
+                        >
+                          {formatSlotLabel(slot)}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : selectedServiceId ? (
+                <p className="consumer-fallback-note" style={{ marginTop: "0.55rem" }}>
+                  {loadingSlots
+                    ? "Сул цаг хайж байна..."
+                    : "Санал болгох slot одоогоор алга байна. Өөр provider/location эсвэл өөр цаг туршина уу."}
+                </p>
+              ) : null}
             </div>
+
+            <div className="consumer-booking-form__grid">
+              <div>
+                <label className="ui-label" htmlFor="fullName">
+                  Нэр
+                </label>
+                <Input id="fullName" name="fullName" required maxLength={120} />
+              </div>
+
+              <div>
+                <label className="ui-label" htmlFor="phone">
+                  Утас
+                </label>
+                <Input id="phone" name="phone" required maxLength={40} />
+              </div>
+            </div>
+
+            <div>
+              <label className="ui-label" htmlFor="email">
+                И-мэйл
+              </label>
+              <Input id="email" name="email" type="email" maxLength={120} />
+            </div>
+
+            <div>
+              <label className="ui-label" htmlFor="bookingNotes">
+                Тайлбар
+              </label>
+              <textarea
+                id="bookingNotes"
+                name="bookingNotes"
+                className="ui-input"
+                rows={4}
+                placeholder={`${clinicName}-д хандаж байгаа шалтгаан, хүсэлтээ бичиж болно.`}
+              />
+            </div>
+
+            <Button type="submit" variant="primary" size="lg" disabled={pending || services.length === 0}>
+              {pending ? "Илгээж байна..." : "Цаг захиалах хүсэлт илгээх"}
+            </Button>
+
+            {state.error ? <p className="ui-inline-feedback ui-inline-feedback--error">{state.error}</p> : null}
           </div>
-
-          <div>
-            <label className="ui-label" htmlFor="email">
-              И-мэйл
-            </label>
-            <Input id="email" name="email" type="email" maxLength={120} />
-          </div>
-
-          <div>
-            <label className="ui-label" htmlFor="bookingNotes">
-              Тайлбар
-            </label>
-            <textarea
-              id="bookingNotes"
-              name="bookingNotes"
-              className="ui-input"
-              rows={4}
-              placeholder={`${clinicName}-д хандаж байгаа шалтгаан, хүсэлтээ бичиж болно.`}
-            />
-          </div>
-
-          <Button type="submit" variant="primary" size="lg" disabled={pending || services.length === 0}>
-            {pending ? "Илгээж байна..." : "Цаг захиалах хүсэлт илгээх"}
-          </Button>
-
-          {state.error ? <p className="ui-inline-feedback ui-inline-feedback--error">{state.error}</p> : null}
-          {state.message ? <p className="ui-inline-feedback ui-inline-feedback--success">{state.message}</p> : null}
-        </div>
-      </form>
+        </form>
+      )}
 
       <aside className="ui-card consumer-booking-form__sidebar">
         <div>

@@ -36,18 +36,19 @@ export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps
 
   return (
     <div className="app-shell">
-      {/* Sidebar */}
       <aside className="app-shell__sidebar">
-        <Link href="/pulse" className="app-shell__logo-link">
-          <Image
-            src="/brand/logo.svg"
-            alt="UbBeauty"
-            width={140}
-            height={40}
-            className="app-shell__logo"
-            priority
-          />
-        </Link>
+        <div className="app-shell__sidebar-top">
+          <Link href="/pulse" className="app-shell__logo-link">
+            <Image
+              src="/brand/logo.svg"
+              alt="UbBeauty"
+              width={140}
+              height={40}
+              className="app-shell__logo"
+              priority
+            />
+          </Link>
+        </div>
 
         <SidebarNav items={navItems} />
 
@@ -58,7 +59,6 @@ export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps
         </form>
       </aside>
 
-      {/* Main content */}
       <main className="app-shell__main">{children}</main>
     </div>
   );

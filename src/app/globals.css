@@ -914,6 +914,11 @@ code {
   transition: opacity 0.2s;
 }
 
+.app-shell__sidebar-top {
+  display: grid;
+  gap: 1rem;
+}
+
 .app-shell__logo-link:hover {
   opacity: 1;
 }
@@ -984,19 +989,24 @@ code {
     width: 100%;
     height: auto;
     position: static;
-    flex-direction: row;
-    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
     padding: 0.75rem 1rem;
     border-right: none;
     border-bottom: none;
-    gap: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
+    gap: 0.75rem;
+    overflow: visible;
+  }
+
+  .app-shell__sidebar-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   .app-shell__logo-link {
     margin-bottom: 0;
-    margin-right: 1rem;
     flex-shrink: 0;
   }
 
@@ -1006,24 +1016,29 @@ code {
 
   .app-shell__nav {
     flex-direction: row;
-    flex: 1;
+    flex: none;
     gap: 0.25rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.25rem;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    grid-column: 1 / -1;
   }
 
   .app-shell__nav a {
     white-space: nowrap;
     padding: 0.4rem 0.6rem;
     font-size: 0.8rem;
+    scroll-snap-align: start;
   }
 
   .app-shell__signout {
     margin-top: 0;
     padding-top: 0;
     border-top: none;
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
-    padding-left: 0.75rem;
-    margin-left: 0.25rem;
     flex-shrink: 0;
+    align-self: center;
   }
 
   .app-shell__main {
@@ -1032,6 +1047,25 @@ code {
 }
 
 @media (max-width: 640px) {
+  .marketing-shell {
+    width: min(1120px, calc(100% - 1rem));
+  }
+
+  .marketing-topbar__inner {
+    min-height: auto;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0.75rem 0;
+  }
+
+  .marketing-topbar__actions {
+    width: 100%;
+  }
+
+  .marketing-topbar__actions .ui-button {
+    flex: 1;
+  }
+
   .app-shell__header {
     padding: var(--space-3) var(--space-4);
   }
@@ -1042,10 +1076,45 @@ code {
 
   .ui-page-main {
     padding: var(--space-4);
+    gap: var(--space-4);
   }
 
   .ui-auth-main {
     padding: var(--space-4);
+  }
+
+  .ui-page-header__title {
+    font-size: 1.4rem;
+    line-height: 1.15;
+  }
+
+  .ui-page-header__description,
+  .ui-page-header__subtitle {
+    font-size: 0.84rem;
+  }
+
+  .ui-quick-links {
+    padding: var(--space-3);
+    align-items: flex-start;
+  }
+
+  .ui-quick-links__label {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .ui-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-table-wrap {
+    margin-left: -0.35rem;
+    margin-right: -0.35rem;
+    border-radius: var(--radius-sm);
+  }
+
+  .ui-table {
+    min-width: 640px;
   }
 }
 
@@ -3060,6 +3129,85 @@ code {
 
   .consumer-search-box a {
     text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .consumer-home,
+  .consumer-directory,
+  .consumer-clinic-detail,
+  .consumer-booking-page {
+    overflow-x: clip;
+  }
+
+  .consumer-hero {
+    padding-top: 0;
+  }
+
+  .consumer-hero__inner {
+    gap: 1rem;
+  }
+
+  .consumer-hero__copy,
+  .consumer-search-panel,
+  .consumer-directory__summary,
+  .consumer-clinic-detail__slot-preview,
+  .consumer-booking-page__summary,
+  .consumer-booking-form,
+  .consumer-booking-form__sidebar,
+  .consumer-clinic-detail__section,
+  .consumer-directory-card,
+  .consumer-service-card,
+  .consumer-final__card {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+
+  .consumer-hero__copy h1,
+  .consumer-directory__copy h1,
+  .consumer-clinic-detail__copy h1,
+  .consumer-booking-page__copy h1,
+  .consumer-section__intro h2,
+  .consumer-final__card h2 {
+    font-size: clamp(1.9rem, 9vw, 2.6rem);
+    line-height: 1.02;
+  }
+
+  .consumer-filter-row,
+  .consumer-chip-row,
+  .consumer-final__actions,
+  .consumer-directory-card__actions,
+  .consumer-booking-form__slot-row {
+    gap: 0.5rem;
+  }
+
+  .consumer-final__actions .ui-button,
+  .consumer-directory-card__actions .ui-button,
+  .marketing-actions .ui-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .consumer-directory__hero,
+  .consumer-clinic-detail__hero,
+  .consumer-booking-page__hero {
+    padding: 2rem 0 1rem;
+  }
+
+  .consumer-directory__content,
+  .consumer-clinic-detail__content,
+  .consumer-booking-page__content {
+    padding-bottom: 2.5rem;
+  }
+
+  .consumer-provider-card,
+  .consumer-booking-page__point {
+    padding: 0.8rem 0.9rem;
+  }
+
+  .consumer-directory-card__top span,
+  .consumer-live-badge {
+    align-self: flex-start;
   }
 }
 

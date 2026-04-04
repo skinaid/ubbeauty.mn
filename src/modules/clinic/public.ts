@@ -10,6 +10,11 @@ export type PublicClinicSummary = {
   status: string;
   serviceCount: number;
   serviceNames: string[];
+  locationLabel: string | null;
+  district: string | null;
+  city: string | null;
+  minPrice: number | null;
+  currency: string | null;
 };
 
 export type PublicClinicDetail = {
@@ -44,7 +49,7 @@ export async function getPublicClinics(limit = 24): Promise<PublicClinicSummary[
 
   const { data: services, error: servicesError } = await admin
     .from("services")
-    .select("organization_id,name")
+    .select("organization_id,name,price_from,currency")
     .in("organization_id", organizationIds)
     .eq("status", "active")
     .eq("is_bookable", true);
@@ -54,25 +59,77 @@ export async function getPublicClinics(limit = 24): Promise<PublicClinicSummary[
       return (clinics ?? []).map((clinic) => ({
         ...clinic,
         serviceCount: 0,
-        serviceNames: []
+        serviceNames: [],
+        locationLabel: null,
+        district: null,
+        city: null,
+        minPrice: null,
+        currency: null
       }));
     }
     throw servicesError;
   }
 
+  const { data: locations, error: locationsError } = await admin
+    .from("clinic_locations")
+    .select("organization_id,name,district,city,status")
+    .in("organization_id", organizationIds)
+    .eq("status", "active")
+    .order("name", { ascending: true });
+
+  if (locationsError) {
+    if (!isClinicFoundationMissingError(locationsError)) {
+      throw locationsError;
+    }
+  }
+
   const servicesByOrg = new Map<string, string[]>();
+  const minPriceByOrg = new Map<string, { minPrice: number | null; currency: string | null }>();
   for (const service of services ?? []) {
     const current = servicesByOrg.get(service.organization_id) ?? [];
     current.push(service.name);
     servicesByOrg.set(service.organization_id, current);
+
+    const currentMin = minPriceByOrg.get(service.organization_id);
+    if (!currentMin || Number(service.price_from) < Number(currentMin.minPrice ?? Number.POSITIVE_INFINITY)) {
+      minPriceByOrg.set(service.organization_id, {
+        minPrice: Number(service.price_from),
+        currency: service.currency
+      });
+    }
+  }
+
+  const firstLocationByOrg = new Map<
+    string,
+    { locationLabel: string | null; district: string | null; city: string | null }
+  >();
+  for (const location of locations ?? []) {
+    if (!firstLocationByOrg.has(location.organization_id)) {
+      firstLocationByOrg.set(location.organization_id, {
+        locationLabel: location.name,
+        district: location.district,
+        city: location.city
+      });
+    }
   }
 
   return (clinics ?? []).map((clinic) => {
     const names = servicesByOrg.get(clinic.id) ?? [];
+    const location = firstLocationByOrg.get(clinic.id) ?? {
+      locationLabel: null,
+      district: null,
+      city: null
+    };
+    const minPrice = minPriceByOrg.get(clinic.id) ?? { minPrice: null, currency: null };
     return {
       ...clinic,
       serviceCount: names.length,
-      serviceNames: names.slice(0, 3)
+      serviceNames: names.slice(0, 3),
+      locationLabel: location.locationLabel,
+      district: location.district,
+      city: location.city,
+      minPrice: minPrice.minPrice,
+      currency: minPrice.currency
     };
   });
 }
