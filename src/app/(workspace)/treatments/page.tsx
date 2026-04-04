@@ -11,6 +11,7 @@ import {
   getRecentTreatmentRecords,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 
 const TREATMENT_MODULES = [
@@ -31,6 +32,7 @@ const TREATMENT_MODULES = [
 export default async function TreatmentsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  await enforceClinicWorkspaceRouteAccess("/treatments");
 
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");

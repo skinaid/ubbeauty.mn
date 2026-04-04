@@ -14,6 +14,7 @@ import {
   getServices,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import type { ClinicCheckoutItemRow } from "@/modules/clinic/types";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import {
@@ -93,6 +94,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   if (!user) {
     redirect("/login");
   }
+  await enforceClinicWorkspaceRouteAccess("/billing");
 
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const checkoutFilter = resolvedSearchParams?.checkoutStatus === "paid"

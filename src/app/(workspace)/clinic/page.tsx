@@ -19,6 +19,7 @@ import type {
   StaffAvailabilityRuleRow,
   StaffMemberRow
 } from "@/modules/clinic/types";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 
 type SetupStep = {
@@ -30,32 +31,15 @@ type SetupStep = {
   helper: string;
 };
 
-function buildClinicSlugPreview(name: string, organizationId: string): string {
-  const latinSlug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  if (latinSlug) {
-    return latinSlug;
-  }
-
-  const compactName = name.replace(/\s+/g, "").trim();
-  if (compactName) {
-    return `clinic-${organizationId.slice(0, 8).toLowerCase()}`;
-  }
-
-  return "clinic-profile";
-}
-
 export default async function ClinicProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  await enforceClinicWorkspaceRouteAccess("/clinic");
 
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");
 
-  const clinicSlug = buildClinicSlugPreview(organization.name, organization.id);
+  const clinicSlug = organization.slug;
   let locations: ClinicLocationRow[] = [];
   let services: ServiceRow[] = [];
   let staffMembers: StaffMemberRow[] = [];
@@ -137,12 +121,12 @@ export default async function ClinicProfilePage() {
           <div style={{ display: "grid", gap: "0.35rem" }}>
             <strong>{organization.name}</strong>
             <span className="ui-text-muted">
-              Одоогийн clinic slug preview: <code>{clinicSlug || "clinic-profile"}</code>
+              Одоогийн clinic slug: <code>{clinicSlug}</code>
             </span>
             <span className="ui-text-muted">
               Public preview:{" "}
-              <Link href={`/clinics/${clinicSlug || "clinic-profile"}`} className="ui-table__link">
-                /clinics/{clinicSlug || "clinic-profile"}
+              <Link href={`/clinics/${clinicSlug}`} className="ui-table__link">
+                /clinics/{clinicSlug}
               </Link>
             </span>
           </div>
@@ -275,7 +259,7 @@ export default async function ClinicProfilePage() {
                 <Link href="/checkout" className="ui-table__link">
                   POS
                 </Link>
-                <Link href={`/clinics/${clinicSlug || "clinic-profile"}`} className="ui-table__link">
+                <Link href={`/clinics/${clinicSlug}`} className="ui-table__link">
                   Public profile
                 </Link>
               </div>

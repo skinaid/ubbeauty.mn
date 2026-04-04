@@ -1,8 +1,10 @@
 import { getCurrentUser } from "@/modules/auth/session";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getCurrentUserOrganization, getCurrentUserOwnerMembership } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { OrganizationSummary } from "@/modules/organizations/data";
+import { canAccessClinicWorkspaceRoute, getDefaultClinicWorkspaceRoute } from "./workspace-access";
 import type { StaffMemberRow, StaffRole } from "./types";
 
 export type ClinicActor = {
@@ -114,4 +116,17 @@ export function hasClinicRole(actorRole: StaffRole, allowedRoles: StaffRole[]) {
 export function buildClinicPermissionError(allowedRoles: StaffRole[]) {
   const labels = allowedRoles.map((role) => CLINIC_ROLE_LABELS[role]).join(", ");
   return `Энэ үйлдэлд ${labels} эрх шаардлагатай.`;
+}
+
+export async function enforceClinicWorkspaceRouteAccess(pathname: string): Promise<ClinicActor> {
+  const actor = await requireClinicActor();
+  if ("error" in actor) {
+    redirect("/login");
+  }
+
+  if (!canAccessClinicWorkspaceRoute(actor.role, pathname)) {
+    redirect(getDefaultClinicWorkspaceRoute(actor.role));
+  }
+
+  return actor;
 }

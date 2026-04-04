@@ -668,7 +668,7 @@ export async function createClinicLocationAction(
   }
 
   revalidatePath("/clinic");
-  revalidatePath("/appointments");
+  revalidatePath("/schedule");
   return { message: "Салбар амжилттай нэмэгдлээ." };
 }
 
@@ -708,7 +708,7 @@ export async function createStaffMemberAction(
   }
 
   revalidatePath("/clinic");
-  revalidatePath("/appointments");
+  revalidatePath("/schedule");
   return { message: "Ажилтан амжилттай нэмэгдлээ." };
 }
 
@@ -753,7 +753,7 @@ export async function createServiceAction(
   }
 
   revalidatePath("/clinic");
-  revalidatePath("/appointments");
+  revalidatePath("/schedule");
   return { message: "Үйлчилгээ амжилттай нэмэгдлээ." };
 }
 
@@ -800,7 +800,7 @@ export async function createStaffAvailabilityRuleAction(
     }
 
     revalidatePath("/clinic");
-    revalidatePath("/appointments");
+    revalidatePath("/schedule");
     return { message: "Availability rule амжилттай хадгалагдлаа." };
   } catch (error) {
     return { error: toFriendlyClinicError(error) };
@@ -937,7 +937,7 @@ export async function createAdminAppointmentAction(
       return { error: toFriendlyClinicError(historyError) };
     }
 
-    revalidatePath("/appointments");
+    revalidatePath("/schedule");
     revalidatePath("/patients");
     return { message: "Appointment амжилттай үүслээ." };
   } catch (error) {
@@ -1051,7 +1051,7 @@ export async function transitionAppointmentStatusAction(
       }
     }
 
-    revalidatePath("/appointments");
+    revalidatePath("/schedule");
     revalidatePath("/patients");
     return { message: `Appointment статус ${targetStatus} боллоо.` };
   } catch (error) {

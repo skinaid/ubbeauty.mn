@@ -56,20 +56,6 @@ function getSubscriptionLabel(status?: string | null): string {
   }
 }
 
-function buildClinicSlugPreview(name: string, organizationId: string): string {
-  const latinSlug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  if (latinSlug) return latinSlug;
-
-  const compactName = name.replace(/\s+/g, "").trim();
-  if (compactName) return `clinic-${organizationId.slice(0, 8).toLowerCase()}`;
-
-  return "clinic-profile";
-}
-
 function isToday(isoDate: string): boolean {
   const date = new Date(isoDate);
   const now = new Date();
@@ -118,7 +104,7 @@ export default async function DashboardPage() {
   }
 
   const subscription = await getCurrentOrganizationSubscription(user.id);
-  const clinicSlug = buildClinicSlugPreview(organization.name, organization.id);
+  const clinicSlug = organization.slug;
   const environmentDiagnostics = await getClinicEnvironmentDiagnostics();
   const environmentDiagnosticMessage =
     buildClinicEnvironmentDiagnosticMessage(environmentDiagnostics);

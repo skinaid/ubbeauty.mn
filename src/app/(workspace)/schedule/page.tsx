@@ -21,6 +21,7 @@ import {
   getUpcomingAppointments,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import {
   getBillingAuditHref,
   getCheckoutOpenHref,
@@ -74,6 +75,7 @@ function getCheckoutBadgeVariant(paymentStatus?: string) {
 export default async function AppointmentsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  await enforceClinicWorkspaceRouteAccess("/schedule");
 
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");

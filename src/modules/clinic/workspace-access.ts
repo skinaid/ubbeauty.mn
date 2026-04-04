@@ -77,3 +77,7 @@ export function getClinicWorkspaceNavItems(role: StaffRole): ClinicWorkspaceNavI
     accent: item.accent
   }));
 }
+
+export function getDefaultClinicWorkspaceRoute(role: StaffRole): string {
+  return getClinicWorkspaceNavItems(role)[0]?.href ?? "/pulse";
+}

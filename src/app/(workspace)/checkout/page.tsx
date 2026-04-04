@@ -20,6 +20,7 @@ import {
   getServices,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 
 type CheckoutPageProps = {
@@ -63,6 +64,7 @@ export default async function RetailCheckoutPage({ searchParams }: CheckoutPageP
   if (!user) {
     redirect("/login");
   }
+  await enforceClinicWorkspaceRouteAccess("/checkout");
 
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) {

@@ -14,6 +14,7 @@ import {
   getRecentAppointmentsForDesk,
   isClinicFoundationMissingError
 } from "@/modules/clinic/data";
+import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import {
   buildAppointmentStatusBreakdown,
   buildCheckoutCollectionSummary,
@@ -39,6 +40,7 @@ export default async function ReportsPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  await enforceClinicWorkspaceRouteAccess("/reports");
 
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");
