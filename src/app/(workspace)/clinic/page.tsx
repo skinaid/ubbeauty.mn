@@ -4,6 +4,11 @@ import { CreateClinicLocationForm } from "@/components/clinic/create-clinic-loca
 import { CreateServiceForm } from "@/components/clinic/create-service-form";
 import { CreateStaffAvailabilityRuleForm } from "@/components/clinic/create-staff-availability-rule-form";
 import { CreateStaffMemberForm } from "@/components/clinic/create-staff-member-form";
+import { EditOrganizationForm } from "@/components/clinic/edit-organization-form";
+import { ClinicLocationListItem } from "@/components/clinic/clinic-location-list-item";
+import { StaffMemberListItem } from "@/components/clinic/staff-member-list-item";
+import { ServiceListItem } from "@/components/clinic/service-list-item";
+import { AvailabilityRuleListItem } from "@/components/clinic/availability-rule-list-item";
 import { Alert, Card, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import {
@@ -119,16 +124,10 @@ export default async function ClinicProfilePage() {
       <Card padded stack>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "start" }}>
           <div style={{ display: "grid", gap: "0.35rem" }}>
-            <strong>{organization.name}</strong>
-            <span className="ui-text-muted">
-              Одоогийн clinic slug: <code>{clinicSlug}</code>
-            </span>
-            <span className="ui-text-muted">
-              Public preview:{" "}
-              <Link href={`/clinics/${clinicSlug}`} className="ui-table__link">
-                /clinics/{clinicSlug}
-              </Link>
-            </span>
+            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
+              General Info
+            </h2>
+            <EditOrganizationForm organization={organization} />
           </div>
           <div style={{ display: "grid", gap: "0.25rem", justifyItems: "start" }}>
             <strong>{completedStepCount}/4 алхам дууссан</strong>
@@ -274,13 +273,9 @@ export default async function ClinicProfilePage() {
               {locations.length === 0 ? (
                 <p style={{ margin: 0 }}>Одоогоор салбар бүртгэгдээгүй байна.</p>
               ) : (
-                <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                <ul style={{ margin: 0, paddingLeft: 0 }}>
                   {locations.map((location) => (
-                    <li key={location.id}>
-                      <strong>{location.name}</strong>
-                      {location.district ? ` · ${location.district}` : ""}
-                      {location.phone ? ` · ${location.phone}` : ""}
-                    </li>
+                    <ClinicLocationListItem key={location.id} location={location} />
                   ))}
                 </ul>
               )}
@@ -292,12 +287,9 @@ export default async function ClinicProfilePage() {
               {staffMembers.length === 0 ? (
                 <p style={{ margin: 0 }}>Одоогоор ажилтан бүртгэгдээгүй байна.</p>
               ) : (
-                <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                <ul style={{ margin: 0, paddingLeft: 0 }}>
                   {staffMembers.map((staffMember) => (
-                    <li key={staffMember.id}>
-                      <strong>{staffMember.full_name}</strong> · {staffMember.role}
-                      {staffMember.specialty ? ` · ${staffMember.specialty}` : ""}
-                    </li>
+                    <StaffMemberListItem key={staffMember.id} staffMember={staffMember} />
                   ))}
                 </ul>
               )}
@@ -309,12 +301,9 @@ export default async function ClinicProfilePage() {
               {services.length === 0 ? (
                 <p style={{ margin: 0 }}>Одоогоор үйлчилгээ бүртгэгдээгүй байна.</p>
               ) : (
-                <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                <ul style={{ margin: 0, paddingLeft: 0 }}>
                   {services.map((service) => (
-                    <li key={service.id}>
-                      <strong>{service.name}</strong> · {service.duration_minutes} мин · {service.price_from}{" "}
-                      {service.currency}
-                    </li>
+                    <ServiceListItem key={service.id} service={service} />
                   ))}
                 </ul>
               )}
@@ -326,13 +315,15 @@ export default async function ClinicProfilePage() {
               {availabilityRules.length === 0 ? (
                 <p style={{ margin: 0 }}>Одоогоор ажлын цагийн rule бүртгэгдээгүй байна.</p>
               ) : (
-                <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                <ul style={{ margin: 0, paddingLeft: 0 }}>
                   {availabilityRules.map((rule) => (
-                    <li key={rule.id}>
-                      <strong>{staffById.get(rule.staff_member_id)?.full_name ?? "Staff"}</strong>
-                      {` · ${weekdayLabels[rule.weekday] ?? rule.weekday} · ${rule.start_local.slice(0, 5)}-${rule.end_local.slice(0, 5)}`}
-                      {rule.location_id ? ` · ${locationById.get(rule.location_id)?.name ?? "Location"}` : ""}
-                    </li>
+                    <AvailabilityRuleListItem
+                      key={rule.id}
+                      rule={rule}
+                      staffName={staffById.get(rule.staff_member_id)?.full_name ?? "Staff"}
+                      locationName={locationById.get(rule.location_id ?? "")?.name ?? ""}
+                      weekdayLabel={weekdayLabels[rule.weekday] ?? rule.weekday.toString()}
+                    />
                   ))}
                 </ul>
               )}

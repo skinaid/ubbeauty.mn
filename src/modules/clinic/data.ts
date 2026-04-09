@@ -139,6 +139,7 @@ export const getClinicLocations = cache(async (userId: string): Promise<ClinicLo
     .from("clinic_locations")
     .select("*")
     .eq("organization_id", organizationId)
+    .eq("status", "active")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -157,6 +158,7 @@ export const getStaffMembers = cache(async (userId: string): Promise<StaffMember
     .from("staff_members")
     .select("*")
     .eq("organization_id", organizationId)
+    .eq("status", "active")
     .order("full_name", { ascending: true });
 
   if (error) {
@@ -193,6 +195,7 @@ export const getServices = cache(async (userId: string): Promise<ServiceRow[]> =
     .from("services")
     .select("*")
     .eq("organization_id", organizationId)
+    .eq("status", "active")
     .order("created_at", { ascending: true });
 
   if (error) {

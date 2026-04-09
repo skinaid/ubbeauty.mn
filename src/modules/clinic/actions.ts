@@ -2708,3 +2708,322 @@ export async function seedDemoClinicDataAction(
     return { error: toFriendlyClinicError(error) };
   }
 }
+
+export async function updateOrganizationAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner"]);
+  if ("error" in context) return { error: context.error };
+
+  const name = formData.get("name");
+  const slug = formData.get("slug");
+
+  if (typeof name !== "string" || !name.trim()) {
+    return { error: "Organization name is required." };
+  }
+  if (typeof slug !== "string" || !slug.trim()) {
+    return { error: "Slug is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("organizations")
+      .update({
+        name: name.trim(),
+        slug: slugifyOrFallback(slug, "org"),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    return { message: "Organization updated successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function updateClinicLocationAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const locationId = formData.get("locationId");
+  const name = formData.get("name");
+  const district = formData.get("district");
+  const addressLine1 = formData.get("addressLine1");
+  const phone = formData.get("phone");
+
+  if (typeof locationId !== "string" || !locationId) {
+    return { error: "Location ID is required." };
+  }
+  if (typeof name !== "string" || !name.trim()) {
+    return { error: "Location name is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("clinic_locations")
+      .update({
+        name: name.trim(),
+        district: typeof district === "string" && district.trim() ? district.trim() : null,
+        address_line1: typeof addressLine1 === "string" && addressLine1.trim() ? addressLine1.trim() : null,
+        phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", locationId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    return { message: "Location updated successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function deleteClinicLocationAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const locationId = formData.get("locationId");
+  if (typeof locationId !== "string" || !locationId) {
+    return { error: "Location ID is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("clinic_locations")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .eq("id", locationId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    return { message: "Location deleted successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function updateStaffMemberAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const staffMemberId = formData.get("staffMemberId");
+  const fullName = formData.get("fullName");
+  const role = formData.get("role");
+  const specialty = formData.get("specialty");
+  const phone = formData.get("phone");
+  const email = formData.get("email");
+
+  if (typeof staffMemberId !== "string" || !staffMemberId) {
+    return { error: "Staff member ID is required." };
+  }
+  if (typeof fullName !== "string" || !fullName.trim()) {
+    return { error: "Staff full name is required." };
+  }
+  if (typeof role !== "string" || !role.trim()) {
+    return { error: "Staff role is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("staff_members")
+      .update({
+        full_name: fullName.trim(),
+        role: role,
+        specialty: typeof specialty === "string" && specialty.trim() ? specialty.trim() : null,
+        phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
+        email: typeof email === "string" && email.trim() ? email.trim() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", staffMemberId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    return { message: "Staff member updated successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function deleteStaffMemberAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const staffMemberId = formData.get("staffMemberId");
+  if (typeof staffMemberId !== "string" || !staffMemberId) {
+    return { error: "Staff member ID is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("staff_members")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .eq("id", staffMemberId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    return { message: "Staff member deleted successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function updateServiceAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const serviceId = formData.get("serviceId");
+  const name = formData.get("name");
+  const durationMinutes = formData.get("durationMinutes");
+  const priceFrom = formData.get("priceFrom");
+  const description = formData.get("description");
+
+  if (typeof serviceId !== "string" || !serviceId) {
+    return { error: "Service ID is required." };
+  }
+  if (typeof name !== "string" || !name.trim()) {
+    return { error: "Service name is required." };
+  }
+
+  const duration = Number(durationMinutes);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return { error: "Valid duration minutes is required." };
+  }
+
+  const price = Number(priceFrom);
+  if (!Number.isFinite(price) || price < 0) {
+    return { error: "Valid price from is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("services")
+      .update({
+        name: name.trim(),
+        slug: slugifyOrFallback(name, "service"),
+        duration_minutes: duration,
+        price_from: price,
+        description: typeof description === "string" && description.trim() ? description.trim() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", serviceId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    return { message: "Service updated successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function deleteServiceAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const serviceId = formData.get("serviceId");
+  if (typeof serviceId !== "string" || !serviceId) {
+    return { error: "Service ID is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("services")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .eq("id", serviceId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    return { message: "Service deleted successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
+
+export async function deleteStaffAvailabilityRuleAction(
+  _prev: ClinicSetupActionState,
+  formData: FormData
+): Promise<ClinicSetupActionState> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const ruleId = formData.get("ruleId");
+  if (typeof ruleId !== "string" || !ruleId) {
+    return { error: "Rule ID is required." };
+  }
+
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("staff_availability_rules")
+      .delete()
+      .eq("id", ruleId)
+      .eq("organization_id", context.organization.id);
+
+    if (error) {
+      return { error: toFriendlyClinicError(error) };
+    }
+
+    revalidatePath("/clinic");
+    revalidatePath("/schedule");
+    return { message: "Availability rule deleted successfully." };
+  } catch (error) {
+    return { error: toFriendlyClinicError(error) };
+  }
+}
