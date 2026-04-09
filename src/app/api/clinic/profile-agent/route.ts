@@ -104,13 +104,32 @@ export async function POST(req: NextRequest) {
   // Direct save — user confirmed, skip AI round-trip
   if (body.directSave) {
     const supabase = await getSupabaseServerClient();
+    // Cast types correctly: founded_year/staff_count → number, services_summary → array
+    const castFields: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(body.directSave)) {
+      if (k === "founded_year" || k === "staff_count") {
+        castFields[k] = typeof v === "string" ? parseInt(v, 10) : v;
+      } else if (k === "services_summary") {
+        if (typeof v === "string") {
+          try { castFields[k] = JSON.parse(v); } catch { castFields[k] = v.split(",").map((s: string) => s.trim()); }
+        } else { castFields[k] = v; }
+      } else {
+        castFields[k] = v;
+      }
+    }
     const { error } = await supabase
       .from("organizations")
-      .update({ ...body.directSave, updated_at: new Date().toISOString() })
+      .update({ ...castFields, updated_at: new Date().toISOString() })
       .eq("id", org.id);
     const encoder2 = new TextEncoder();
-    const fields = body.directSave;
-    const confirmText = Object.keys(fields).map(k => `✓ ${k} хадгалагдлаа`).join(", ");
+    const fieldLabels: Record<string, string> = {
+      tagline: "Уриа үг", description: "Тайлбар", phone: "Утас",
+      website: "Вебсайт", address: "Хаяг", city: "Хот",
+      services_summary: "Үйлчилгээ", social_instagram: "Instagram",
+      social_facebook: "Facebook", founded_year: "Байгуулагдсан он", staff_count: "Ажилтны тоо",
+    };
+    const fields = castFields;
+    const confirmText = Object.keys(fields).map(k => `✓ ${fieldLabels[k] ?? k} хадгалагдлаа`).join(", ");
     const stream2 = new ReadableStream({
       start(ctrl) {
         if (!error) {
