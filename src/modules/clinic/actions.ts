@@ -3079,3 +3079,48 @@ export async function deleteStaffAvailabilityRuleAction(
     return { error: toFriendlyClinicError(error) };
   }
 }
+
+// ── Staff Management (AI Chat Panel) ──────────────────────────────────────────
+
+export async function updateStaffMember(
+  staffId: string,
+  fields: {
+    full_name?: string;
+    role?: string;
+    specialty?: string | null;
+    bio?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    accepts_online_booking?: boolean;
+    status?: string;
+    location_id?: string | null;
+  }
+): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("staff_members")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", staffId)
+    .eq("organization_id", context.organization.id);
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/staff");
+  revalidatePath("/clinic");
+  return {};
+}
+
+export async function deleteStaffMember(staffId: string): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("staff_members")
+    .delete()
+    .eq("id", staffId)
+    .eq("organization_id", context.organization.id);
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/staff");
+  revalidatePath("/clinic");
+  return {};
+}
