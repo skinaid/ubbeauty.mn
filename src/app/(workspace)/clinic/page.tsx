@@ -121,6 +121,10 @@ export default async function ClinicProfilePage() {
         description="Go-live хийхэд хэрэгтэй branch, staff, services, availability гэсэн 4 үндсэн алхмыг дарааллаар нь бэлдэнэ."
       />
 
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "-0.5rem" }}>
+        <Link href="/clinic/profile" className="ui-table__link">📝 Профайл засах</Link>
+      </div>
+
       <Card padded stack>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "start" }}>
           <div style={{ display: "grid", gap: "0.35rem" }}>
