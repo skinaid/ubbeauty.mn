@@ -121,12 +121,62 @@ export function ClinicProfileChatPanel({
 
   const handleConfirm = useCallback(async (confirmed: boolean) => {
     if (!pendingConfirm) return;
-    const replyText = confirmed ? "Тийм" : "Үгүй";
+    const confirm = pendingConfirm;
+    setPendingConfirm(null);
+
+    const replyText = confirmed ? "✓ Тийм" : "Үгүй";
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: replyText };
     setMessages((prev) => [...prev, userMsg]);
-    setPendingConfirm(null);
-    await doStream(userMsg, messages);
-  }, [pendingConfirm, messages, doStream]);
+
+    if (!confirmed) {
+      // Just say "ok" without saving
+      const cancelMsg: Message = { id: (Date.now()+1).toString(), role: "assistant", content: "За, өөрчлүүлээрэй." };
+      setMessages((prev) => [...prev, cancelMsg]);
+      return;
+    }
+
+    // Confirmed — bypass AI, save directly
+    setIsStreaming(true);
+    const assistantId = (Date.now() + 2).toString();
+    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+    try {
+      const res = await fetch("/api/clinic/profile-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [],
+          directSave: { [confirm.field]: confirm.value },
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error("Save failed");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6)) as { type: string; content?: string; fields?: Record<string, unknown> };
+            if (event.type === "text" && event.content) {
+              setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + event.content! } : m));
+            } else if (event.type === "profile_updated" && event.fields && onProfileUpdate) {
+              onProfileUpdate(event.fields);
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch {
+      setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: "Алдаа гарлаа." } : m));
+    } finally {
+      setIsStreaming(false);
+      inputRef.current?.focus();
+    }
+  }, [pendingConfirm, onProfileUpdate]);
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {

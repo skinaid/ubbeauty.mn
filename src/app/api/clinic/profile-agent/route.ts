@@ -95,9 +95,44 @@ export async function POST(req: NextRequest) {
   const org = await getCurrentUserOrganization(user.id);
   if (!org) return new Response("No organization", { status: 400 });
 
-  const { messages } = (await req.json()) as {
+  const body = (await req.json()) as {
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+    directSave?: Record<string, unknown>; // bypass AI, save directly
   };
+  const { messages } = body;
+
+  // Direct save — user confirmed, skip AI round-trip
+  if (body.directSave) {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("organizations")
+      .update({ ...body.directSave, updated_at: new Date().toISOString() })
+      .eq("id", org.id);
+    const encoder2 = new TextEncoder();
+    const fields = body.directSave;
+    const confirmText = Object.keys(fields).map(k => `✓ ${k} хадгалагдлаа`).join(", ");
+    const stream2 = new ReadableStream({
+      start(ctrl) {
+        if (!error) {
+          ctrl.enqueue(encoder2.encode(`data: ${JSON.stringify({ type: "text", content: confirmText })}
+
+`));
+          ctrl.enqueue(encoder2.encode(`data: ${JSON.stringify({ type: "profile_updated", fields })}
+
+`));
+        } else {
+          ctrl.enqueue(encoder2.encode(`data: ${JSON.stringify({ type: "text", content: `Алдаа: ${error.message}` })}
+
+`));
+        }
+        ctrl.enqueue(encoder2.encode(`data: ${JSON.stringify({ type: "done" })}
+
+`));
+        ctrl.close();
+      }
+    });
+    return new Response(stream2, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+  }
 
   const encoder = new TextEncoder();
 
