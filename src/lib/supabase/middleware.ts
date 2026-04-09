@@ -68,6 +68,12 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = hasSupabaseSession(request);
 
+  // Handle Supabase OAuth redirect specifically catching root paths with code parameters
+  if (!hasSession && pathname === "/" && request.nextUrl.searchParams.has("code")) {
+    const code = request.nextUrl.searchParams.get("code");
+    return NextResponse.redirect(new URL(`/auth/callback?code=${code}`, request.url));
+  }
+
   if (!hasSession && isProtectedPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
