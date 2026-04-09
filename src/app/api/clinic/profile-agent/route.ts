@@ -6,39 +6,61 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT = `Та эмнэлгийн профайл мэдээллийг цуглуулж, DB-д хадгалах AI туслах мөн.
+const SYSTEM_PROMPT = `Та эмнэлгийн профайл мэдээллийг цуглуулж, баталгаажуулж, DB-д хадгалах AI туслах мөн.
 
-## ХАМГИЙН ЧУХАЛ ДҮРЭМ
-Хэрэглэгч ямар нэг мэдээлэл өгсөн ТЭРХЭН МӨЧИД save_fields tool-ийг дуудах ёстой.
-Хадгалсны дараа "✓ Хадгалагдлаа" гэж баталгаажуулж, дараагийн мэдээлэл асуу.
-Хэзээ ч "хүлээж авсан" гэж хэлээд хадгалахгүй орхиж болохгүй.
+## ХАМГИЙН ЧУХАЛ ДҮРЭМ — 2 АЛХАМТ FLOW
+Алхам 1: Хэрэглэгч мэдээлэл өгнө → confirm_save tool дуудах (баталгаажуулалт)
+Алхам 2: Хэрэглэгч "Тийм" / "Зөв" / "За" гэвэл → save_fields tool дуудах (хадгалах)
 
-## Талбарын нэрс (save_fields-д ашиглах)
-- tagline: эмнэлгийн уриа үг (1 өгүүлбэр)
+Жишээ:
+- Хэрэглэгч: "Утас: 75000505"
+- Чи: confirm_save дуудна {field: "phone", value: "75000505", display: "Утас: 75000505 — хадгалах уу?"}
+- Хэрэглэгч: "Тийм"
+- Чи: save_fields дуудна {fields: {phone: "75000505"}} → "✓ Утас хадгалагдлаа"
+
+## Талбарын нэрс
+- tagline: уриа үг (1 өгүүлбэр)
 - description: дэлгэрэнгүй тайлбар (2-4 өгүүлбэр)
-- phone: утасны дугаар (8 оронтой)
+- phone: утасны дугаар (заавал 8 оронтой)
 - website: вебсайт URL
 - address: хаяг
 - city: хот/дүүрэг
 - services_summary: үйлчилгээний жагсаалт (array)
-- social_instagram: Instagram URL эсвэл @handle
-- social_facebook: Facebook URL
+- social_instagram: Instagram
+- social_facebook: Facebook
 - founded_year: байгуулагдсан он (тоо)
 - staff_count: ажилтны тоо (тоо)
 
-## Харилцааны дэг журам
-1. Хэрэглэгч мэдээлэл өгнө → ШУУД save_fields дуудна → "✓ [утга] хадгалагдлаа" гэнэ
-2. Нэг удаад 1-2 л зүйл асуу
-3. Бүх мэдээлэл бүрэн болсон үед "🎉 Профайл бүрэн боллоо" гэнэ
-4. Монгол хэлний эелдэг, мэргэжлийн өнгө аялга барих
-5. Утасны дугаар 8 оронтой байх ёстой — буруу бол засуулах`;
+## Дэг журам
+1. Нэг удаад 1-2 л асуулт
+2. Мэдээлэл авмагц confirm_save дуудах
+3. Баталгаажсаны дараа save_fields дуудах → "✓ [талбар] хадгалагдлаа" гэнэ
+4. Утас 8 оронтой биш бол засуулах
+5. Бүх талбар дүүрсэн үед "🎉 Профайл бүрэн боллоо" гэнэ
+6. Монгол хэлний эелдэг, мэргэжлийн өнгө аялга барих`;
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "confirm_save",
+      description: "Хэрэглэгчээс хадгалахыг баталгаажуулахаар асуух — save_fields-ийн өмнө заавал дуудах",
+      parameters: {
+        type: "object",
+        properties: {
+          field:   { type: "string",  description: "Талбарын нэр (жнь: phone, tagline)" },
+          value:   { type: "string",  description: "Хадгалах утга" },
+          display: { type: "string",  description: "Хэрэглэгчид харуулах баталгаажуулалтын текст" },
+        },
+        required: ["field", "value", "display"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "save_fields",
-      description: "Баталгаажсан мэдээллийг DB-д хадгалах",
+      description: "Хэрэглэгч баталгаажуулсны дараа л дуудах — мэдээллийг DB-д хадгалах",
       parameters: {
         type: "object",
         properties: {
@@ -122,9 +144,17 @@ export async function POST(req: NextRequest) {
           // Finish
           if (chunk.choices[0]?.finish_reason === "tool_calls" && inToolCall) {
             try {
-              const parsed = JSON.parse(toolArgs) as { fields?: Record<string, unknown> };
+              const parsed = JSON.parse(toolArgs) as {
+                fields?: Record<string, unknown>;
+                field?: string;
+                value?: string;
+                display?: string;
+              };
 
-              if (toolName === "save_fields" && parsed.fields) {
+              if (toolName === "confirm_save" && parsed.field && parsed.display) {
+                // Send confirmation request to client — no DB write yet
+                send({ type: "confirm_request", field: parsed.field, value: parsed.value, display: parsed.display });
+              } else if (toolName === "save_fields" && parsed.fields) {
                 const supabase = await getSupabaseServerClient();
                 const updateData: Record<string, unknown> = {
                   ...parsed.fields,
