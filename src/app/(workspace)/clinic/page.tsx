@@ -123,6 +123,7 @@ export default async function ClinicProfilePage() {
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "-0.5rem" }}>
         <Link href="/clinic/profile" className="ui-table__link">📝 Профайл засах</Link>
+        <Link href="/clinic/locations" className="ui-table__link">📍 Байршил удирдах</Link>
       </div>
 
       <Card padded stack>
