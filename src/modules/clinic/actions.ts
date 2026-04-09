@@ -660,7 +660,12 @@ export async function createClinicLocationAction(
     slug: slugifyOrFallback(name, "location"),
     district: typeof district === "string" && district.trim() ? district.trim() : null,
     address_line1: typeof addressLine1 === "string" && addressLine1.trim() ? addressLine1.trim() : null,
-    phone: typeof phone === "string" && phone.trim() ? phone.trim() : null
+    phone: typeof phone === "string" && phone.trim() ? phone.trim() : null,
+    latitude: null,
+    longitude: null,
+    google_maps_url: null,
+    working_hours: null,
+    description: null,
   });
 
   if (error) {
@@ -670,6 +675,53 @@ export async function createClinicLocationAction(
   revalidatePath("/clinic");
   revalidatePath("/schedule");
   return { message: "Салбар амжилттай нэмэгдлээ." };
+}
+
+export async function updateClinicLocationGeo(
+  locationId: string,
+  fields: {
+    latitude?: number | null;
+    longitude?: number | null;
+    google_maps_url?: string | null;
+    working_hours?: Record<string, string> | null;
+    description?: string | null;
+    name?: string;
+    address_line1?: string | null;
+    district?: string | null;
+    phone?: string | null;
+  }
+): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("clinic_locations")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("organization_id", context.organization.id);
+
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/locations");
+  revalidatePath("/clinic");
+  return {};
+}
+
+export async function deleteClinicLocation(locationId: string): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("clinic_locations")
+    .delete()
+    .eq("id", locationId)
+    .eq("organization_id", context.organization.id);
+
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/locations");
+  revalidatePath("/clinic");
+  return {};
 }
 
 export async function createStaffMemberAction(
