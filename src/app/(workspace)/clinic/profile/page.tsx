@@ -1,53 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClinicProfileChatPanel } from "@/components/clinic/clinic-profile-chat-panel";
-import { ClinicProfileView } from "@/components/clinic/clinic-profile-view";
 import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getClinicProfile } from "@/modules/clinic/profile";
-
-function SplitLayout({ left, right }: { left: React.ReactNode; right: React.ReactNode }) {
-  return (
-    <>
-      <style>{`
-        .clinic-profile-split {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0;
-          height: calc(100vh - 60px);
-          overflow: hidden;
-        }
-        @media (max-width: 768px) {
-          .clinic-profile-split {
-            grid-template-columns: 1fr;
-            height: auto;
-            overflow: visible;
-          }
-        }
-      `}</style>
-      <div className="clinic-profile-split">
-        <div
-          style={{
-            borderRight: "1px solid var(--ui-border, #e5e7eb)",
-            overflowY: "auto",
-            padding: "2rem",
-          }}
-        >
-          {left}
-        </div>
-        <div
-          style={{
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {right}
-        </div>
-      </div>
-    </>
-  );
-}
+import { ProfilePageClient } from "./ProfilePageClient";
 
 export default async function ClinicProfilePageRoute() {
   const user = await getCurrentUser();
@@ -67,10 +23,7 @@ export default async function ClinicProfilePageRoute() {
           }
         />
       </div>
-      <SplitLayout
-        left={<ClinicProfileView profile={profile} />}
-        right={<ClinicProfileChatPanel orgId={profile?.id ?? ""} />}
-      />
+      <ProfilePageClient initialProfile={profile} />
     </section>
   );
 }
