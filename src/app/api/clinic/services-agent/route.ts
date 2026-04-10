@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { requireClinicActor, hasClinicRole } from "@/modules/clinic/guard";
+import { embedAndSaveService, searchServicesByQuery } from "@/modules/clinic/service-embeddings";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -193,6 +194,17 @@ export async function POST(req: NextRequest) {
       if (error) saveError = error.message; else saved = data as Record<string, unknown>;
     }
 
+    // Fire-and-forget embedding after save (non-blocking)
+    if (!saveError && saved) {
+      void embedAndSaveService(String(saved.id), org.id, {
+        name: String(saved.name ?? ""),
+        description: saved.description != null ? String(saved.description) : null,
+        duration_minutes: Number(saved.duration_minutes),
+        price_from: Number(saved.price_from),
+        currency: String(saved.currency ?? "MNT"),
+      }).catch(console.error);
+    }
+
     const stream = new ReadableStream({
       start(ctrl) {
         if (!saveError && saved) {
@@ -224,13 +236,30 @@ export async function POST(req: NextRequest) {
       svcList.map((s) => `- UUID: "${s.id}"  |  Нэр: "${s.name}"${s.duration_minutes ? `  |  ${s.duration_minutes}мин` : ""}${s.price_from ? `  |  ₮${Number(s.price_from).toLocaleString()}` : ""}`).join("\n")
     : "";
 
+  // RAG: semantic search for relevant services
+  let ragContext = "";
+  try {
+    const lastUserMsg = messages.filter((m) => m.role === "user").slice(-1)[0]?.content;
+    if (lastUserMsg && typeof lastUserMsg === "string" && lastUserMsg.length > 3) {
+      const ragResults = await searchServicesByQuery(lastUserMsg, org.id, { count: 4, threshold: 0.25 });
+      if (ragResults.length > 0) {
+        ragContext = "\n\n## Семантик хайлтаар олдсон холбогдох үйлчилгээнүүд:\n" +
+          ragResults.map((r) =>
+            `- UUID: "${r.id}" | Нэр: "${r.name}"${r.duration_minutes ? ` | ${r.duration_minutes}мин` : ""}${r.price_from ? ` | ₮${Number(r.price_from).toLocaleString()}` : ""}${r.description ? ` | ${r.description.slice(0, 80)}` : ""} (similarity: ${r.similarity.toFixed(2)})`
+          ).join("\n");
+      }
+    }
+  } catch {
+    // RAG failure is non-fatal
+  }
+
   const stream = new ReadableStream({
     async start(controller) {
       const send = (data: object) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       try {
         const response = await openai.chat.completions.create({
           model: "gpt-4o-mini", stream: true,
-          messages: [{ role: "system", content: SYSTEM_PROMPT + focusedContext + existingContext }, ...messages],
+          messages: [{ role: "system", content: SYSTEM_PROMPT + focusedContext + ragContext + existingContext }, ...messages],
           tools: TOOLS, tool_choice: "auto",
         });
         let toolName = "", toolArgs = "", inToolCall = false;

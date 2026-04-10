@@ -25,6 +25,7 @@ import {
 import { type ReportRangePreset } from "./reporting";
 import { isClinicFoundationMissingError } from "./data";
 import { buildClinicPermissionError, hasClinicRole, requireClinicActor } from "./guard";
+import { embedAndSaveService } from "./service-embeddings";
 import { findAvailableStaffAssignment } from "./scheduling";
 import type { StaffRole } from "./types";
 
@@ -791,17 +792,28 @@ export async function createServiceAction(
   }
 
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase.from("services").insert({
+  const { data: savedService, error } = await supabase.from("services").insert({
     organization_id: context.organization.id,
     name: name.trim(),
     slug: slugifyOrFallback(name, "service"),
     duration_minutes: duration,
     price_from: price,
     description: typeof description === "string" && description.trim() ? description.trim() : null
-  });
+  }).select().single();
 
   if (error) {
     return { error: toFriendlyClinicError(error) };
+  }
+
+  // Fire-and-forget embedding (non-blocking)
+  if (savedService) {
+    void embedAndSaveService(savedService.id, context.organization.id, {
+      name: savedService.name,
+      description: savedService.description,
+      duration_minutes: savedService.duration_minutes,
+      price_from: Number(savedService.price_from),
+      currency: savedService.currency,
+    }).catch(console.error);
   }
 
   revalidatePath("/clinic");
@@ -3157,6 +3169,20 @@ export async function updateServiceDirect(
     .eq("id", serviceId)
     .eq("organization_id", context.organization.id);
   if (error) return { error: toFriendlyClinicError(error) };
+
+  // Re-embed on update (fire-and-forget)
+  void (async () => {
+    const supabase2 = await getSupabaseServerClient();
+    const { data: svc } = await supabase2
+      .from("services")
+      .select("name, description, duration_minutes, price_from, currency")
+      .eq("id", serviceId)
+      .single();
+    if (svc) {
+      void embedAndSaveService(serviceId, context.organization.id, svc).catch(console.error);
+    }
+  })();
+
   revalidatePath("/clinic/services");
   revalidatePath("/clinic");
   return {};

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { requireClinicActor, hasClinicRole } from "@/modules/clinic/guard";
+import { embedAndSaveService } from "@/modules/clinic/service-embeddings";
 
 type ServiceInput = {
   name: string;
@@ -108,6 +109,16 @@ export async function POST(req: NextRequest) {
       continue;
     }
     savedServices.push(data);
+
+    // Fire-and-forget embedding (non-blocking)
+    void embedAndSaveService(data.id, org.id, {
+      name: data.name,
+      description: data.description,
+      duration_minutes: data.duration_minutes,
+      price_from: Number(data.price_from),
+      currency: data.currency,
+      category_name: svc.category_name,
+    }).catch(console.error);
   }
 
   return NextResponse.json({
