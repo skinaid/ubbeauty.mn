@@ -204,7 +204,11 @@ export async function POST(req: NextRequest) {
 
   // AI stream
   const messages = body.messages ?? [];
-  const existingContext = body.existingServices?.length ? `\n\nОдоо ${body.existingServices.length} үйлчилгээ бүртгэлтэй.` : "";
+  const svcList = (body.existingServices ?? []) as Array<{ id: string; name: string; duration_minutes?: number; price_from?: number }>;
+  const existingContext = svcList.length
+    ? `\n\n## Одоогийн үйлчилгээнүүд (устгахад энэ жагсаалтаас serviceId-д зөвхөн UUID-г ашигл):\n` +
+      svcList.map((s) => `- UUID: "${s.id}"  |  Нэр: "${s.name}"${s.duration_minutes ? `  |  ${s.duration_minutes}мин` : ""}${s.price_from ? `  |  ₮${Number(s.price_from).toLocaleString()}` : ""}`).join("\n")
+    : "";
 
   const stream = new ReadableStream({
     async start(controller) {
