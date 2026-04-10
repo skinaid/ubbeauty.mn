@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { updateServiceDirect, deleteService } from "@/modules/clinic/actions";
 
 type Service = {
@@ -17,6 +17,39 @@ type Service = {
 
 type Category = { id: string; name: string };
 
+type ActiveTab = "info" | "cost" | "sales";
+
+type SalesPeriod = "7d" | "30d" | "90d" | "1y" | "all";
+
+type SalesItem = {
+  id: string;
+  created_at: string;
+  patient_name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  payment_status: string;
+  currency: string;
+};
+
+type SalesSummary = {
+  totalRevenue: number;
+  totalSold: number;
+  avgPrice: number;
+  currency: string;
+};
+
+type SalesData = {
+  summary: SalesSummary;
+  items: SalesItem[];
+};
+
+type CostItem = {
+  id: string;
+  name: string;
+  amount: number;
+};
+
 const STATUS_COLORS: Record<string, string> = {
   active: "#059669",
   inactive: "#9ca3af",
@@ -26,6 +59,21 @@ const STATUS_LABELS: Record<string, string> = {
   active: "Идэвхтэй",
   inactive: "Идэвхгүй",
   archived: "Архивласан",
+};
+
+const PERIOD_LABELS: Record<SalesPeriod, string> = {
+  "7d": "7 хоног",
+  "30d": "30 хоног",
+  "90d": "3 сар",
+  "1y": "1 жил",
+  all: "Бүгд",
+};
+
+const PAYMENT_STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  paid: { label: "Төлсөн", color: "#059669", bg: "#f0fdf4" },
+  unpaid: { label: "Төлөөгүй", color: "#dc2626", bg: "#fef2f2" },
+  partial: { label: "Хэсэгчлэн", color: "#d97706", bg: "#fffbeb" },
+  refunded: { label: "Буцаасан", color: "#6b7280", bg: "#f9fafb" },
 };
 
 function Badge({ color, bg, children }: { color: string; bg: string; children: React.ReactNode }) {
@@ -124,7 +172,6 @@ function EditDialog({
   };
 
   return (
-    // Overlay
     <div
       onClick={onClose}
       style={{
@@ -134,7 +181,6 @@ function EditDialog({
         padding: "1rem",
       }}
     >
-      {/* Dialog */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -145,7 +191,6 @@ function EditDialog({
           overflow: "hidden",
         }}
       >
-        {/* Dialog header */}
         <div style={{
           padding: "1rem 1.25rem",
           borderBottom: "1px solid #f3f4f6",
@@ -166,7 +211,6 @@ function EditDialog({
           </button>
         </div>
 
-        {/* Dialog body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem" }}>
           {error && (
             <div style={{
@@ -234,7 +278,6 @@ function EditDialog({
           </FormField>
         </div>
 
-        {/* Dialog footer */}
         <div style={{
           padding: "0.875rem 1.25rem",
           borderTop: "1px solid #f3f4f6",
@@ -263,6 +306,358 @@ function EditDialog({
   );
 }
 
+// ── Өртөг (Cost) Tab ─────────────────────────────────────────────────────────
+
+let costIdCounter = 0;
+
+function CostTab({ service }: { service: Service }) {
+  const [items, setItems] = useState<CostItem[]>([]);
+
+  const addItem = () => {
+    costIdCounter += 1;
+    setItems((prev) => [...prev, { id: String(costIdCounter), name: "", amount: 0 }]);
+  };
+
+  const updateItem = (id: string, field: "name" | "amount", value: string | number) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const totalCost = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const priceFrom = Number(service.price_from) || 0;
+  const profit = priceFrom - totalCost;
+  const profitPct = priceFrom > 0 ? ((profit / priceFrom) * 100).toFixed(1) : "0.0";
+  const profitColor = profit >= 0 ? "#059669" : "#dc2626";
+  const profitBg = profit >= 0 ? "#f0fdf4" : "#fef2f2";
+
+  return (
+    <div style={{ padding: "1.5rem 1.25rem" }}>
+      <p style={{ margin: "0 0 0.25rem", fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>
+        Үйлчилгээний өртгийн тооцоолол
+      </p>
+      <p style={{ margin: "0 0 1.5rem", fontSize: "0.8rem", color: "#6b7280" }}>
+        Тухайн үйлчилгээг үзүүлэхэд гарах зардлыг оруулж, ашгийн дүнг тооцоол.
+      </p>
+
+      {/* Cost rows */}
+      {items.length > 0 && (
+        <div style={{ marginBottom: "0.75rem" }}>
+          {/* Header */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 130px 32px",
+            gap: "0.5rem", marginBottom: "0.5rem",
+            padding: "0 0.25rem",
+          }}>
+            <span style={{ fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+              Зардлын нэр
+            </span>
+            <span style={{ fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+              Дүн (₮)
+            </span>
+            <span />
+          </div>
+
+          {items.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: "grid", gridTemplateColumns: "1fr 130px 32px",
+                gap: "0.5rem", marginBottom: "0.5rem", alignItems: "center",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Жишээ: Serum, Хүний хөдөлмөр..."
+                value={item.name}
+                onChange={(e) => updateItem(item.id, "name", e.target.value)}
+                style={{ ...inputStyle, padding: "0.4rem 0.65rem", fontSize: "0.82rem" }}
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={item.amount === 0 ? "" : item.amount}
+                onChange={(e) => updateItem(item.id, "amount", Number(e.target.value))}
+                style={{ ...inputStyle, padding: "0.4rem 0.65rem", fontSize: "0.82rem" }}
+              />
+              <button
+                onClick={() => removeItem(item.id)}
+                style={{
+                  background: "transparent", border: "1px solid #fecaca",
+                  borderRadius: "0.375rem", color: "#dc2626", cursor: "pointer",
+                  fontSize: "0.75rem", height: "32px", width: "32px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add button */}
+      <button
+        onClick={addItem}
+        style={{
+          display: "flex", alignItems: "center", gap: "0.4rem",
+          padding: "0.45rem 1rem", background: "transparent",
+          border: "1px dashed #d1d5db", borderRadius: "0.5rem",
+          color: "#6b7280", fontSize: "0.82rem", cursor: "pointer",
+          marginBottom: "1.5rem", fontFamily: "inherit",
+        }}
+      >
+        + Зардал нэмэх
+      </button>
+
+      {/* Summary card */}
+      <div style={{
+        background: "#fafafa", border: "1px solid #f0f0f0",
+        borderRadius: "0.75rem", padding: "1rem 1.125rem",
+      }}>
+        <p style={{ margin: "0 0 0.75rem", fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+          Тооцоолол
+        </p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "0.85rem", color: "#374151" }}>Нийт өртөг</span>
+            <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+              ₮{totalCost.toLocaleString()}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "0.85rem", color: "#374151" }}>Борлуулалтын үнэ</span>
+            <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b7280" }}>
+              ₮{priceFrom.toLocaleString()}
+            </span>
+          </div>
+
+          <div style={{ height: "1px", background: "#e5e7eb", margin: "0.25rem 0" }} />
+
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: profitBg, borderRadius: "0.5rem",
+            padding: "0.5rem 0.75rem", margin: "0 -0.25rem",
+          }}>
+            <div>
+              <span style={{ fontSize: "0.85rem", color: profitColor, fontWeight: 600 }}>Ашиг</span>
+              <span style={{ fontSize: "0.72rem", color: profitColor, marginLeft: "0.4rem" }}>
+                ({profitPct}%)
+              </span>
+            </div>
+            <span style={{ fontSize: "1rem", fontWeight: 700, color: profitColor }}>
+              ₮{profit.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Борлуулалт (Sales) Tab ────────────────────────────────────────────────────
+
+function SalesTab({ service }: { service: Service }) {
+  const [period, setPeriod] = useState<SalesPeriod>("30d");
+  const [data, setData] = useState<SalesData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSales = useCallback(async (p: SalesPeriod) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/clinic/services/${service.id}/sales?period=${p}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error((body.error as string | undefined) ?? "Серверийн алдаа");
+      }
+      const json = await res.json() as SalesData;
+      setData(json);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Алдаа гарлаа");
+    } finally {
+      setLoading(false);
+    }
+  }, [service.id]);
+
+  useEffect(() => {
+    void fetchSales(period);
+  }, [fetchSales, period]);
+
+  const lastSale = data?.items?.[0];
+
+  return (
+    <div style={{ padding: "1.25rem" }}>
+      {/* Period tabs */}
+      <div style={{
+        display: "flex", gap: "0.3rem",
+        overflowX: "auto", marginBottom: "1.25rem",
+        paddingBottom: "2px",
+        scrollbarWidth: "none",
+      }}>
+        {(Object.keys(PERIOD_LABELS) as SalesPeriod[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            style={{
+              padding: "0.35rem 0.85rem", fontSize: "0.78rem", fontWeight: 600,
+              borderRadius: "999px", cursor: "pointer", flexShrink: 0,
+              fontFamily: "inherit",
+              background: period === p ? "#6366f1" : "transparent",
+              color: period === p ? "#fff" : "#6b7280",
+              border: period === p ? "1px solid #6366f1" : "1px solid #e5e7eb",
+              transition: "all 0.15s",
+            }}
+          >
+            {PERIOD_LABELS[p]}
+          </button>
+        ))}
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ textAlign: "center", padding: "2rem", color: "#9ca3af", fontSize: "0.85rem" }}>
+          Уншиж байна...
+        </div>
+      )}
+
+      {/* Error */}
+      {!loading && error && (
+        <div style={{
+          padding: "0.75rem 1rem", background: "#fef2f2", border: "1px solid #fecaca",
+          borderRadius: "0.5rem", color: "#dc2626", fontSize: "0.82rem",
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Data */}
+      {!loading && !error && data && (
+        <>
+          {/* Summary cards */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr",
+            gap: "0.6rem", marginBottom: "1.25rem",
+          }}>
+            {[
+              { label: "Нийт орлого", value: `₮${data.summary.totalRevenue.toLocaleString()}` },
+              { label: "Нийт борлуулалт", value: `${data.summary.totalSold} удаа` },
+              { label: "Дундаж үнэ", value: `₮${data.summary.avgPrice.toLocaleString()}` },
+              {
+                label: "Сүүлийн борлуулалт",
+                value: lastSale
+                  ? new Date(lastSale.created_at).toLocaleDateString("mn-MN", {
+                      year: "numeric", month: "short", day: "numeric",
+                    })
+                  : "—",
+              },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                style={{
+                  background: "#fafafa", border: "1px solid #f0f0f0",
+                  borderRadius: "0.625rem", padding: "0.75rem 0.875rem",
+                }}
+              >
+                <p style={{ margin: "0 0 0.25rem", fontSize: "0.62rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                  {label}
+                </p>
+                <p style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Sales list */}
+          {data.items.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "2.5rem 1rem",
+              color: "#9ca3af", fontSize: "0.85rem",
+              background: "#fafafa", borderRadius: "0.75rem",
+              border: "1px solid #f0f0f0",
+            }}>
+              Энэ хугацаанд борлуулалт байхгүй байна
+            </div>
+          ) : (
+            <div style={{ background: "#fff", border: "1px solid #f0f0f0", borderRadius: "0.75rem", overflow: "hidden" }}>
+              {/* Table header */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 0.8fr 48px 0.8fr 80px",
+                gap: "0.5rem",
+                padding: "0.6rem 0.875rem",
+                background: "#fafafa",
+                borderBottom: "1px solid #f0f0f0",
+              }}>
+                {["Огноо", "Хэрэглэгч", "Тоо", "Нийт", "Төлөв"].map((h) => (
+                  <span key={h} style={{ fontSize: "0.62rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                    {h}
+                  </span>
+                ))}
+              </div>
+
+              {/* Rows */}
+              {data.items.map((item, idx) => {
+                const statusInfo = PAYMENT_STATUS_LABELS[item.payment_status] ?? {
+                  label: item.payment_status, color: "#6b7280", bg: "#f9fafb",
+                };
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 0.8fr 48px 0.8fr 80px",
+                      gap: "0.5rem",
+                      padding: "0.65rem 0.875rem",
+                      alignItems: "center",
+                      borderBottom: idx < data.items.length - 1 ? "1px solid #f9fafb" : "none",
+                    }}
+                  >
+                    <span style={{ fontSize: "0.78rem", color: "#374151" }}>
+                      {new Date(item.created_at).toLocaleDateString("mn-MN", {
+                        month: "short", day: "numeric",
+                      })}
+                    </span>
+                    <span style={{
+                      fontSize: "0.78rem", color: "#374151",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {item.patient_name}
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "#374151", textAlign: "center" }}>
+                      {item.quantity}
+                    </span>
+                    <span style={{ fontSize: "0.78rem", color: "#111827", fontWeight: 600 }}>
+                      ₮{item.line_total.toLocaleString()}
+                    </span>
+                    <span style={{
+                      fontSize: "0.68rem", fontWeight: 600, padding: "2px 7px",
+                      borderRadius: "999px", background: statusInfo.bg, color: statusInfo.color,
+                      textAlign: "center", whiteSpace: "nowrap",
+                    }}>
+                      {statusInfo.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main Detail Panel ────────────────────────────────────────────────────────
 
 export function ServiceDetailPanel({
@@ -281,6 +676,7 @@ export function ServiceDetailPanel({
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("info");
 
   const categoryMap = new Map<string, string>(categories.map((c) => [c.id, c.name]));
   const categoryLabel = service.category_id
@@ -312,9 +708,14 @@ export function ServiceDetailPanel({
     }
   };
 
+  const tabs: { key: ActiveTab; label: string }[] = [
+    { key: "info", label: "Мэдээлэл" },
+    { key: "cost", label: "Өртөг" },
+    { key: "sales", label: "Борлуулалт" },
+  ];
+
   return (
     <>
-      {/* Edit dialog */}
       {editOpen && (
         <EditDialog
           service={service}
@@ -360,6 +761,33 @@ export function ServiceDetailPanel({
         {/* Status color bar */}
         <div style={{ height: "4px", background: STATUS_COLORS[service.status] ?? "#e5e7eb", flexShrink: 0 }} />
 
+        {/* Tab bar */}
+        <div style={{
+          display: "flex", borderBottom: "1px solid #f3f4f6",
+          background: "#fff", flexShrink: 0,
+          overflowX: "auto", scrollbarWidth: "none",
+        }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: "0.65rem 1.1rem",
+                fontSize: "0.82rem", fontWeight: 600,
+                border: "none", background: "transparent",
+                cursor: "pointer", flexShrink: 0,
+                fontFamily: "inherit",
+                color: activeTab === tab.key ? "#6366f1" : "#6b7280",
+                borderBottom: activeTab === tab.key ? "2px solid #6366f1" : "2px solid transparent",
+                marginBottom: "-1px",
+                transition: "color 0.15s",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Flash */}
         {flash && (
           <div style={{
@@ -375,61 +803,73 @@ export function ServiceDetailPanel({
         )}
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem 1.25rem" }}>
-          {/* Badges */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
-            <Badge color="#6d28d9" bg="#ede9fe">{categoryLabel}</Badge>
-            <Badge
-              color={STATUS_COLORS[service.status] ?? "#374151"}
-              bg={`${STATUS_COLORS[service.status] ?? "#e5e7eb"}18`}
-            >
-              {STATUS_LABELS[service.status] ?? service.status}
-            </Badge>
-            {service.is_bookable && (
-              <Badge color="#2563eb" bg="#eff6ff">✓ Онлайн захиалга</Badge>
-            )}
-          </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
 
-          {/* Info grid */}
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr",
-            gap: "0.5rem 2rem", marginBottom: "1.25rem",
-          }}>
-            <InfoRow label="Хугацаа" value={`${service.duration_minutes} мин`} />
-            <InfoRow label="Үнэ" value={`₮${Number(service.price_from).toLocaleString()}`} />
-          </div>
+          {/* ── Tab: Мэдээлэл ── */}
+          {activeTab === "info" && (
+            <div style={{ padding: "1.5rem 1.25rem" }}>
+              {/* Badges */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
+                <Badge color="#6d28d9" bg="#ede9fe">{categoryLabel}</Badge>
+                <Badge
+                  color={STATUS_COLORS[service.status] ?? "#374151"}
+                  bg={`${STATUS_COLORS[service.status] ?? "#e5e7eb"}18`}
+                >
+                  {STATUS_LABELS[service.status] ?? service.status}
+                </Badge>
+                {service.is_bookable && (
+                  <Badge color="#2563eb" bg="#eff6ff">✓ Онлайн захиалга</Badge>
+                )}
+              </div>
 
-          {service.description && (
-            <div style={{
-              background: "#fafafa", border: "1px solid #f0f0f0",
-              borderRadius: "0.75rem", padding: "1rem 1.125rem",
-              marginBottom: "1.25rem",
-            }}>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
-                Тайлбар
-              </p>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                {service.description}
-              </p>
+              {/* Info grid */}
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem 2rem", marginBottom: "1.25rem",
+              }}>
+                <InfoRow label="Хугацаа" value={`${service.duration_minutes} мин`} />
+                <InfoRow label="Үнэ" value={`₮${Number(service.price_from).toLocaleString()}`} />
+              </div>
+
+              {service.description && (
+                <div style={{
+                  background: "#fafafa", border: "1px solid #f0f0f0",
+                  borderRadius: "0.75rem", padding: "1rem 1.125rem",
+                  marginBottom: "1.25rem",
+                }}>
+                  <p style={{ margin: "0 0 0.4rem", fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                    Тайлбар
+                  </p>
+                  <p style={{ margin: 0, fontSize: "0.875rem", color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {service.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Delete */}
+              <div style={{ paddingTop: "1rem", borderTop: "1px solid #f3f4f6" }}>
+                <button
+                  onClick={() => void handleDelete()}
+                  disabled={deleting}
+                  style={{
+                    padding: "0.45rem 1rem", background: "transparent",
+                    border: "1px solid #fecaca", borderRadius: "0.5rem",
+                    color: "#dc2626", fontSize: "0.8rem", fontWeight: 500,
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    opacity: deleting ? 0.6 : 1,
+                  }}
+                >
+                  {deleting ? "Устгаж байна..." : "🗑 Үйлчилгээ устгах"}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Delete */}
-          <div style={{ paddingTop: "1rem", borderTop: "1px solid #f3f4f6" }}>
-            <button
-              onClick={() => void handleDelete()}
-              disabled={deleting}
-              style={{
-                padding: "0.45rem 1rem", background: "transparent",
-                border: "1px solid #fecaca", borderRadius: "0.5rem",
-                color: "#dc2626", fontSize: "0.8rem", fontWeight: 500,
-                cursor: deleting ? "not-allowed" : "pointer",
-                opacity: deleting ? 0.6 : 1,
-              }}
-            >
-              {deleting ? "Устгаж байна..." : "🗑 Үйлчилгээ устгах"}
-            </button>
-          </div>
+          {/* ── Tab: Өртөг ── */}
+          {activeTab === "cost" && <CostTab service={service} />}
+
+          {/* ── Tab: Борлуулалт ── */}
+          {activeTab === "sales" && <SalesTab service={service} />}
         </div>
       </div>
     </>
