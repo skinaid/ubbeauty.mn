@@ -186,6 +186,18 @@ export async function getStaffAvailabilityRules(userId: string): Promise<StaffAv
   return (data ?? []) as StaffAvailabilityRuleRow[];
 }
 
+export const getServiceCategories = cache(async (userId: string) => {
+  const organizationId = await requireOrganizationId(userId);
+  if (!organizationId) return [];
+  const supabase = await getSupabaseServerClient();
+  const { data } = await supabase
+    .from("service_categories")
+    .select("id, name, slug, sort_order")
+    .eq("organization_id", organizationId)
+    .order("sort_order", { ascending: true });
+  return (data ?? []) as Array<{ id: string; name: string; slug: string; sort_order: number }>;
+});
+
 export const getServices = cache(async (userId: string): Promise<ServiceRow[]> => {
   const organizationId = await requireOrganizationId(userId);
   if (!organizationId) return [];

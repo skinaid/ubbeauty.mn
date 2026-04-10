@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth/session";
 import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
-import { getServices } from "@/modules/clinic/data";
+import { getServices, getServiceCategories } from "@/modules/clinic/data";
 import { ServicesPageClient } from "./ServicesPageClient";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,17 @@ export default async function ServicesPage() {
   const org = await getCurrentUserOrganization(user.id);
   if (!org) redirect("/setup-organization");
 
-  const services = await getServices(user.id);
+  const [services, categories] = await Promise.all([
+    getServices(user.id),
+    getServiceCategories(user.id),
+  ]);
 
   return (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    <ServicesPageClient initialServices={services as any[]} orgId={org.id} />
+    <ServicesPageClient
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      initialServices={services as any[]}
+      initialCategories={categories}
+      orgId={org.id}
+    />
   );
 }

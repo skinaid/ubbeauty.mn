@@ -11,6 +11,207 @@ type ConfirmSave = { kind: "save"; display: string; serviceData: Partial<Service
 type ConfirmDelete = { kind: "delete"; display: string; serviceId: string; serviceName: string };
 type PendingConfirm = ConfirmSave | ConfirmDelete;
 
+type ParsedService = {
+  name: string;
+  price_from: number;
+  duration_minutes: number;
+  description: string;
+  is_bookable: boolean;
+};
+
+type ParsedCategory = {
+  name: string;
+  services: ParsedService[];
+};
+
+// ─── BatchConfirmPanel ────────────────────────────────────────────────────────
+
+function BatchConfirmPanel({
+  categories,
+  onConfirm,
+  onCancel,
+  isSaving,
+}: {
+  categories: ParsedCategory[];
+  onConfirm: (selected: Array<ParsedService & { category_name: string }>) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  // Build initial checked state: { "categoryName|||serviceName": true }
+  const buildKey = (cat: string, svc: string) => `${cat}|||${svc}`;
+  const initialChecked: Record<string, boolean> = {};
+  for (const cat of categories) {
+    for (const svc of cat.services) {
+      initialChecked[buildKey(cat.name, svc.name)] = true;
+    }
+  }
+  const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked);
+
+  const toggleCategory = (catName: string, services: ParsedService[]) => {
+    const keys = services.map((s) => buildKey(catName, s.name));
+    const allChecked = keys.every((k) => checked[k]);
+    setChecked((prev) => {
+      const next = { ...prev };
+      for (const k of keys) next[k] = !allChecked;
+      return next;
+    });
+  };
+
+  const toggleService = (catName: string, svcName: string) => {
+    const key = buildKey(catName, svcName);
+    setChecked((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const selectedCount = Object.values(checked).filter(Boolean).length;
+
+  const handleConfirm = () => {
+    const selected: Array<ParsedService & { category_name: string }> = [];
+    for (const cat of categories) {
+      for (const svc of cat.services) {
+        if (checked[buildKey(cat.name, svc.name)]) {
+          selected.push({ ...svc, category_name: cat.name });
+        }
+      }
+    }
+    onConfirm(selected);
+  };
+
+  return (
+    <div style={{
+      background: "#fff",
+      border: "1px solid #e5e7eb",
+      borderRadius: "1rem",
+      overflow: "hidden",
+      maxHeight: "60vh",
+      display: "flex",
+      flexDirection: "column",
+    }}>
+      <div style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #f3f4f6", background: "#f9fafb" }}>
+        <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "#111827" }}>
+          📋 Файлаас олдсон үйлчилгээнүүд
+        </p>
+        <p style={{ margin: "0.2rem 0 0", fontSize: "0.72rem", color: "#6b7280" }}>
+          Нэмэх үйлчилгээнүүдийг сонгоно уу
+        </p>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem 0" }}>
+        {categories.map((cat) => {
+          const catKeys = cat.services.map((s) => buildKey(cat.name, s.name));
+          const allCatChecked = catKeys.every((k) => checked[k]);
+          return (
+            <div key={cat.name}>
+              {/* Category header */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem 1rem",
+                background: "#f3f4f6",
+                cursor: "pointer",
+              }}
+                onClick={() => toggleCategory(cat.name, cat.services)}
+              >
+                <input
+                  type="checkbox"
+                  checked={allCatChecked}
+                  onChange={() => toggleCategory(cat.name, cat.services)}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ cursor: "pointer", accentColor: "#111827" }}
+                />
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {cat.name}
+                </span>
+                <span style={{ fontSize: "0.7rem", color: "#9ca3af", marginLeft: "auto" }}>
+                  {cat.services.length} үйлчилгээ
+                </span>
+              </div>
+              {/* Services */}
+              {cat.services.map((svc) => {
+                const key = buildKey(cat.name, svc.name);
+                return (
+                  <div key={key} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    padding: "0.5rem 1rem 0.5rem 1.75rem",
+                    borderBottom: "1px solid #f9fafb",
+                    opacity: checked[key] ? 1 : 0.45,
+                    cursor: "pointer",
+                  }}
+                    onClick={() => toggleService(cat.name, svc.name)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked[key] ?? false}
+                      onChange={() => toggleService(cat.name, svc.name)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ cursor: "pointer", accentColor: "#111827", flexShrink: 0 }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "0.85rem", color: "#111827", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {svc.name}
+                      </p>
+                      {svc.description && (
+                        <p style={{ margin: "0.1rem 0 0", fontSize: "0.72rem", color: "#9ca3af", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {svc.description}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ flexShrink: 0, textAlign: "right" }}>
+                      <p style={{ margin: 0, fontSize: "0.8rem", fontWeight: 600, color: "#111827" }}>
+                        ₮{Number(svc.price_from).toLocaleString()}
+                      </p>
+                      <p style={{ margin: 0, fontSize: "0.7rem", color: "#9ca3af" }}>
+                        {svc.duration_minutes}мин
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid #e5e7eb", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <button
+          onClick={handleConfirm}
+          disabled={isSaving || selectedCount === 0}
+          style={{
+            background: "#111827",
+            color: "#fff",
+            border: "none",
+            borderRadius: "0.5rem",
+            padding: "0.5rem 1.25rem",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            cursor: isSaving || selectedCount === 0 ? "not-allowed" : "pointer",
+            opacity: isSaving || selectedCount === 0 ? 0.5 : 1,
+          }}
+        >
+          {isSaving ? "Хадгалж байна..." : `${selectedCount} үйлчилгээ нэмэх`}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={isSaving}
+          style={{
+            background: "transparent",
+            color: "#6b7280",
+            border: "1px solid #e5e7eb",
+            borderRadius: "0.5rem",
+            padding: "0.5rem 1rem",
+            fontSize: "0.85rem",
+            cursor: "pointer",
+          }}
+        >
+          Болих
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ServicesChatPanel ────────────────────────────────────────────────────────
+
 export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceDelete }: {
   orgId: string;
   services: Service[];
@@ -22,17 +223,129 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+
+  // File upload state
+  const [parsedCategories, setParsedCategories] = useState<ParsedCategory[] | null>(null);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMessages([{ id: "init", role: "assistant", content: services.length === 0
-      ? "Сайн байна уу! Үйлчилгээ нэмэх эсвэл устгах боломжтой. Нэр, хугацаа, үнийг хэлнэ үү 💆"
-      : `Одоо ${services.length} үйлчилгээ бүртгэлтэй. Нэмэх эсвэл устгах боломжтой.` }]);
+      ? "Сайн байна уу! Үйлчилгээ нэмэх эсвэл устгах боломжтой. Нэр, хугацаа, үнийг хэлнэ үү 💆\n\n📎 Үнийн жагсаалт файлаа (PDF, Excel, зураг) upload хийж болно."
+      : `Одоо ${services.length} үйлчилгээ бүртгэлтэй. Нэмэх эсвэл устгах боломжтой.\n\n📎 Файлаас bulk import хийхдээ цааш дарна уу.` }]);
   }, []);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, pendingConfirm]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, pendingConfirm, parsedCategories]);
 
+  // ── File upload handler ──
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) fileInputRef.current = e.target;
+    e.target.value = ""; // reset so same file can be re-selected
+    if (!file) return;
+
+    setParsedCategories(null);
+    setIsParsingFile(true);
+    const uploadMsg: Message = { id: Date.now().toString(), role: "user", content: `📎 Файл: ${file.name}` };
+    setMessages((prev) => [...prev, uploadMsg]);
+    const processingMsg: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "Файл боловсруулж байна..." };
+    setMessages((prev) => [...prev, processingMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/clinic/services/parse-menu", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json() as { categories?: ParsedCategory[]; error?: string };
+
+      if (!res.ok || json.error) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === processingMsg.id
+            ? { ...m, content: `❌ Алдаа: ${json.error ?? "Файл уншихад алдаа гарлаа"}` }
+            : m
+        ));
+        return;
+      }
+
+      const cats = json.categories ?? [];
+      const totalServices = cats.reduce((acc, c) => acc + c.services.length, 0);
+
+      if (totalServices === 0) {
+        setMessages((prev) => prev.map((m) =>
+          m.id === processingMsg.id
+            ? { ...m, content: "Файлаас үйлчилгээ олдсонгүй. Өөр файл оролдоно уу." }
+            : m
+        ));
+        return;
+      }
+
+      setMessages((prev) => prev.map((m) =>
+        m.id === processingMsg.id
+          ? { ...m, content: `✓ ${cats.length} ангилал, нийт ${totalServices} үйлчилгээ олдлоо. Нэмэх үйлчилгээнүүдийг сонгоно уу:` }
+          : m
+      ));
+      setParsedCategories(cats);
+    } catch (err) {
+      setMessages((prev) => prev.map((m) =>
+        m.id === processingMsg.id
+          ? { ...m, content: `❌ Алдаа: ${err instanceof Error ? err.message : "Network error"}` }
+          : m
+      ));
+    } finally {
+      setIsParsingFile(false);
+    }
+  }, []);
+
+  const handleBatchConfirm = useCallback(async (selected: Array<ParsedService & { category_name: string }>) => {
+    setIsBatchSaving(true);
+    try {
+      const res = await fetch("/api/clinic/services/batch-save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ services: selected }),
+      });
+      const json = await res.json() as { saved?: number; categories?: number; services?: Service[]; error?: string };
+
+      if (!res.ok || json.error) {
+        setMessages((prev) => [...prev, {
+          id: Date.now().toString(), role: "assistant",
+          content: `❌ Хадгалах үед алдаа гарлаа: ${json.error ?? "Unknown error"}`,
+        }]);
+        return;
+      }
+
+      const savedServices = json.services ?? [];
+      for (const svc of savedServices) {
+        onServiceUpdate(svc);
+      }
+
+      setMessages((prev) => [...prev, {
+        id: Date.now().toString(), role: "assistant",
+        content: `✓ ${json.saved} үйлчилгээ, ${json.categories} ангилал амжилттай нэмэгдлээ! 🎉`,
+      }]);
+      setParsedCategories(null);
+    } catch (err) {
+      setMessages((prev) => [...prev, {
+        id: Date.now().toString(), role: "assistant",
+        content: `❌ Алдаа: ${err instanceof Error ? err.message : "Network error"}`,
+      }]);
+    } finally {
+      setIsBatchSaving(false);
+    }
+  }, [onServiceUpdate]);
+
+  const handleBatchCancel = useCallback(() => {
+    setParsedCategories(null);
+    setMessages((prev) => [...prev, { id: Date.now().toString(), role: "assistant", content: "Болиулагдлаа." }]);
+  }, []);
+
+  // ── AI chat ──
   const doStream = useCallback(async (userMsg: Message, prevMessages: Message[]) => {
     setIsStreaming(true); setPendingConfirm(null);
     const assistantId = (Date.now() + 1).toString();
@@ -139,6 +452,7 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
   };
 
   const isDeleteConfirm = pendingConfirm?.kind === "delete";
+  const isInputDisabled = isStreaming || !!pendingConfirm || isParsingFile || !!parsedCategories;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fafafa" }}>
@@ -163,6 +477,16 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
             </div>
           </div>
         ))}
+
+        {/* BatchConfirmPanel shown after file parse */}
+        {parsedCategories && !isParsingFile && (
+          <BatchConfirmPanel
+            categories={parsedCategories}
+            onConfirm={(selected) => void handleBatchConfirm(selected)}
+            onCancel={handleBatchCancel}
+            isSaving={isBatchSaving}
+          />
+        )}
 
         {pendingConfirm && !isStreaming && (
           <div style={{
@@ -201,35 +525,66 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
         <div ref={bottomRef} />
       </div>
       <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb", background: "#ffffff" }}>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png,.webp"
+          style={{ display: "none" }}
+          onChange={(e) => void handleFileChange(e)}
+        />
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
+          {/* 📎 file upload button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isInputDisabled}
+            title="Файлаас import хийх (PDF, Excel, зураг)"
+            style={{
+              background: "transparent",
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.75rem",
+              padding: "0.75rem",
+              cursor: isInputDisabled ? "not-allowed" : "pointer",
+              fontSize: "1.1rem",
+              opacity: isInputDisabled ? 0.4 : 1,
+              lineHeight: 1,
+              flexShrink: 0,
+            }}
+          >
+            {isParsingFile ? "⏳" : "📎"}
+          </button>
           <textarea
             ref={inputRef} value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
-            disabled={isStreaming || !!pendingConfirm}
-            placeholder={pendingConfirm ? "Баталгаажуулалтыг эхлээд шийднэ үү..." : "Үйлчилгээ нэмэх эсвэл устгахыг хэлнэ үү..."}
+            disabled={isInputDisabled}
+            placeholder={
+              parsedCategories ? "Файлаас import хийхийн өмнө шийдвэрлэнэ үү..." :
+              pendingConfirm ? "Баталгаажуулалтыг эхлээд шийднэ үү..." :
+              "Үйлчилгээ нэмэх эсвэл устгахыг хэлнэ үү..."
+            }
             rows={2}
             style={{
               flex: 1, resize: "none", border: "1px solid #e5e7eb", borderRadius: "0.75rem",
               padding: "0.75rem 1rem", fontSize: "0.9rem", outline: "none",
-              fontFamily: "inherit", lineHeight: "1.5", opacity: pendingConfirm ? 0.5 : 1,
+              fontFamily: "inherit", lineHeight: "1.5", opacity: isInputDisabled ? 0.5 : 1,
             }}
           />
           <button
             onClick={() => void sendMessage()}
-            disabled={isStreaming || !input.trim() || !!pendingConfirm}
+            disabled={isStreaming || !input.trim() || isInputDisabled}
             style={{
               background: "#111827", color: "#fff", border: "none",
               borderRadius: "0.75rem", padding: "0.75rem 1.25rem",
               fontSize: "0.9rem", fontWeight: 600, whiteSpace: "nowrap",
-              cursor: "pointer", opacity: isStreaming || !input.trim() || pendingConfirm ? 0.5 : 1,
+              cursor: "pointer", opacity: isStreaming || !input.trim() || isInputDisabled ? 0.5 : 1,
             }}
           >
             {isStreaming ? "..." : "Илгээх"}
           </button>
         </div>
         <p style={{ fontSize: "0.7rem", color: "#9ca3af", margin: "0.5rem 0 0" }}>
-          Enter — илгээх · Shift+Enter — мөр эхлэх
+          Enter — илгээх · Shift+Enter — мөр эхлэх · 📎 — файлаас import
         </p>
       </div>
     </div>

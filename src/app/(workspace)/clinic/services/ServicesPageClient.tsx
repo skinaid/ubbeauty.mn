@@ -17,11 +17,15 @@ type Service = {
   category_id: string | null;
 };
 
+type Category = { id: string; name: string; slug: string; sort_order: number };
+
 export function ServicesPageClient({
   initialServices,
+  initialCategories,
   orgId,
 }: {
   initialServices: Service[];
+  initialCategories: Category[];
   orgId: string;
 }) {
   const [services, setServices] = useState<Service[]>(initialServices);
@@ -44,7 +48,11 @@ export function ServicesPageClient({
       leftTabLabel={`💆 Үйлчилгээ (${services.length})`}
       rightTabLabel="💬 AI нэмэх"
       leftPanel={
-        <ServicesListPanel services={services} onDelete={handleServiceDelete} />
+        <ServicesListPanel
+          services={services}
+          categories={initialCategories}
+          onDelete={handleServiceDelete}
+        />
       }
       rightPanel={
         <ServicesChatPanel
