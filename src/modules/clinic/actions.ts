@@ -3146,7 +3146,7 @@ export async function deleteService(serviceId: string): Promise<{ error?: string
 
 export async function updateServiceDirect(
   serviceId: string,
-  fields: { name?: string; description?: string | null; duration_minutes?: number; price_from?: number; is_bookable?: boolean; status?: string }
+  fields: { name?: string; description?: string | null; duration_minutes?: number; price_from?: number; is_bookable?: boolean; status?: string; category_id?: string | null }
 ): Promise<{ error?: string }> {
   const context = await requireClinicActionAccess(["owner", "manager"]);
   if ("error" in context) return { error: context.error };

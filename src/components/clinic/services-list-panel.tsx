@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
-import { deleteService } from "@/modules/clinic/actions";
 
 type Service = {
   id: string; name: string; description: string | null;
   duration_minutes: number; price_from: number; currency: string;
   is_bookable: boolean; status: string; category_id: string | null;
+  location_id: string | null;
 };
 
 type Category = { id: string; name: string };
@@ -22,9 +22,34 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ServiceCard({ s, onDelete, deletingId }: { s: Service; onDelete: (id: string) => void; deletingId: string | null }) {
+function ServiceCard({
+  s,
+  onSelect,
+  hovered,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  s: Service;
+  onSelect: (service: Service) => void;
+  hovered: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
   return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: "1rem", overflow: "hidden", background: "#fff" }}>
+    <div
+      onClick={() => onSelect(s)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      style={{
+        border: `1px solid ${hovered ? "#6366f1" : "#e5e7eb"}`,
+        borderRadius: "1rem",
+        overflow: "hidden",
+        background: "#fff",
+        cursor: "pointer",
+        boxShadow: hovered ? "0 2px 8px rgba(99,102,241,0.12)" : "none",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+      }}
+    >
       <div style={{ height: "4px", background: STATUS_COLORS[s.status] ?? "#e5e7eb" }} />
       <div style={{ padding: "1rem 1.125rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
@@ -41,13 +66,7 @@ function ServiceCard({ s, onDelete, deletingId }: { s: Service; onDelete: (id: s
               )}
             </div>
           </div>
-          <button
-            onClick={() => void onDelete(s.id)}
-            disabled={deletingId === s.id}
-            style={{ background: "transparent", border: "1px solid #fecaca", borderRadius: "0.4rem", color: "#ef4444", cursor: deletingId === s.id ? "not-allowed" : "pointer", fontSize: "0.75rem", padding: "3px 8px", opacity: deletingId === s.id ? 0.5 : 1 }}
-          >
-            {deletingId === s.id ? "..." : "Устгах"}
-          </button>
+          <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>→</span>
         </div>
         <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem" }}>
           <Field label="Үргэлжлэх хугацаа" value={`${s.duration_minutes} мин`} />
@@ -63,31 +82,14 @@ export function ServicesListPanel({
   services,
   categories = [],
   onDelete,
+  onSelect,
 }: {
   services: Service[];
   categories?: Category[];
   onDelete: (id: string) => void;
+  onSelect: (service: Service) => void;
 }) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Энэ үйлчилгээг устгах уу?")) return;
-    setDeletingId(id);
-    try {
-      const result = await deleteService(id);
-      if (result.error) {
-        console.error("deleteService error:", result.error);
-        alert(result.error);
-      } else {
-        onDelete(id);
-      }
-    } catch (err) {
-      console.error("deleteService threw:", err);
-      alert("Устгах үед алдаа гарлаа. Console-с дэлгэрэнгүй харна уу.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   if (services.length === 0) {
     return (
@@ -152,7 +154,14 @@ export function ServicesListPanel({
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {groupServices.map((s) => (
-                  <ServiceCard key={s.id} s={s} onDelete={(id) => void handleDelete(id)} deletingId={deletingId} />
+                  <ServiceCard
+                    key={s.id}
+                    s={s}
+                    onSelect={onSelect}
+                    hovered={hoveredId === s.id}
+                    onMouseEnter={() => setHoveredId(s.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                  />
                 ))}
               </div>
             </div>
@@ -162,7 +171,14 @@ export function ServicesListPanel({
         // No categories at all — flat list
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {services.map((s) => (
-            <ServiceCard key={s.id} s={s} onDelete={(id) => void handleDelete(id)} deletingId={deletingId} />
+            <ServiceCard
+              key={s.id}
+              s={s}
+              onSelect={onSelect}
+              hovered={hoveredId === s.id}
+              onMouseEnter={() => setHoveredId(s.id)}
+              onMouseLeave={() => setHoveredId(null)}
+            />
           ))}
         </div>
       )}

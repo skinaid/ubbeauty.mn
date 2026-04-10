@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ClinicSplitLayout } from "@/components/ui";
 import { ServicesListPanel } from "@/components/clinic/services-list-panel";
+import { ServiceDetailPanel } from "@/components/clinic/service-detail-panel";
 import { ServicesChatPanel } from "@/components/clinic/services-chat-panel";
 
 type Service = {
@@ -29,6 +30,7 @@ export function ServicesPageClient({
   orgId: string;
 }) {
   const [services, setServices] = useState<Service[]>(initialServices);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   const handleServiceUpdate = (updated: Service) => {
     setServices((prev) =>
@@ -45,14 +47,31 @@ export function ServicesPageClient({
     <ClinicSplitLayout
       title="Үйлчилгээ"
       subtitle="Booking болон POS-д харагдах үйлчилгээний жагсаалт"
-      leftTabLabel={`💆 Үйлчилгээ (${services.length})`}
+      leftTabLabel={selectedService ? `💆 ${selectedService.name}` : `💆 Үйлчилгээ (${services.length})`}
       rightTabLabel="💬 AI нэмэх"
       leftPanel={
-        <ServicesListPanel
-          services={services}
-          categories={initialCategories}
-          onDelete={handleServiceDelete}
-        />
+        selectedService ? (
+          <ServiceDetailPanel
+            service={selectedService}
+            categories={initialCategories}
+            onBack={() => setSelectedService(null)}
+            onUpdate={(updated) => {
+              handleServiceUpdate(updated);
+              setSelectedService(updated);
+            }}
+            onDelete={(id) => {
+              handleServiceDelete(id);
+              setSelectedService(null);
+            }}
+          />
+        ) : (
+          <ServicesListPanel
+            services={services}
+            categories={initialCategories}
+            onDelete={handleServiceDelete}
+            onSelect={setSelectedService}
+          />
+        )
       }
       rightPanel={
         <ServicesChatPanel
