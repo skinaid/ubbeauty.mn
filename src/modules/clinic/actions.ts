@@ -3124,3 +3124,36 @@ export async function deleteStaffMember(staffId: string): Promise<{ error?: stri
   revalidatePath("/clinic");
   return {};
 }
+
+export async function deleteService(serviceId: string): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", serviceId)
+    .eq("organization_id", context.organization.id);
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/services");
+  revalidatePath("/clinic");
+  return {};
+}
+
+export async function updateServiceDirect(
+  serviceId: string,
+  fields: { name?: string; description?: string | null; duration_minutes?: number; price_from?: number; is_bookable?: boolean; status?: string }
+): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("services")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", serviceId)
+    .eq("organization_id", context.organization.id);
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/services");
+  revalidatePath("/clinic");
+  return {};
+}
