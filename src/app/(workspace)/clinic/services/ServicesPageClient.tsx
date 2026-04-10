@@ -38,6 +38,8 @@ export function ServicesPageClient({
         ? prev.map((s) => (s.id === updated.id ? updated : s))
         : [...prev, updated]
     );
+    // AI chat-аар хадгалахад detail panel-д шууд тусна
+    setSelectedService((prev) => prev?.id === updated.id ? updated : prev);
   };
 
   const handleServiceDelete = (id: string) =>
