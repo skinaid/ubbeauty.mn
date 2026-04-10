@@ -15,7 +15,7 @@ const SYSTEM_PROMPT = `Та эмнэлгийн үйлчилгээнүүдийг 
 ## УСТГАХ FLOW
 Алхам 1: Хэрэглэгч устгах үйлчилгээний нэр/ID хэлнэ → confirm_delete tool дуудах
 Алхам 2: Хэрэглэгч "Тийм" гэвэл → устгагдана (archived болно)
-ТАВААРЛАЛ: ID байхгүй бол existing services жагсаалтаас нэрээр олоорой.
+ТАВААРЛАЛ: confirm_delete-д serviceId талбарт existing services жагсаалтаас тухайн үйлчилгээний БОДИТ UUID-г дамжуул. Slug эсвэл нэр дамжуулж болохгүй — зөвхөн UUID (жишээ: "a1b2c3d4-...").
 
 ## Цуглуулах мэдээлэл (нэмэх/засах)
 - name: үйлчилгээний нэр (заавал)
@@ -93,10 +93,39 @@ export async function POST(req: NextRequest) {
   if (body.directDelete) {
     const { serviceId } = body.directDelete;
     const supabase = await getSupabaseServerClient();
+
+    // serviceId нь UUID эсэхийг шалгана — биш бол нэрээр хайна
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(serviceId);
+    let resolvedId = serviceId;
+    if (!isUuid) {
+      const { data: found } = await supabase
+        .from("services")
+        .select("id")
+        .eq("organization_id", org.id)
+        .ilike("name", serviceId)
+        .limit(1)
+        .single();
+      if (!found) {
+        const stream = new ReadableStream({
+          start(ctrl) {
+            ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: `"${serviceId}" нэртэй үйлчилгээ олдсонгүй.` })}
+
+`));
+            ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}
+
+`));
+            ctrl.close();
+          },
+        });
+        return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+      }
+      resolvedId = (found as { id: string }).id;
+    }
+
     const { error } = await supabase
       .from("services")
       .update({ status: "archived", updated_at: new Date().toISOString() })
-      .eq("id", serviceId)
+      .eq("id", resolvedId)
       .eq("organization_id", org.id);
     const stream = new ReadableStream({
       start(ctrl) {
@@ -108,7 +137,7 @@ export async function POST(req: NextRequest) {
           ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: "✓ Үйлчилгээ архивлагдлаа. Жагсаалтаас харагдахгүй болно." })}
 
 `));
-          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "service_deleted", serviceId })}
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "service_deleted", serviceId: resolvedId })}
 
 `));
         }
