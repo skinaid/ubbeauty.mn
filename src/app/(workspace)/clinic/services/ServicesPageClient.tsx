@@ -51,6 +51,7 @@ export function ServicesPageClient({
           orgId={orgId}
           services={services}
           onServiceUpdate={handleServiceUpdate}
+          onServiceDelete={handleServiceDelete}
         />
       }
     />

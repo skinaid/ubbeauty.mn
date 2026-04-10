@@ -6,13 +6,18 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT = `Та эмнэлгийн үйлчилгээнүүдийг бүртгэх AI туслах мөн.
+const SYSTEM_PROMPT = `Та эмнэлгийн үйлчилгээнүүдийг бүртгэх болон устгах AI туслах мөн.
 
-## 2 АЛХАМТ FLOW
-Алхам 1: Хэрэглэгч мэдээлэл өгнө → confirm_service tool дуудах (баталгаажуулалт)
+## НЭМЭХ/ЗАСАХ FLOW
+Алхам 1: Хэрэглэгч мэдээлэл өгнө → confirm_service tool дуудах
 Алхам 2: Хэрэглэгч "Тийм" гэвэл → хадгалагдана
 
-## Цуглуулах мэдээлэл
+## УСТГАХ FLOW
+Алхам 1: Хэрэглэгч устгах үйлчилгээний нэр/ID хэлнэ → confirm_delete tool дуудах
+Алхам 2: Хэрэглэгч "Тийм" гэвэл → устгагдана (archived болно)
+ТАВААРЛАЛ: ID байхгүй бол existing services жагсаалтаас нэрээр олоорой.
+
+## Цуглуулах мэдээлэл (нэмэх/засах)
 - name: үйлчилгээний нэр (заавал)
 - description: дэлгэрэнгүй тайлбар
 - duration_minutes: үргэлжлэх хугацаа минутаар (заавал, тоо)
@@ -20,17 +25,17 @@ const SYSTEM_PROMPT = `Та эмнэлгийн үйлчилгээнүүдийг 
 - is_bookable: онлайн захиалга боломжтой эсэх (default: true)
 
 ## Дэг журам
-1. Нэр + хугацаа + үнэ авмагц confirm_service дуудах
-2. display текстэд нэр, хугацаа, үнэ, тайлбар харуулах
+1. Нэмэх: нэр + хугацаа + үнэ авмагц confirm_service дуудах
+2. Устгах: нэр/ID авмагц confirm_delete дуудах — display-д "[нэр] үйлчилгээг устгах уу?" гэж бичих
 3. Монгол хэлний эелдэг, мэргэжлийн өнгө аялга
-4. Нэг үйлчилгээ дуусмагц "Өөр үйлчилгээ нэмэх үү?" гэж асуух`;
+4. Нэг үйлдэл дуусмагц "Өөр зүйл хийх үү?" гэж асуух`;
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
       name: "confirm_service",
-      description: "Үйлчилгээний мэдээллийг баталгаажуулахаар хэрэглэгчид харуулах",
+      description: "Үйлчилгээний мэдээллийг баталгаажуулахаар хэрэглэгчид харуулах (нэмэх/засах)",
       parameters: {
         type: "object",
         properties: {
@@ -52,6 +57,22 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "confirm_delete",
+      description: "Үйлчилгээ устгахаас баталгаажуулахаар хэрэглэгчид харуулах",
+      parameters: {
+        type: "object",
+        properties: {
+          serviceId: { type: "string", description: "Устгах үйлчилгээний ID" },
+          serviceName: { type: "string", description: "Үйлчилгээний нэр (харуулахад)" },
+          display: { type: "string", description: "Хэрэглэгчид харуулах баталгаажуулалтын текст" },
+        },
+        required: ["serviceId", "serviceName", "display"],
+      },
+    },
+  },
 ];
 
 export async function POST(req: NextRequest) {
@@ -64,8 +85,41 @@ export async function POST(req: NextRequest) {
     messages?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
     existingServices?: unknown[];
     directSave?: Record<string, unknown> & { id?: string };
+    directDelete?: { serviceId: string };
   };
   const encoder = new TextEncoder();
+
+  // Direct delete
+  if (body.directDelete) {
+    const { serviceId } = body.directDelete;
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("services")
+      .update({ status: "archived", updated_at: new Date().toISOString() })
+      .eq("id", serviceId)
+      .eq("organization_id", org.id);
+    const stream = new ReadableStream({
+      start(ctrl) {
+        if (error) {
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: `Алдаа: ${error.message}` })}
+
+`));
+        } else {
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: "✓ Үйлчилгээ архивлагдлаа. Жагсаалтаас харагдахгүй болно." })}
+
+`));
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "service_deleted", serviceId })}
+
+`));
+        }
+        ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}
+
+`));
+        ctrl.close();
+      },
+    });
+    return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+  }
 
   // Direct save
   if (body.directSave) {
@@ -145,9 +199,16 @@ export async function POST(req: NextRequest) {
           }
           if (chunk.choices[0]?.finish_reason === "tool_calls" && inToolCall) {
             try {
-              const parsed = JSON.parse(toolArgs) as { serviceData?: Record<string, unknown>; display?: string };
+              const parsed = JSON.parse(toolArgs) as {
+                serviceData?: Record<string, unknown>;
+                display?: string;
+                serviceId?: string;
+                serviceName?: string;
+              };
               if (toolName === "confirm_service" && parsed.serviceData && parsed.display) {
                 send({ type: "confirm_service", display: parsed.display, serviceData: parsed.serviceData });
+              } else if (toolName === "confirm_delete" && parsed.serviceId && parsed.display) {
+                send({ type: "confirm_delete", display: parsed.display, serviceId: parsed.serviceId, serviceName: parsed.serviceName ?? "" });
               }
             } catch { send({ type: "error", message: "Parse error" }); }
           }
