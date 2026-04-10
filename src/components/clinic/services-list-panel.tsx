@@ -26,10 +26,20 @@ export function ServicesListPanel({ services, onDelete }: { services: Service[];
   const handleDelete = async (id: string) => {
     if (!confirm("Энэ үйлчилгээг устгах уу?")) return;
     setDeletingId(id);
-    const result = await deleteService(id);
-    if (result.error) alert(result.error);
-    else onDelete(id);
-    setDeletingId(null);
+    try {
+      const result = await deleteService(id);
+      if (result.error) {
+        console.error("deleteService error:", result.error);
+        alert(result.error);
+      } else {
+        onDelete(id);
+      }
+    } catch (err) {
+      console.error("deleteService threw:", err);
+      alert("Устгах үед алдаа гарлаа. Console-с дэлгэрэнгүй харна уу.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (services.length === 0) {

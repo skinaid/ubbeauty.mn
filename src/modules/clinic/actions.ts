@@ -3126,15 +3126,21 @@ export async function deleteStaffMember(staffId: string): Promise<{ error?: stri
 }
 
 export async function deleteService(serviceId: string): Promise<{ error?: string }> {
-  const context = await requireClinicActionAccess(["owner", "manager"]);
-  if ("error" in context) return { error: context.error };
+  const context = await requireClinicActionAccess(["owner", "manager", "front_desk"]);
+  if ("error" in context) {
+    console.error("[deleteService] access denied:", context.error);
+    return { error: context.error };
+  }
   const supabase = await getSupabaseServerClient();
   const { error } = await supabase
     .from("services")
     .delete()
     .eq("id", serviceId)
     .eq("organization_id", context.organization.id);
-  if (error) return { error: toFriendlyClinicError(error) };
+  if (error) {
+    console.error("[deleteService] supabase error:", error);
+    return { error: toFriendlyClinicError(error) };
+  }
   revalidatePath("/clinic/services");
   revalidatePath("/clinic");
   return {};
