@@ -27,15 +27,15 @@ export function AvailabilityRuleListItem({
   };
 
   return (
-    <li style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--ui-border)" }}>
-      <div>
-        <strong>{staffName}</strong>
-        <span className="ui-text-muted" style={{ display: "block", fontSize: "0.875rem" }}>
+    <li style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", padding: "0.5rem 0", borderBottom: "1px solid var(--ui-border)" }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <strong style={{ display: "block", overflowWrap: "break-word" }}>{staffName}</strong>
+        <span className="ui-text-muted" style={{ display: "block", fontSize: "0.875rem", overflowWrap: "break-word" }}>
           {weekdayLabel} · {rule.start_local.slice(0, 5)} - {rule.end_local.slice(0, 5)}
           {locationName ? ` · ${locationName}` : ""}
         </span>
       </div>
-      <div>
+      <div style={{ flexShrink: 0 }}>
         <Button variant="secondary" size="sm" onClick={handleDelete} style={{ color: "var(--ui-error)", borderColor: "var(--ui-error)" }}>Устгах</Button>
       </div>
     </li>

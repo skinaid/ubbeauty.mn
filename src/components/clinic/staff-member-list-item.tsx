@@ -36,16 +36,16 @@ export function StaffMemberListItem({
   };
 
   return (
-    <li style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: "1px solid var(--ui-border)" }}>
-      <div>
-        <strong>{staffMember.full_name}</strong>
-        <span className="ui-text-muted" style={{ display: "block", fontSize: "0.875rem" }}>
+    <li style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem", padding: "0.5rem 0", borderBottom: "1px solid var(--ui-border)" }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <strong style={{ display: "block", overflowWrap: "break-word" }}>{staffMember.full_name}</strong>
+        <span className="ui-text-muted" style={{ display: "block", fontSize: "0.875rem", overflowWrap: "break-word" }}>
           {staffMember.role}
           {staffMember.specialty ? ` · ${staffMember.specialty}` : ""}
           {staffMember.phone ? ` · ${staffMember.phone}` : ""}
         </span>
       </div>
-      <div style={{ display: "flex", gap: "0.5rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
         <Button variant="secondary" size="sm" onClick={() => setIsEditing(true)}>Засах</Button>
         <Button variant="secondary" size="sm" onClick={handleDelete} style={{ color: "var(--ui-error)", borderColor: "var(--ui-error)" }}>Устгах</Button>
       </div>

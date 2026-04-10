@@ -269,7 +269,7 @@ export default async function ClinicProfilePage() {
             </Card>
           </div>
 
-          <div className="ui-stat-grid">
+          <div className="ui-setup-grid">
             <Card padded stack>
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>
                 Салбарууд
