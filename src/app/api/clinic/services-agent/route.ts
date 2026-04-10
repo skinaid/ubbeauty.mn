@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
     existingServices?: unknown[];
     directSave?: Record<string, unknown> & { id?: string };
     directDelete?: { serviceId: string };
+    focusedServiceId?: string | null;
   };
   const encoder = new TextEncoder();
 
@@ -205,6 +206,12 @@ export async function POST(req: NextRequest) {
   // AI stream
   const messages = body.messages ?? [];
   const svcList = (body.existingServices ?? []) as Array<{ id: string; name: string; duration_minutes?: number; price_from?: number }>;
+  const focusedSvc = body.focusedServiceId
+    ? svcList.find((s) => s.id === body.focusedServiceId)
+    : null;
+  const focusedContext = focusedSvc
+    ? `\n\n## Одоо ажиллаж байгаа үйлчилгээ (FOCUSED):\nUUID: "${focusedSvc.id}"  |  Нэр: "${focusedSvc.name}"${focusedSvc.duration_minutes ? `  |  ${focusedSvc.duration_minutes}мин` : ""}${focusedSvc.price_from ? `  |  ₮${Number(focusedSvc.price_from).toLocaleString()}` : ""}\nХэрэглэгч энэ үйлчилгээний дэлгэрэнгүйг хараж байгаа. Засах/устгах үйлдэл хийхд энэ UUID-г ашигл.`
+    : "";
   const existingContext = svcList.length
     ? `\n\n## Одоогийн үйлчилгээнүүд (устгахад энэ жагсаалтаас serviceId-д зөвхөн UUID-г ашигл):\n` +
       svcList.map((s) => `- UUID: "${s.id}"  |  Нэр: "${s.name}"${s.duration_minutes ? `  |  ${s.duration_minutes}мин` : ""}${s.price_from ? `  |  ₮${Number(s.price_from).toLocaleString()}` : ""}`).join("\n")
@@ -216,7 +223,7 @@ export async function POST(req: NextRequest) {
       try {
         const response = await openai.chat.completions.create({
           model: "gpt-4o-mini", stream: true,
-          messages: [{ role: "system", content: SYSTEM_PROMPT + existingContext }, ...messages],
+          messages: [{ role: "system", content: SYSTEM_PROMPT + focusedContext + existingContext }, ...messages],
           tools: TOOLS, tool_choice: "auto",
         });
         let toolName = "", toolArgs = "", inToolCall = false;

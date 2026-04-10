@@ -79,6 +79,7 @@ export function ServicesPageClient({
           services={services}
           onServiceUpdate={handleServiceUpdate}
           onServiceDelete={handleServiceDelete}
+          selectedService={selectedService}
         />
       }
     />

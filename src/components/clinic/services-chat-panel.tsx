@@ -212,11 +212,12 @@ function BatchConfirmPanel({
 
 // ─── ServicesChatPanel ────────────────────────────────────────────────────────
 
-export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceDelete }: {
+export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceDelete, selectedService }: {
   orgId: string;
   services: Service[];
   onServiceUpdate: (s: Service) => void;
   onServiceDelete?: (id: string) => void;
+  selectedService?: Service | null;
 }) {
   void orgId;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -234,10 +235,19 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMessages([{ id: "init", role: "assistant", content: services.length === 0
-      ? "Сайн байна уу! Үйлчилгээ нэмэх эсвэл устгах боломжтой. Нэр, хугацаа, үнийг хэлнэ үү 💆\n\n📎 Үнийн жагсаалт файлаа (PDF, Excel, зураг) upload хийж болно."
-      : `Одоо ${services.length} үйлчилгээ бүртгэлтэй. Нэмэх эсвэл устгах боломжтой.\n\n📎 Файлаас bulk import хийхдээ цааш дарна уу.` }]);
-  }, []);
+    setPendingConfirm(null);
+    setParsedCategories(null);
+    if (selectedService) {
+      setMessages([{ id: "ctx-" + selectedService.id, role: "assistant", content:
+        `💆 **${selectedService.name}**\n\nЭнэ үйлчилгээний дэлгэрэнгүйг харж байна. Засах, устгах, эсвэл мэдээлэл шинэчлэх бол хэлнэ үү.\n\n_Хугацаа: ${selectedService.duration_minutes} мин · Үнэ: ₮${Number(selectedService.price_from).toLocaleString()}_`
+      }]);
+    } else {
+      setMessages([{ id: "init", role: "assistant", content: services.length === 0
+        ? "Сайн байна уу! Үйлчилгээ нэмэх эсвэл устгах боломжтой. Нэр, хугацаа, үнийг хэлнэ үү 💆\n\n📎 Үнийн жагсаалт файлаа (PDF, Excel, зураг) upload хийж болно."
+        : `Одоо ${services.length} үйлчилгээ бүртгэлтэй. Нэмэх эсвэл устгах боломжтой.\n\n📎 Файлаас bulk import хийхдээ цааш дарна уу.` }]);
+    }
+    setInput("");
+  }, [selectedService?.id]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, pendingConfirm, parsedCategories]);
 
@@ -356,6 +366,7 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
         body: JSON.stringify({
           messages: [...prevMessages, userMsg].map((m) => ({ role: m.role, content: m.content })),
           existingServices: services,
+          focusedServiceId: selectedService?.id ?? null,
         }),
       });
       if (!res.ok || !res.body) throw new Error("Stream failed");
