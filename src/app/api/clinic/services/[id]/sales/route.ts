@@ -95,7 +95,7 @@ export async function GET(
 
     const totalRevenue = items.reduce((sum, item) => sum + item.line_total, 0);
     const totalSold = items.reduce((sum, item) => sum + item.quantity, 0);
-    const avgPrice = items.length > 0 ? Math.round(totalRevenue / items.length) : 0;
+    const avgPrice = totalSold > 0 ? Math.round(totalRevenue / totalSold) : 0;
     const currency = items[0]?.currency ?? "MNT";
 
     return NextResponse.json({

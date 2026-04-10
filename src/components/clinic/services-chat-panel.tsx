@@ -1,13 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-type Service = {
-  id: string; name: string; description: string | null;
-  duration_minutes: number; price_from: number; currency: string;
-  is_bookable: boolean; status: string; location_id: string | null; category_id: string | null;
-};
+import type { ServiceRecord } from "@/modules/clinic/service-types";
 type Message = { id: string; role: "user" | "assistant"; content: string };
-type ConfirmSave = { kind: "save"; display: string; serviceData: Partial<Service> & { id?: string } };
+type ConfirmSave = { kind: "save"; display: string; serviceData: Partial<ServiceRecord> & { id?: string } };
 type ConfirmDelete = { kind: "delete"; display: string; serviceId: string; serviceName: string };
 type PendingConfirm = ConfirmSave | ConfirmDelete;
 
@@ -214,10 +209,10 @@ function BatchConfirmPanel({
 
 export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceDelete, selectedService }: {
   orgId: string;
-  services: Service[];
-  onServiceUpdate: (s: Service) => void;
+  services: ServiceRecord[];
+  onServiceUpdate: (s: ServiceRecord) => void;
   onServiceDelete?: (id: string) => void;
-  selectedService?: Service | null;
+  selectedService?: ServiceRecord | null;
 }) {
   void orgId;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -320,7 +315,7 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ services: selected }),
       });
-      const json = await res.json() as { saved?: number; categories?: number; services?: Service[]; error?: string };
+      const json = await res.json() as { saved?: number; categories?: number; services?: ServiceRecord[]; error?: string };
 
       if (!res.ok || json.error) {
         setMessages((prev) => [...prev, {
@@ -381,8 +376,8 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
             const event = JSON.parse(line.slice(6)) as {
               type: string; content?: string;
               display?: string;
-              serviceData?: Partial<Service> & { id?: string };
-              service?: Service;
+              serviceData?: Partial<ServiceRecord> & { id?: string };
+              service?: ServiceRecord;
               serviceId?: string;
               serviceName?: string;
             };
@@ -442,7 +437,7 @@ export function ServicesChatPanel({ orgId, services, onServiceUpdate, onServiceD
           if (!line.startsWith("data: ")) continue;
           try {
             const event = JSON.parse(line.slice(6)) as {
-              type: string; content?: string; service?: Service; serviceId?: string;
+              type: string; content?: string; service?: ServiceRecord; serviceId?: string;
             };
             if (event.type === "text" && event.content)
               setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + event.content! } : m));

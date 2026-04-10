@@ -1,19 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { updateServiceDirect, deleteService } from "@/modules/clinic/actions";
-
-type Service = {
-  id: string;
-  name: string;
-  description: string | null;
-  duration_minutes: number;
-  price_from: number;
-  currency: string;
-  is_bookable: boolean;
-  status: string;
-  location_id: string | null;
-  category_id: string | null;
-};
+import type { ServiceRecord } from "@/modules/clinic/service-types";
 
 type Category = { id: string; name: string };
 
@@ -130,10 +118,10 @@ function EditDialog({
   onClose,
   onSave,
 }: {
-  service: Service;
+  service: ServiceRecord;
   categories: Category[];
   onClose: () => void;
-  onSave: (updated: Service) => void;
+  onSave: (updated: ServiceRecord) => void;
 }) {
   const [name, setName] = useState(service.name);
   const [description, setDescription] = useState(service.description ?? "");
@@ -163,7 +151,7 @@ function EditDialog({
         setError(result.error);
         setSaving(false);
       } else {
-        onSave({ ...service, ...fields });
+        onSave({ ...service, ...fields } as ServiceRecord);
       }
     } catch {
       setError("Алдаа гарлаа. Дахин оролдоно уу.");
@@ -310,22 +298,34 @@ function EditDialog({
 
 let costIdCounter = 0;
 
-function CostTab({ service }: { service: Service }) {
-  const [items, setItems] = useState<CostItem[]>([]);
+function CostTab({ service }: { service: ServiceRecord }) {
+  const [items, setItems] = useState<CostItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("cost-" + service.id);
+      return saved ? JSON.parse(saved) as CostItem[] : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const persistItems = (newItems: CostItem[]) => {
+    try {
+      localStorage.setItem("cost-" + service.id, JSON.stringify(newItems));
+    } catch { /* ignore */ }
+    setItems(newItems);
+  };
 
   const addItem = () => {
     costIdCounter += 1;
-    setItems((prev) => [...prev, { id: String(costIdCounter), name: "", amount: 0 }]);
+    persistItems([...items, { id: String(costIdCounter), name: "", amount: 0 }]);
   };
 
   const updateItem = (id: string, field: "name" | "amount", value: string | number) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
+    persistItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
   const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+    persistItems(items.filter((item) => item.id !== id));
   };
 
   const totalCost = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -465,7 +465,7 @@ function CostTab({ service }: { service: Service }) {
 
 // ── Борлуулалт (Sales) Tab ────────────────────────────────────────────────────
 
-function SalesTab({ service }: { service: Service }) {
+function SalesTab({ service }: { service: ServiceRecord }) {
   const [period, setPeriod] = useState<SalesPeriod>("30d");
   const [data, setData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -667,10 +667,10 @@ export function ServiceDetailPanel({
   onUpdate,
   onDelete,
 }: {
-  service: Service;
+  service: ServiceRecord;
   categories: Category[];
   onBack: () => void;
-  onUpdate: (updated: Service) => void;
+  onUpdate: (updated: ServiceRecord) => void;
   onDelete: (id: string) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
@@ -683,7 +683,7 @@ export function ServiceDetailPanel({
     ? (categoryMap.get(service.category_id) ?? "Ангилалгүй")
     : "Ангилалгүй";
 
-  const handleSaveFromDialog = (updated: Service) => {
+  const handleSaveFromDialog = (updated: ServiceRecord) => {
     setEditOpen(false);
     onUpdate(updated);
     setFlash({ type: "success", msg: "✓ Хадгалагдлаа" });

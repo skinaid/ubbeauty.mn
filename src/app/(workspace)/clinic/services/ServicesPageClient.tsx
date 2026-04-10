@@ -4,35 +4,21 @@ import { ClinicSplitLayout } from "@/components/ui";
 import { ServicesListPanel } from "@/components/clinic/services-list-panel";
 import { ServiceDetailPanel } from "@/components/clinic/service-detail-panel";
 import { ServicesChatPanel } from "@/components/clinic/services-chat-panel";
-
-type Service = {
-  id: string;
-  name: string;
-  description: string | null;
-  duration_minutes: number;
-  price_from: number;
-  currency: string;
-  is_bookable: boolean;
-  status: string;
-  location_id: string | null;
-  category_id: string | null;
-};
-
-type Category = { id: string; name: string; slug: string; sort_order: number };
+import type { ServiceRecord, ServiceCategory } from "@/modules/clinic/service-types";
 
 export function ServicesPageClient({
   initialServices,
   initialCategories,
   orgId,
 }: {
-  initialServices: Service[];
-  initialCategories: Category[];
+  initialServices: ServiceRecord[];
+  initialCategories: ServiceCategory[];
   orgId: string;
 }) {
-  const [services, setServices] = useState<Service[]>(initialServices);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [services, setServices] = useState<ServiceRecord[]>(initialServices);
+  const [selectedService, setSelectedService] = useState<ServiceRecord | null>(null);
 
-  const handleServiceUpdate = (updated: Service) => {
+  const handleServiceUpdate = (updated: ServiceRecord) => {
     setServices((prev) =>
       prev.some((s) => s.id === updated.id)
         ? prev.map((s) => (s.id === updated.id ? updated : s))

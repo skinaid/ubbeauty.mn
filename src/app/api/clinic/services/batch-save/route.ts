@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { requireClinicActor, hasClinicRole } from "@/modules/clinic/guard";
 
 type ServiceInput = {
   name: string;
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
   const org = await getCurrentUserOrganization(user.id);
   if (!org) return NextResponse.json({ error: "No organization" }, { status: 400 });
 
+  const actor = await requireClinicActor();
+  if ("error" in actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasClinicRole(actor.role, ["owner", "manager"])) {
+    return NextResponse.json({ error: "Insufficient role" }, { status: 403 });
+  }
+
   const body = await req.json() as { services: ServiceInput[] };
   const { services } = body;
   if (!Array.isArray(services) || services.length === 0) {
@@ -32,7 +39,8 @@ export async function POST(req: NextRequest) {
   // Upsert categories
   const categoryIdMap = new Map<string, string>();
 
-  for (const name of categoryNames) {
+  for (let ci = 0; ci < categoryNames.length; ci++) {
+    const name = categoryNames[ci];
     // Check if exists
     const { data: existing } = await supabase
       .from("service_categories")
@@ -46,7 +54,7 @@ export async function POST(req: NextRequest) {
       categoryIdMap.set(name, existing.id);
     } else {
       const slug =
-        name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + Date.now();
+        name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + (Date.now() + ci);
       const { data: created, error } = await supabase
         .from("service_categories")
         .insert({
@@ -68,14 +76,14 @@ export async function POST(req: NextRequest) {
 
   // Insert services
   const savedServices = [];
-  const now = Date.now();
 
-  for (const svc of services) {
+  for (let i = 0; i < services.length; i++) {
+    const svc = services[i];
     const name = svc.name?.trim();
     if (!name) continue;
 
     const slug =
-      name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + now;
+      name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") + "-" + (Date.now() + i);
     const categoryId = svc.category_name ? (categoryIdMap.get(svc.category_name) ?? null) : null;
 
     const { data, error } = await supabase

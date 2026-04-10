@@ -1,12 +1,6 @@
 "use client";
 import { useState } from "react";
-
-type Service = {
-  id: string; name: string; description: string | null;
-  duration_minutes: number; price_from: number; currency: string;
-  is_bookable: boolean; status: string; category_id: string | null;
-  location_id: string | null;
-};
+import type { ServiceRecord } from "@/modules/clinic/service-types";
 
 type Category = { id: string; name: string };
 
@@ -29,8 +23,8 @@ function ServiceCard({
   onMouseEnter,
   onMouseLeave,
 }: {
-  s: Service;
-  onSelect: (service: Service) => void;
+  s: ServiceRecord;
+  onSelect: (service: ServiceRecord) => void;
   hovered: boolean;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
@@ -84,10 +78,10 @@ export function ServicesListPanel({
   onDelete,
   onSelect,
 }: {
-  services: Service[];
+  services: ServiceRecord[];
   categories?: Category[];
   onDelete: (id: string) => void;
-  onSelect: (service: Service) => void;
+  onSelect: (service: ServiceRecord) => void;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -104,8 +98,8 @@ export function ServicesListPanel({
   // Group services by category
   const categoryMap = new Map<string, string>(categories.map((c) => [c.id, c.name]));
 
-  // Build grouped structure: Map<categoryLabel, Service[]>
-  const groups = new Map<string, Service[]>();
+  // Build grouped structure: Map<categoryLabel, ServiceRecord[]>
+  const groups = new Map<string, ServiceRecord[]>();
   for (const svc of services) {
     const label = svc.category_id
       ? (categoryMap.get(svc.category_id) ?? "Ангилалгүй")

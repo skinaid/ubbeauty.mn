@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { requireClinicActor, hasClinicRole } from "@/modules/clinic/guard";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -80,6 +81,12 @@ export async function POST(req: NextRequest) {
   if (!user) return new Response("Unauthorized", { status: 401 });
   const org = await getCurrentUserOrganization(user.id);
   if (!org) return new Response("No organization", { status: 400 });
+
+  const actor = await requireClinicActor();
+  if ("error" in actor) return new Response("Forbidden", { status: 403 });
+  if (!hasClinicRole(actor.role, ["owner", "manager", "front_desk"])) {
+    return new Response("Insufficient role", { status: 403 });
+  }
 
   const body = await req.json() as {
     messages?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
