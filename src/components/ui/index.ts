@@ -7,3 +7,4 @@ export type { ButtonVariant } from "./button";
 export { Card } from "./card";
 export { Input } from "./input";
 export { PageHeader } from "./page-header";
+export { ClinicSplitLayout } from "./clinic-split-layout";

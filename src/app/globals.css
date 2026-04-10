@@ -3761,3 +3761,151 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+/* =============================================================================
+   ClinicSplitLayout — shared split-panel layout for /clinic/* pages
+   ============================================================================= */
+
+/*
+ * When a clinic split page is active, the app-shell__main must be flush
+ * (no padding, no overflow) so the split layout can fill 100% height exactly.
+ * Add class="app-shell__main--flush" to <main> via the workspace layout, OR
+ * rely on .clinic-split-root absorbing the full height of its flex parent.
+ */
+.app-shell__main:has(.clinic-split-root) {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Root: fill the main panel entirely */
+.clinic-split-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header bar */
+.clinic-split-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+  min-height: 56px;
+}
+
+.clinic-split-back {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.clinic-split-back:hover {
+  color: var(--text-primary);
+}
+
+.clinic-split-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.clinic-split-header__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinic-split-header__subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Desktop: two-column split */
+.clinic-split-desktop {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.clinic-split-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.clinic-split-panel--left {
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+/* Mobile: hidden on desktop */
+.clinic-split-mobile {
+  display: none;
+}
+
+/* Tab bar */
+.clinic-split-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+}
+
+.clinic-split-tab {
+  flex: 1;
+  padding: 0.7rem 0.5rem;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clinic-split-tab--active {
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.clinic-split-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 768px) {
+  .clinic-split-desktop {
+    display: none;
+  }
+
+  .clinic-split-mobile {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
