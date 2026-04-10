@@ -126,6 +126,7 @@ export default async function ClinicProfilePage() {
         <Link href="/clinic/locations" className="ui-table__link">📍 Байршил удирдах</Link>
         <Link href="/clinic/staff" className="ui-table__link">👥 Ажилтан удирдах</Link>
         <Link href="/clinic/services" className="ui-table__link">💆 Үйлчилгээ удирдах</Link>
+        <Link href="/clinic/availability" className="ui-table__link">🗓 Ажлын цаг удирдах</Link>
       </div>
 
       <Card padded stack>

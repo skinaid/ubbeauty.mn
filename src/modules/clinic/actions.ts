@@ -3157,3 +3157,18 @@ export async function updateServiceDirect(
   revalidatePath("/clinic");
   return {};
 }
+
+export async function deleteAvailabilityRule(ruleId: string): Promise<{ error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("staff_availability_rules")
+    .delete()
+    .eq("id", ruleId)
+    .eq("organization_id", context.organization.id);
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/availability");
+  revalidatePath("/schedule");
+  return {};
+}
