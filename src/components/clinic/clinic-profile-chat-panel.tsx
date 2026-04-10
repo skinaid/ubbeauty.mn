@@ -129,13 +129,11 @@ export function ClinicProfileChatPanel({
     setMessages((prev) => [...prev, userMsg]);
 
     if (!confirmed) {
-      // Just say "ok" without saving
-      const cancelMsg: Message = { id: (Date.now()+1).toString(), role: "assistant", content: "За, өөрчлүүлээрэй." };
+      const cancelMsg: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "За, өөрчлүүлээрэй." };
       setMessages((prev) => [...prev, cancelMsg]);
       return;
     }
 
-    // Confirmed — bypass AI, save directly
     setIsStreaming(true);
     const assistantId = (Date.now() + 2).toString();
     setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
@@ -186,70 +184,83 @@ export function ClinicProfileChatPanel({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#fafafa" }}>
-      {/* Header */}
-      <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #e5e7eb" }}>
-        <p style={{ fontSize: "0.7rem", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
-          AI Туслах
-        </p>
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      {/* Chat header */}
+      <div className="flex-shrink-0 flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-base flex-shrink-0 shadow-sm">
+          ✦
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">
+            AI Профайл Туслах
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 leading-tight mt-0.5">
+            Ярилцаж профайлаа хурдан бөглөөрэй
+          </p>
+        </div>
+        {isStreaming && (
+          <span className="text-xs text-indigo-400 animate-pulse flex-shrink-0">
+            бичиж байна...
+          </span>
+        )}
       </div>
 
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* Messages area */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 flex flex-col gap-3">
         {messages.map((msg) => (
-          <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{
-              maxWidth: "80%",
-              padding: "0.75rem 1rem",
-              borderRadius: msg.role === "user" ? "1rem 1rem 0.25rem 1rem" : "1rem 1rem 1rem 0.25rem",
-              background: msg.role === "user" ? "#111827" : "#ffffff",
-              color: msg.role === "user" ? "#ffffff" : "#111827",
-              fontSize: "0.9rem",
-              lineHeight: "1.5",
-              border: msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
-              whiteSpace: "pre-wrap",
-            }}>
-              {msg.content || (isStreaming && msg.role === "assistant" ? <span style={{ color: "#9ca3af" }}>▋</span> : "")}
+          <div
+            key={msg.id}
+            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            {msg.role === "assistant" && (
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-[10px] flex-shrink-0 mr-2 mt-1 self-start">
+                ✦
+              </div>
+            )}
+            <div
+              className={`
+                max-w-[78%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap
+                ${msg.role === "user"
+                  ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl rounded-br-sm"
+                  : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-2xl rounded-bl-sm border border-gray-100 dark:border-gray-700 shadow-sm"
+                }
+              `}
+            >
+              {msg.content || (isStreaming && msg.role === "assistant" ? (
+                <span className="inline-flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </span>
+              ) : "")}
             </div>
           </div>
         ))}
 
         {/* Confirm card */}
         {pendingConfirm && !isStreaming && (
-          <div style={{
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
-            borderRadius: "1rem",
-            padding: "1rem 1.25rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.75rem",
-            maxWidth: "80%",
-          }}>
-            <p style={{ margin: 0, fontSize: "0.85rem", color: "#374151", lineHeight: 1.5 }}>
-              {pendingConfirm.display}
-            </p>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
-                onClick={() => void handleConfirm(true)}
-                style={{
-                  background: "#111827", color: "#fff", border: "none",
-                  borderRadius: "0.5rem", padding: "0.5rem 1.25rem",
-                  fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                ✓ Тийм
-              </button>
-              <button
-                onClick={() => void handleConfirm(false)}
-                style={{
-                  background: "transparent", color: "#6b7280",
-                  border: "1px solid #e5e7eb", borderRadius: "0.5rem",
-                  padding: "0.5rem 1.25rem", fontSize: "0.85rem", cursor: "pointer",
-                }}
-              >
-                Үгүй
-              </button>
+          <div className="flex justify-start">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-[10px] flex-shrink-0 mr-2 mt-1 self-start">
+              ✦
+            </div>
+            <div className="max-w-[78%] bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl rounded-bl-sm shadow-sm p-4 flex flex-col gap-3">
+              <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+                {pendingConfirm.display}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => void handleConfirm(true)}
+                  className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-sm font-semibold px-4 py-1.5 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                >
+                  ✓ Тийм
+                </button>
+                <button
+                  onClick={() => void handleConfirm(false)}
+                  className="bg-transparent text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 text-sm px-4 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  Үгүй
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -257,39 +268,53 @@ export function ClinicProfileChatPanel({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb", background: "#ffffff" }}>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
+      {/* Input area */}
+      <div className="flex-shrink-0 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3">
+        <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             disabled={isStreaming || !!pendingConfirm}
-            placeholder={pendingConfirm ? "Дээрх баталгаажуулалтыг эхлээд шийднэ үү..." : "Эмнэлгийнхээ тухай хэлнэ үү..."}
-            rows={2}
-            style={{
-              flex: 1, resize: "none", border: "1px solid #e5e7eb",
-              borderRadius: "0.75rem", padding: "0.75rem 1rem",
-              fontSize: "0.9rem", outline: "none", fontFamily: "inherit",
-              lineHeight: "1.5", opacity: pendingConfirm ? 0.5 : 1,
-            }}
+            placeholder={
+              pendingConfirm
+                ? "Дээрх баталгаажуулалтыг эхлээд шийднэ үү..."
+                : "Эмнэлгийнхээ тухай хэлнэ үү..."
+            }
+            rows={1}
+            className={`
+              flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-700
+              bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-100
+              placeholder:text-gray-400 dark:placeholder:text-gray-500
+              px-4 py-2.5 outline-none leading-relaxed
+              focus:border-indigo-300 dark:focus:border-indigo-700 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40
+              transition-colors
+              ${(isStreaming || !!pendingConfirm) ? "opacity-50 cursor-not-allowed" : ""}
+            `}
+            style={{ fontFamily: "inherit" }}
           />
           <button
             onClick={() => void sendMessage()}
             disabled={isStreaming || !input.trim() || !!pendingConfirm}
-            style={{
-              background: "#111827", color: "#ffffff", border: "none",
-              borderRadius: "0.75rem", padding: "0.75rem 1.25rem",
-              fontSize: "0.9rem", fontWeight: 600, whiteSpace: "nowrap",
-              cursor: isStreaming || !input.trim() || pendingConfirm ? "not-allowed" : "pointer",
-              opacity: isStreaming || !input.trim() || pendingConfirm ? 0.5 : 1,
-            }}
+            className={`
+              flex-shrink-0 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900
+              text-sm font-semibold px-4 py-2.5 rounded-xl
+              hover:bg-gray-700 dark:hover:bg-gray-200
+              transition-colors
+              ${(isStreaming || !input.trim() || !!pendingConfirm) ? "opacity-40 cursor-not-allowed" : ""}
+            `}
           >
-            {isStreaming ? "..." : "Илгээх"}
+            {isStreaming ? (
+              <span className="flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-white dark:bg-gray-900 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1 h-1 rounded-full bg-white dark:bg-gray-900 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1 h-1 rounded-full bg-white dark:bg-gray-900 animate-bounce" style={{ animationDelay: "300ms" }} />
+              </span>
+            ) : "Илгээх"}
           </button>
         </div>
-        <p style={{ fontSize: "0.7rem", color: "#9ca3af", margin: "0.5rem 0 0" }}>
+        <p className="text-[11px] text-gray-300 dark:text-gray-600 mt-2">
           Enter — илгээх · Shift+Enter — мөр эхлэх
         </p>
       </div>
