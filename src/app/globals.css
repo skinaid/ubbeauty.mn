@@ -897,7 +897,9 @@ code {
    ============================================================================= */
 .app-shell {
   display: flex;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: var(--bg-subtle);
 }
 
@@ -985,6 +987,7 @@ code {
 .app-shell__main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: var(--bg-subtle);
   padding: 3rem;
   overflow-y: auto;
@@ -3775,6 +3778,7 @@ code {
 .app-shell__main:has(.clinic-split-root) {
   padding: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 /* Root: fill the main panel entirely */
