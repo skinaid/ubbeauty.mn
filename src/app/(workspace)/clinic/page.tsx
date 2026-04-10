@@ -1,42 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CreateClinicLocationForm } from "@/components/clinic/create-clinic-location-form";
-import { CreateServiceForm } from "@/components/clinic/create-service-form";
-import { CreateStaffAvailabilityRuleForm } from "@/components/clinic/create-staff-availability-rule-form";
-import { CreateStaffMemberForm } from "@/components/clinic/create-staff-member-form";
-import { EditOrganizationForm } from "@/components/clinic/edit-organization-form";
-import { ClinicLocationListItem } from "@/components/clinic/clinic-location-list-item";
-import { StaffMemberListItem } from "@/components/clinic/staff-member-list-item";
-import { ServiceListItem } from "@/components/clinic/service-list-item";
-import { AvailabilityRuleListItem } from "@/components/clinic/availability-rule-list-item";
-import { Alert, Card, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/modules/auth/session";
 import {
   getClinicLocations,
   getServices,
   getStaffAvailabilityRules,
   getStaffMembers,
-  isClinicFoundationMissingError
+  isClinicFoundationMissingError,
 } from "@/modules/clinic/data";
-import type {
-  ClinicLocationRow,
-  ServiceRow,
-  StaffAvailabilityRuleRow,
-  StaffMemberRow
-} from "@/modules/clinic/types";
 import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 
-type SetupStep = {
-  key: string;
-  title: string;
-  description: string;
-  done: boolean;
-  countLabel: string;
-  helper: string;
-};
-
-export default async function ClinicProfilePage() {
+export default async function ClinicHubPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   await enforceClinicWorkspaceRouteAccess("/clinic");
@@ -44,298 +20,94 @@ export default async function ClinicProfilePage() {
   const organization = await getCurrentUserOrganization(user.id);
   if (!organization) redirect("/setup-organization");
 
-  const clinicSlug = organization.slug;
-  let locations: ClinicLocationRow[] = [];
-  let services: ServiceRow[] = [];
-  let staffMembers: StaffMemberRow[] = [];
-  let availabilityRules: StaffAvailabilityRuleRow[] = [];
-  let migrationMissing = false;
+  let locationCount = 0;
+  let staffCount = 0;
+  let serviceCount = 0;
+  let availabilityCount = 0;
 
   try {
-    [locations, services, staffMembers, availabilityRules] = await Promise.all([
+    const [locations, staff, services, rules] = await Promise.all([
       getClinicLocations(user.id),
-      getServices(user.id),
       getStaffMembers(user.id),
-      getStaffAvailabilityRules(user.id)
+      getServices(user.id),
+      getStaffAvailabilityRules(user.id),
     ]);
-  } catch (error) {
-    if (isClinicFoundationMissingError(error)) {
-      migrationMissing = true;
-    } else {
-      throw error;
-    }
+    locationCount = locations.length;
+    staffCount = staff.length;
+    serviceCount = services.length;
+    availabilityCount = rules.length;
+  } catch (err) {
+    if (!isClinicFoundationMissingError(err)) throw err;
   }
 
-  const weekdayLabels = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
-  const staffById = new Map(staffMembers.map((staff) => [staff.id, staff]));
-  const locationById = new Map(locations.map((location) => [location.id, location]));
-  const goLiveReady =
-    locations.length > 0 &&
-    staffMembers.length > 0 &&
-    services.length > 0 &&
-    availabilityRules.length > 0;
-  const setupSteps: SetupStep[] = [
+  const cards = [
     {
-      key: "locations",
-      title: "1. Салбар тохируулах",
-      description: "Хэрэглэгч хаана очиж үйлчлүүлэхээ мэдэхийн тулд ядаж нэг branch бүртгэнэ.",
-      done: locations.length > 0,
-      countLabel: `${locations.length} location`,
-      helper: locations.length > 0 ? "Салбарын үндсэн суурь бэлэн." : "Ядаж 1 салбар нэмэх хэрэгтэй."
+      href: "/clinic/profile",
+      emoji: "📝",
+      title: "Профайл",
+      description: "Эмнэлгийн нэр, тайлбар, холбоо барих мэдээлэл",
+      stat: null,
+      statLabel: null,
     },
     {
-      key: "staff",
-      title: "2. Баг бүрдүүлэх",
-      description: "Provider, front desk, manager role-уудаа оруулж schedule болон booking дээр холбох.",
-      done: staffMembers.length > 0,
-      countLabel: `${staffMembers.length} staff`,
-      helper: staffMembers.length > 0 ? "Багийн бүртгэл бэлэн." : "Ядаж 1 provider/staff нэмэх хэрэгтэй."
+      href: "/clinic/locations",
+      emoji: "📍",
+      title: "Байршил",
+      description: "Салбар, хаяг, дүүрэг, утас",
+      stat: locationCount,
+      statLabel: "салбар",
     },
     {
-      key: "services",
-      title: "3. Үйлчилгээ нээх",
-      description: "Public booking, POS, treatment record бүгд service catalog-оос хамаарна.",
-      done: services.length > 0,
-      countLabel: `${services.length} service`,
-      helper: services.length > 0 ? "Booking-ready menu бэлэн." : "Ядаж 1 үйлчилгээ нэмэх хэрэгтэй."
+      href: "/clinic/staff",
+      emoji: "👥",
+      title: "Ажилтан",
+      description: "Provider, front desk болон бусад ажилтнууд",
+      stat: staffCount,
+      statLabel: "ажилтан",
     },
     {
-      key: "availability",
-      title: "4. Ажлын цаг холбох",
-      description: "Staff + branch availability rule-гүй бол online slot бодитоор гарч ирэхгүй.",
-      done: availabilityRules.length > 0,
-      countLabel: `${availabilityRules.length} rule`,
-      helper:
-        availabilityRules.length > 0
-          ? "Schedule rule-ууд холбогдсон."
-          : "Ядаж 1 availability rule тохируулах хэрэгтэй."
-    }
+      href: "/clinic/services",
+      emoji: "💆",
+      title: "Үйлчилгээ",
+      description: "Booking болон POS-д харагдах үйлчилгээний жагсаалт",
+      stat: serviceCount,
+      statLabel: "үйлчилгээ",
+    },
+    {
+      href: "/clinic/availability",
+      emoji: "🗓",
+      title: "Ажлын цаг",
+      description: "Staff болон салбарын ажиллах цагийн тохиргоо",
+      stat: availabilityCount,
+      statLabel: "цагийн rule",
+    },
   ];
-  const completedStepCount = setupSteps.filter((step) => step.done).length;
-  const nextStep = setupSteps.find((step) => !step.done) ?? null;
 
   return (
     <section className="ui-customer-stack">
       <PageHeader
-        title="Clinic Setup Wizard"
-        description="Go-live хийхэд хэрэгтэй branch, staff, services, availability гэсэн 4 үндсэн алхмыг дарааллаар нь бэлдэнэ."
+        title={organization.name ?? "Clinic Hub"}
+        description="Эмнэлгийн тохиргоо болон удирдлагын төв"
       />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "-0.5rem" }}>
-        <Link href="/clinic/profile" className="ui-table__link">📝 Профайл засах</Link>
-        <Link href="/clinic/locations" className="ui-table__link">📍 Байршил удирдах</Link>
-        <Link href="/clinic/staff" className="ui-table__link">👥 Ажилтан удирдах</Link>
-        <Link href="/clinic/services" className="ui-table__link">💆 Үйлчилгээ удирдах</Link>
-        <Link href="/clinic/availability" className="ui-table__link">🗓 Ажлын цаг удирдах</Link>
-      </div>
-
-      <Card padded stack>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", alignItems: "start" }}>
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-              General Info
-            </h2>
-            <EditOrganizationForm organization={organization} />
-          </div>
-          <div style={{ display: "grid", gap: "0.25rem", justifyItems: "start" }}>
-            <strong>{completedStepCount}/4 алхам дууссан</strong>
-            <span className="ui-text-muted">
-              {goLiveReady
-                ? "Clinic public booking-д бэлэн байна."
-                : nextStep
-                  ? `Дараагийн алхам: ${nextStep.title}`
-                  : "Wizard бэлэн."}
-            </span>
-          </div>
-        </div>
-      </Card>
-
-      {migrationMissing ? (
-        <Alert variant="warning">
-          Clinic schema migration хараахан ажиллуулаагүй байна. `202604030001_clinic_mvp_foundation.sql`-ийг Supabase
-          дээрээ apply хийсний дараа location, staff, service setup энд ажиллана.
-        </Alert>
-      ) : null}
-
-      <div className="ui-stat-grid">
-        <Card padded stack>
-          <span className="ui-text-muted">Locations</span>
-          <strong style={{ fontSize: "var(--text-2xl)" }}>{locations.length}</strong>
-          <p style={{ margin: 0 }}>Clinic branch болон service delivery суурь</p>
-        </Card>
-        <Card padded stack>
-          <span className="ui-text-muted">Staff</span>
-          <strong style={{ fontSize: "var(--text-2xl)" }}>{staffMembers.length}</strong>
-          <p style={{ margin: 0 }}>Provider, front desk, manager role-ууд</p>
-        </Card>
-        <Card padded stack>
-          <span className="ui-text-muted">Services</span>
-          <strong style={{ fontSize: "var(--text-2xl)" }}>{services.length}</strong>
-          <p style={{ margin: 0 }}>Booking-ready treatment menu</p>
-        </Card>
-      </div>
-
-      {!migrationMissing ? (
-        <>
-          <Card padded stack>
-            <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-              Setup progress
-            </h2>
-            <div style={{ display: "grid", gap: "var(--space-3)" }}>
-              {setupSteps.map((step) => (
-                <div
-                  key={step.key}
-                  className="ui-card ui-card--padded"
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "1rem",
-                    alignItems: "start",
-                    flexWrap: "wrap",
-                    border: step.done ? "1px solid rgba(34, 197, 94, 0.22)" : "1px solid rgba(148, 163, 184, 0.18)"
-                  }}
-                >
-                  <div style={{ display: "grid", gap: "0.3rem", flex: 1, minWidth: "240px" }}>
-                    <strong>{step.title}</strong>
-                    <span className="ui-text-muted">{step.description}</span>
-                    <span className="ui-text-muted">{step.helper}</span>
-                  </div>
-                  <div style={{ display: "grid", gap: "0.25rem", justifyItems: "start" }}>
-                    <strong>{step.countLabel}</strong>
-                    <span className="ui-text-muted">{step.done ? "Complete" : "Pending"}</span>
-                  </div>
-                </div>
-              ))}
+      <div className="clinic-hub-grid">
+        {cards.map((card) => (
+          <Link key={card.href} href={card.href} className="clinic-hub-card">
+            <div className="clinic-hub-card__icon">{card.emoji}</div>
+            <div className="clinic-hub-card__body">
+              <h2 className="clinic-hub-card__title">{card.title}</h2>
+              <p className="clinic-hub-card__desc">{card.description}</p>
             </div>
-          </Card>
-
-          <div className="ui-setup-grid">
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Алхам 1: Салбар
-              </h2>
-              <p className="ui-text-muted" style={{ margin: 0 }}>
-                Эндээс хэрэглэгч branch/location сонгоно.
-              </p>
-              <CreateClinicLocationForm />
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Алхам 2: Баг
-              </h2>
-              <p className="ui-text-muted" style={{ margin: 0 }}>
-                Provider болон front desk-ээ эхэлж бүртгэнэ.
-              </p>
-              <CreateStaffMemberForm />
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Алхам 3: Үйлчилгээ
-              </h2>
-              <p className="ui-text-muted" style={{ margin: 0 }}>
-                Public booking болон POS энэ menu-гээс ажиллана.
-              </p>
-              <CreateServiceForm />
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Алхам 4: Availability
-              </h2>
-              <p className="ui-text-muted" style={{ margin: 0 }}>
-                Staff schedule-г slot generation-тэй холбох сүүлийн алхам.
-              </p>
-              <CreateStaffAvailabilityRuleForm staffMembers={staffMembers} locations={locations} />
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Launch checklist
-              </h2>
-              <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
-                <li>{locations.length > 0 ? "Branch бэлэн" : "Branch дутуу"}</li>
-                <li>{staffMembers.length > 0 ? "Staff бэлэн" : "Staff дутуу"}</li>
-                <li>{services.length > 0 ? "Service menu бэлэн" : "Service menu дутуу"}</li>
-                <li>{availabilityRules.length > 0 ? "Availability бэлэн" : "Availability дутуу"}</li>
-              </ul>
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                <Link href="/schedule" className="ui-table__link">
-                  Schedule
-                </Link>
-                <Link href="/checkout" className="ui-table__link">
-                  POS
-                </Link>
-                <Link href={`/clinics/${clinicSlug}`} className="ui-table__link">
-                  Public profile
-                </Link>
+            {card.stat !== null && (
+              <div className="clinic-hub-card__stat">
+                <span className="clinic-hub-card__stat-num">{card.stat}</span>
+                <span className="clinic-hub-card__stat-label">{card.statLabel}</span>
               </div>
-            </Card>
-          </div>
-
-          <div className="ui-setup-grid">
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Салбарууд
-              </h2>
-              {locations.length === 0 ? (
-                <p style={{ margin: 0 }}>Одоогоор салбар бүртгэгдээгүй байна.</p>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 0 }}>
-                  {locations.map((location) => (
-                    <ClinicLocationListItem key={location.id} location={location} />
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Ажилтнууд
-              </h2>
-              {staffMembers.length === 0 ? (
-                <p style={{ margin: 0 }}>Одоогоор ажилтан бүртгэгдээгүй байна.</p>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 0 }}>
-                  {staffMembers.map((staffMember) => (
-                    <StaffMemberListItem key={staffMember.id} staffMember={staffMember} />
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Үйлчилгээнүүд
-              </h2>
-              {services.length === 0 ? (
-                <p style={{ margin: 0 }}>Одоогоор үйлчилгээ бүртгэгдээгүй байна.</p>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 0 }}>
-                  {services.map((service) => (
-                    <ServiceListItem key={service.id} service={service} />
-                  ))}
-                </ul>
-              )}
-            </Card>
-            <Card padded stack>
-              <h2 className="ui-section-title" style={{ marginTop: 0 }}>
-                Staff availability
-              </h2>
-              {availabilityRules.length === 0 ? (
-                <p style={{ margin: 0 }}>Одоогоор ажлын цагийн rule бүртгэгдээгүй байна.</p>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 0 }}>
-                  {availabilityRules.map((rule) => (
-                    <AvailabilityRuleListItem
-                      key={rule.id}
-                      rule={rule}
-                      staffName={staffById.get(rule.staff_member_id)?.full_name ?? "Staff"}
-                      locationName={locationById.get(rule.location_id ?? "")?.name ?? ""}
-                      weekdayLabel={weekdayLabels[rule.weekday] ?? rule.weekday.toString()}
-                    />
-                  ))}
-                </ul>
-              )}
-            </Card>
-          </div>
-        </>
-      ) : null}
+            )}
+            <span className="clinic-hub-card__arrow">→</span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }

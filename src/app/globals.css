@@ -3667,3 +3667,97 @@ code {
     gap: 0.75rem;
   }
 }
+
+/* =============================================================================
+   Clinic Hub — dashboard card grid
+   ============================================================================= */
+
+.clinic-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.clinic-hub-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.clinic-hub-card:hover {
+  border-color: var(--brand-blue);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.clinic-hub-card__icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.clinic-hub-card__body {
+  flex: 1;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.clinic-hub-card__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.clinic-hub-card__desc {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.clinic-hub-card__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.clinic-hub-card__stat-num {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--brand-blue);
+  line-height: 1;
+}
+
+.clinic-hub-card__stat-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.clinic-hub-card__arrow {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--text-tertiary, #9ca3af);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.clinic-hub-card:hover .clinic-hub-card__arrow {
+  color: var(--brand-blue);
+  transform: translateX(3px);
+}
+
+@media (max-width: 480px) {
+  .clinic-hub-grid {
+    grid-template-columns: 1fr;
+  }
+}
