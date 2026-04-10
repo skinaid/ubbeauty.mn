@@ -3138,8 +3138,8 @@ export async function deleteService(serviceId: string): Promise<{ error?: string
     .eq("id", serviceId)
     .eq("organization_id", context.organization.id);
   if (error) {
-    console.error("[deleteService] supabase error:", error);
-    return { error: toFriendlyClinicError(error) };
+    console.error("[deleteService] supabase error:", JSON.stringify(error));
+    return { error: `DB: ${error.code} — ${error.message} (${error.details ?? ""})` };
   }
   revalidatePath("/clinic/services");
   revalidatePath("/clinic");
