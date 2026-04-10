@@ -3127,19 +3127,17 @@ export async function deleteStaffMember(staffId: string): Promise<{ error?: stri
 
 export async function deleteService(serviceId: string): Promise<{ error?: string }> {
   const context = await requireClinicActionAccess(["owner", "manager", "front_desk"]);
-  if ("error" in context) {
-    console.error("[deleteService] access denied:", context.error);
-    return { error: context.error };
-  }
+  if ("error" in context) return { error: context.error };
   const supabase = await getSupabaseServerClient();
+  // Soft delete: appointments FK-г зөрчихгүйн тулд hard delete хийхгүй
   const { error } = await supabase
     .from("services")
-    .delete()
+    .update({ status: "archived", updated_at: new Date().toISOString() })
     .eq("id", serviceId)
     .eq("organization_id", context.organization.id);
   if (error) {
     console.error("[deleteService] supabase error:", JSON.stringify(error));
-    return { error: `DB: ${error.code} — ${error.message} (${error.details ?? ""})` };
+    return { error: toFriendlyClinicError(error) };
   }
   revalidatePath("/clinic/services");
   revalidatePath("/clinic");
