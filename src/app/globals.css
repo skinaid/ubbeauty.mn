@@ -3909,3 +3909,42 @@ code {
     overflow: hidden;
   }
 }
+
+/* =============================================================================
+   Checkout POS layout
+   ============================================================================= */
+
+/* Main 3-column POS layout: Queue | Cart | Till */
+.checkout-pos-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+/* Bottom 2-column row: Payment log | Draft candidates */
+.checkout-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .checkout-pos-grid {
+    grid-template-columns: 240px 1fr;
+  }
+  /* Till moves below on medium screens */
+  .checkout-pos-grid .checkout-till-col {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .checkout-pos-grid {
+    grid-template-columns: 1fr;
+  }
+  .checkout-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}

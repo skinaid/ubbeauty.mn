@@ -144,7 +144,7 @@ export default async function RetailCheckoutPage({ searchParams }: CheckoutPageP
             </Card>
           </div>
 
-          <div className="ui-stat-grid" style={{ alignItems: "start" }}>
+          <div className="checkout-pos-grid">
             <CheckoutQueuePanel checkouts={checkouts} activeCheckoutId={activeCheckout?.id} />
 
             <Card padded stack>
@@ -231,7 +231,7 @@ export default async function RetailCheckoutPage({ searchParams }: CheckoutPageP
               )}
             </Card>
 
-            <Card padded stack className="checkout-print-hidden">
+            <Card padded stack className="checkout-print-hidden checkout-till-col">
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>
                 Payment till
               </h2>
@@ -282,7 +282,7 @@ export default async function RetailCheckoutPage({ searchParams }: CheckoutPageP
             </Card>
           </div>
 
-          <div className="ui-stat-grid" style={{ alignItems: "start" }}>
+          <div className="checkout-bottom-grid">
             <Card padded stack className="checkout-print-hidden">
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>
                 Payment log
