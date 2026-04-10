@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ClinicSplitLayout } from "@/components/ui";
 import { StaffListPanel } from "@/components/clinic/staff-list-panel";
+import { StaffDetailPanel } from "@/components/clinic/staff-detail-panel";
 import { StaffChatPanel } from "@/components/clinic/staff-chat-panel";
 
 type StaffMember = {
@@ -17,14 +18,19 @@ type StaffMember = {
   location_id: string | null;
 };
 
+type Location = { id: string; name: string };
+
 export function StaffPageClient({
   initialStaff,
+  initialLocations,
   orgId,
 }: {
   initialStaff: StaffMember[];
+  initialLocations: Location[];
   orgId: string;
 }) {
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const handleStaffUpdate = (updated: StaffMember) => {
     setStaff((prev) =>
@@ -32,19 +38,50 @@ export function StaffPageClient({
         ? prev.map((s) => (s.id === updated.id ? updated : s))
         : [...prev, updated]
     );
+    if (selectedStaff?.id === updated.id) {
+      setSelectedStaff(updated);
+    }
   };
 
-  const handleStaffDelete = (id: string) =>
+  const handleStaffDelete = (id: string) => {
     setStaff((prev) => prev.filter((s) => s.id !== id));
+    if (selectedStaff?.id === id) {
+      setSelectedStaff(null);
+    }
+  };
+
+  const leftTabLabel = selectedStaff
+    ? `👥 ${selectedStaff.full_name}`
+    : `👥 Ажилтнууд (${staff.length})`;
 
   return (
     <ClinicSplitLayout
       title="Ажилтнууд"
       subtitle="Provider, front desk болон бусад ажилтнууд"
-      leftTabLabel={`👥 Ажилтнууд (${staff.length})`}
+      leftTabLabel={leftTabLabel}
       rightTabLabel="💬 AI нэмэх"
       leftPanel={
-        <StaffListPanel staff={staff} onDelete={handleStaffDelete} />
+        selectedStaff ? (
+          <StaffDetailPanel
+            staff={selectedStaff}
+            locations={initialLocations}
+            onBack={() => setSelectedStaff(null)}
+            onUpdate={(updated) => {
+              handleStaffUpdate(updated);
+              setSelectedStaff(updated);
+            }}
+            onDelete={(id) => {
+              handleStaffDelete(id);
+              setSelectedStaff(null);
+            }}
+          />
+        ) : (
+          <StaffListPanel
+            staff={staff}
+            onDelete={handleStaffDelete}
+            onSelect={setSelectedStaff}
+          />
+        )
       }
       rightPanel={
         <StaffChatPanel orgId={orgId} staff={staff} onStaffUpdate={handleStaffUpdate} />

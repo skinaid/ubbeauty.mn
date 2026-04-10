@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { deleteStaffMember } from "@/modules/clinic/actions";
 
 type StaffMember = {
   id: string;
@@ -42,17 +41,17 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function StaffListPanel({ staff, onDelete }: { staff: StaffMember[]; onDelete: (id: string) => void }) {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Энэ ажилтныг устгах уу?")) return;
-    setDeletingId(id);
-    const result = await deleteStaffMember(id);
-    if (result.error) alert(result.error);
-    else onDelete(id);
-    setDeletingId(null);
-  };
+export function StaffListPanel({
+  staff,
+  onDelete,
+  onSelect,
+}: {
+  staff: StaffMember[];
+  onDelete: (id: string) => void;
+  onSelect: (staff: StaffMember) => void;
+}) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  void onDelete; // kept for compatibility
 
   if (staff.length === 0) {
     return (
@@ -70,7 +69,19 @@ export function StaffListPanel({ staff, onDelete }: { staff: StaffMember[]; onDe
         {staff.length} ажилтан
       </p>
       {staff.map((s) => (
-        <div key={s.id} style={{ border: "1px solid #e5e7eb", borderRadius: "1rem", overflow: "hidden", background: "#fff" }}>
+        <div
+          key={s.id}
+          onClick={() => onSelect(s)}
+          onMouseEnter={() => setHoveredId(s.id)}
+          onMouseLeave={() => setHoveredId(null)}
+          style={{
+            border: hoveredId === s.id ? "1px solid #6366f1" : "1px solid #e5e7eb",
+            borderRadius: "1rem", overflow: "hidden", background: "#fff",
+            cursor: "pointer",
+            boxShadow: hoveredId === s.id ? "0 4px 16px rgba(99,102,241,0.12)" : "none",
+            transition: "border-color 0.15s, box-shadow 0.15s",
+          }}
+        >
           {/* Role color bar */}
           <div style={{ height: "4px", background: ROLE_COLORS[s.role] ?? "#e5e7eb" }} />
           <div style={{ padding: "1rem 1.125rem" }}>
@@ -88,22 +99,7 @@ export function StaffListPanel({ staff, onDelete }: { staff: StaffMember[]; onDe
                   {ROLE_LABELS[s.role] ?? s.role}
                 </span>
               </div>
-              <button
-                onClick={() => void handleDelete(s.id)}
-                disabled={deletingId === s.id}
-                style={{
-                  background: "transparent",
-                  border: "1px solid #fecaca",
-                  borderRadius: "0.4rem",
-                  color: "#ef4444",
-                  cursor: deletingId === s.id ? "not-allowed" : "pointer",
-                  fontSize: "0.75rem",
-                  padding: "3px 8px",
-                  opacity: deletingId === s.id ? 0.5 : 1,
-                }}
-              >
-                {deletingId === s.id ? "..." : "Устгах"}
-              </button>
+              <span style={{ fontSize: "0.72rem", color: "#9ca3af" }}>→</span>
             </div>
             {/* Fields */}
             <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem" }}>
