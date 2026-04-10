@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { requireClinicActor, hasClinicRole } from "@/modules/clinic/guard";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -15,6 +16,9 @@ const WEEKDAY_MAP: Record<string, number> = {
   баасан: 5, friday: 5, fri: 5,
   бямба: 6, saturday: 6, sat: 6,
 };
+
+// Module-scope so both directSave and AI stream can reference it
+const WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
 
 const SYSTEM_PROMPT = `Та эмнэлгийн ажилтнуудын ажлын цагийн дүрмийг тохируулах AI туслах мөн.
 
@@ -35,6 +39,7 @@ const SYSTEM_PROMPT = `Та эмнэлгийн ажилтнуудын ажлын
 - Нэг confirm_rule дуудалтад нэг өдрийн нэг дүрэм л байна
 - "09:00-18:00" гэвэл start_local="09:00", end_local="18:00"
 - Ажилтны нэрийг ID-тэй тааруулж оруулна
+- "Амарна/Амрах өдөр" гэвэл is_available: false, start_local: "00:00", end_local: "00:00" болгоно
 
 ## Дэг журам
 1. Ажилтан + өдөр + цаг авмагц confirm_rule дуудах (нэг нэгээр)
@@ -77,6 +82,13 @@ export async function POST(req: NextRequest) {
   const org = await getCurrentUserOrganization(user.id);
   if (!org) return new Response("No organization", { status: 400 });
 
+  // Role guard — only owner/manager may modify availability rules
+  const actor = await requireClinicActor();
+  if ("error" in actor) return new Response("Forbidden", { status: 403 });
+  if (!hasClinicRole(actor.role, ["owner", "manager"])) {
+    return new Response("Insufficient role", { status: 403 });
+  }
+
   const body = await req.json() as {
     messages?: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
     staffMembers?: Array<{ id: string; full_name: string }>;
@@ -89,6 +101,27 @@ export async function POST(req: NextRequest) {
   if (body.directSave) {
     const supabase = await getSupabaseServerClient();
     const fields = body.directSave;
+
+    // Check for duplicate: same staff_member_id + weekday + location_id
+    const { data: existing } = await supabase
+      .from("staff_availability_rules")
+      .select("id, start_local, end_local")
+      .eq("organization_id", org.id)
+      .eq("staff_member_id", String(fields.staff_member_id))
+      .eq("weekday", Number(fields.weekday))
+      .maybeSingle();
+
+    if (existing) {
+      const dupStream = new ReadableStream({
+        start(ctrl) {
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", content: `⚠️ Энэ ажилтанд ${WEEKDAYS[Number(fields.weekday)]} өдрийн дүрэм аль хэдийн байна (${existing.start_local.slice(0,5)}–${existing.end_local.slice(0,5)}). Эхлээд хуучин дүрмийг устга.` })}\n\n`));
+          ctrl.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+          ctrl.close();
+        },
+      });
+      return new Response(dupStream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
       .from("staff_availability_rules")
@@ -103,7 +136,6 @@ export async function POST(req: NextRequest) {
       })
       .select().single();
 
-    const WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
     const stream = new ReadableStream({
       start(ctrl) {
         if (!error && data) {

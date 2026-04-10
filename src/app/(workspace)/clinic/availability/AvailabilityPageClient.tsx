@@ -3,18 +3,14 @@ import { useState } from "react";
 import { ClinicSplitLayout } from "@/components/ui";
 import { AvailabilityListPanel } from "@/components/clinic/availability-list-panel";
 import { AvailabilityChatPanel } from "@/components/clinic/availability-chat-panel";
+import type {
+  AvailabilityRule,
+  AvailabilityStaffMember as StaffMember,
+  AvailabilityLocation as ClinicLocation,
+} from "@/modules/clinic/availability-types";
 
-export type AvailabilityRule = {
-  id: string;
-  staff_member_id: string;
-  location_id: string | null;
-  weekday: number;
-  start_local: string;
-  end_local: string;
-  is_available: boolean;
-};
-export type StaffMember = { id: string; full_name: string; role: string };
-export type ClinicLocation = { id: string; name: string };
+// Re-export for any consumers that import AvailabilityRule from this file
+export type { AvailabilityRule } from "@/modules/clinic/availability-types";
 
 export function AvailabilityPageClient({
   initialRules,
@@ -35,6 +31,9 @@ export function AvailabilityPageClient({
   const handleRuleDelete = (id: string) =>
     setRules((prev) => prev.filter((r) => r.id !== id));
 
+  const handleRuleUpdate = (updated: AvailabilityRule) =>
+    setRules((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+
   return (
     <ClinicSplitLayout
       title="Ажлын цаг"
@@ -47,6 +46,7 @@ export function AvailabilityPageClient({
           staffMembers={staffMembers}
           locations={locations}
           onDelete={handleRuleDelete}
+          onUpdate={handleRuleUpdate}
         />
       }
       rightPanel={

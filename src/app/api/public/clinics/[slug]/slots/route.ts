@@ -72,7 +72,8 @@ export async function GET(
       preferredLocationId: preferredLocationId || service.location_id || undefined,
       rules: rules ?? [],
       appointments: appointments ?? [],
-      maxSuggestions: 8
+      maxSuggestions: 8,
+      timezoneOffsetMinutes: 480, // Asia/Ulaanbaatar = UTC+8
     });
 
     return NextResponse.json({ suggestions });

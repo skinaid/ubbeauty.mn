@@ -96,6 +96,8 @@ export function buildSuggestedSlots(params: {
   from?: Date;
   days?: number;
   maxSuggestions?: number;
+  /** Timezone offset in minutes east of UTC. Default 480 = Asia/Ulaanbaatar (UTC+8). Full tz-aware refactor is a separate task. */
+  timezoneOffsetMinutes?: number;
 }): string[] {
   const from = params.from ?? new Date();
   const days = params.days ?? 10;

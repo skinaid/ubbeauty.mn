@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-type AvailabilityRule = { id: string; staff_member_id: string; location_id: string | null; weekday: number; start_local: string; end_local: string; is_available: boolean };
-type StaffMember = { id: string; full_name: string; role: string };
-type ClinicLocation = { id: string; name: string };
+import type {
+  AvailabilityRule,
+  AvailabilityStaffMember as StaffMember,
+  AvailabilityLocation as ClinicLocation,
+} from "@/modules/clinic/availability-types";
 type Message = { id: string; role: "user" | "assistant"; content: string };
 type ConfirmRequest = { display: string; ruleData: Record<string, unknown> };
 
