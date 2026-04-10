@@ -20,72 +20,88 @@ export function ProfilePageClient({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)]">
-      {/* Page-level header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-          Эмнэлгийн профайл
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          AI туслахтай ярилцаж профайлаа хурдан бөглөх эсвэл шинэчлэх
-        </p>
-      </div>
+    <>
+      <style>{`
+        @media (min-width: 769px) {
+          .profile-desktop { display: grid !important; }
+          .profile-mobile-tabs { display: none !important; }
+        }
+        @media (max-width: 768px) {
+          .profile-desktop { display: none !important; }
+          .profile-mobile-tabs { display: flex !important; }
+        }
+      `}</style>
 
-      {/* Mobile tab switcher */}
-      <div className="flex md:hidden flex-shrink-0 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-950">
-        <button
-          onClick={() => setActiveTab("profile")}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "profile"
-              ? "text-indigo-600 border-indigo-500"
-              : "text-gray-500 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          Профайл
-        </button>
-        <button
-          onClick={() => setActiveTab("chat")}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "chat"
-              ? "text-indigo-600 border-indigo-500"
-              : "text-gray-500 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          ✦ AI Туслах
-        </button>
-      </div>
-
-      {/* Split content area */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Left panel — Profile view */}
-        <div
-          className={`
-            w-full md:flex md:w-1/2 flex-col
-            border-r border-gray-100 dark:border-gray-800
-            bg-white dark:bg-gray-950
-            overflow-y-auto
-            ${activeTab === "profile" ? "flex" : "hidden"}
-          `}
-        >
-          <div className="p-6 lg:p-8">
+      {/* Desktop: side-by-side */}
+      <div
+        className="profile-desktop"
+        style={{
+          gridTemplateColumns: "1fr 1fr",
+          gap: 0,
+          flex: 1,
+          overflow: "hidden",
+          minHeight: 0,
+          display: "none",
+        }}
+      >
+        <div style={{ borderRight: "1px solid #e5e7eb", overflowY: "auto" }}>
+          <div style={{ padding: "1.5rem 2rem" }}>
             <ClinicProfileView profile={profile} />
           </div>
         </div>
-
-        {/* Right panel — AI Chat */}
-        <div
-          className={`
-            w-full md:flex md:w-1/2 flex-col
-            bg-gray-50 dark:bg-gray-900
-            ${activeTab === "chat" ? "flex" : "hidden"}
-          `}
-        >
+        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <ClinicProfileChatPanel
             orgId={profile?.id ?? ""}
             onProfileUpdate={handleProfileUpdate}
           />
         </div>
       </div>
-    </div>
+
+      {/* Mobile: tab switcher */}
+      <div
+        className="profile-mobile-tabs"
+        style={{ display: "none", flexDirection: "column", flex: 1, overflow: "hidden", minHeight: 0 }}
+      >
+        {/* Tab bar */}
+        <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}>
+          {(["profile", "chat"] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: 1,
+                padding: "0.75rem",
+                border: "none",
+                background: "transparent",
+                fontSize: "0.85rem",
+                fontWeight: activeTab === tab ? 700 : 400,
+                color: activeTab === tab ? "#111827" : "#9ca3af",
+                borderBottom: activeTab === tab ? "2px solid #111827" : "2px solid transparent",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {tab === "profile" ? "📋 Профайл" : "✦ AI Туслах"}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {activeTab === "profile" ? (
+            <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
+              <ClinicProfileView profile={profile} />
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <ClinicProfileChatPanel
+                orgId={profile?.id ?? ""}
+                onProfileUpdate={handleProfileUpdate}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
