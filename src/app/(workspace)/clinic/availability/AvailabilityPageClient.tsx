@@ -17,13 +17,17 @@ export function AvailabilityPageClient({
   staffMembers,
   locations,
   orgId,
+  initialWorkingHours,
 }: {
   initialRules: AvailabilityRule[];
   staffMembers: StaffMember[];
   locations: ClinicLocation[];
   orgId: string;
+  initialWorkingHours: Record<string, string> | null;
 }) {
   const [rules, setRules] = useState<AvailabilityRule[]>(initialRules);
+  const [focusedStaffId, setFocusedStaffId] = useState<string | null>(null);
+  const [activeMobileTab, setActiveMobileTab] = useState<"left" | "right">("left");
 
   const handleRuleAdd = (rule: AvailabilityRule) =>
     setRules((prev) => [...prev, rule]);
@@ -32,7 +36,13 @@ export function AvailabilityPageClient({
     setRules((prev) => prev.filter((r) => r.id !== id));
 
   const handleRuleUpdate = (updated: AvailabilityRule) =>
-    setRules((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+    setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+
+  const handleAddForStaff = (staffId: string) => {
+    setFocusedStaffId(staffId);
+    // Switch to chat tab on mobile
+    setActiveMobileTab("right");
+  };
 
   return (
     <ClinicSplitLayout
@@ -40,13 +50,17 @@ export function AvailabilityPageClient({
       subtitle="Staff болон салбарын ажиллах цагийн тохиргоо"
       leftTabLabel={`🗓 Ажлын цаг (${rules.length})`}
       rightTabLabel="💬 AI нэмэх"
+      activeTab={activeMobileTab}
+      onTabChange={setActiveMobileTab}
       leftPanel={
         <AvailabilityListPanel
           rules={rules}
           staffMembers={staffMembers}
           locations={locations}
+          workingHours={initialWorkingHours}
           onDelete={handleRuleDelete}
           onUpdate={handleRuleUpdate}
+          onAddForStaff={handleAddForStaff}
         />
       }
       rightPanel={
@@ -55,6 +69,7 @@ export function AvailabilityPageClient({
           staffMembers={staffMembers}
           locations={locations}
           onRuleAdd={handleRuleAdd}
+          focusedStaffId={focusedStaffId}
         />
       }
     />

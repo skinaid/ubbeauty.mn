@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/modules/auth/session";
 import { enforceClinicWorkspaceRouteAccess } from "@/modules/clinic/guard";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { getStaffAvailabilityRules, getStaffMembers, getClinicLocations } from "@/modules/clinic/data";
+import { getClinicProfile } from "@/modules/clinic/profile";
 import { AvailabilityPageClient } from "./AvailabilityPageClient";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,11 @@ export default async function AvailabilityPage() {
   const org = await getCurrentUserOrganization(user.id);
   if (!org) redirect("/setup-organization");
 
-  const [rules, staffMembers, locations] = await Promise.all([
+  const [rules, staffMembers, locations, profile] = await Promise.all([
     getStaffAvailabilityRules(user.id),
     getStaffMembers(user.id),
     getClinicLocations(user.id),
+    getClinicProfile(),
   ]);
 
   return (
@@ -30,6 +32,7 @@ export default async function AvailabilityPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       locations={locations as any[]}
       orgId={org.id}
+      initialWorkingHours={profile?.working_hours ?? null}
     />
   );
 }

@@ -41,6 +41,9 @@ type Props = {
   rightPanel: ReactNode;
   leftTabLabel?: string;
   rightTabLabel?: string;
+  /** Optional controlled tab (for external tab switching) */
+  activeTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
 };
 
 export function ClinicSplitLayout({
@@ -51,8 +54,15 @@ export function ClinicSplitLayout({
   rightPanel,
   leftTabLabel = "Жагсаалт",
   rightTabLabel = "✦ AI",
+  activeTab: controlledTab,
+  onTabChange,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("left");
+  const [internalTab, setInternalTab] = useState<Tab>("left");
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = (tab: Tab) => {
+    setInternalTab(tab);
+    onTabChange?.(tab);
+  };
 
   return (
     <div className="clinic-split-root">

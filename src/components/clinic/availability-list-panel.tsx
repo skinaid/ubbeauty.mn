@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { deleteAvailabilityRule, updateAvailabilityRule } from "@/modules/clinic/actions";
+import { updateClinicProfile } from "@/modules/clinic/profile";
 import type {
   AvailabilityRule,
   AvailabilityStaffMember as StaffMember,
@@ -8,27 +9,242 @@ import type {
 } from "@/modules/clinic/availability-types";
 
 const WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
-const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun
+const WEEKDAY_NAMES_ORDERED = WEEKDAY_ORDER.map((i) => WEEKDAYS[i]); // ["Даваа", ..., "Ням"]
 
-export function AvailabilityListPanel({ rules, staffMembers, locations, onDelete, onUpdate }: {
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Эзэмшигч",
+  manager: "Менежер",
+  front_desk: "Хүлээн авагч",
+  provider: "Мэргэжилтэн",
+  assistant: "Туслах",
+  billing: "Тооцоо",
+};
+
+const ROLE_COLORS: Record<string, string> = {
+  owner: "#7c3aed",
+  manager: "#2563eb",
+  front_desk: "#059669",
+  provider: "#d97706",
+  assistant: "#6b7280",
+  billing: "#dc2626",
+};
+
+/* ─── Org Working Hours helpers ─────────────────────────────────────── */
+
+type DayHour = { enabled: boolean; start: string; end: string };
+
+function parseHours(wh: Record<string, string> | null): Record<string, DayHour> {
+  const result: Record<string, DayHour> = {};
+  for (const day of WEEKDAY_NAMES_ORDERED) {
+    const val = wh?.[day];
+    if (val) {
+      const idx = val.indexOf("-");
+      const start = idx > 0 ? val.slice(0, idx) : "09:00";
+      const end = idx > 0 ? val.slice(idx + 1) : "18:00";
+      result[day] = { enabled: true, start, end };
+    } else {
+      result[day] = { enabled: false, start: "09:00", end: "18:00" };
+    }
+  }
+  return result;
+}
+
+/* ─── OrgWorkingHours sub-component ─────────────────────────────────── */
+
+function OrgWorkingHoursSection({ workingHours }: { workingHours: Record<string, string> | null }) {
+  const [hours, setHours] = useState<Record<string, DayHour>>(() => parseHours(workingHours));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const toggleDay = (day: string) =>
+    setHours((prev) => ({ ...prev, [day]: { ...prev[day]!, enabled: !prev[day]!.enabled } }));
+
+  const setDayField = (day: string, field: "start" | "end", value: string) =>
+    setHours((prev) => ({ ...prev, [day]: { ...prev[day]!, [field]: value } }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    const toSave: Record<string, string> = {};
+    for (const [day, dh] of Object.entries(hours)) {
+      if (dh.enabled) toSave[day] = `${dh.start}-${dh.end}`;
+    }
+    const result = await updateClinicProfile({ working_hours: toSave });
+    if (result.error) alert(result.error);
+    else setSaved(true);
+    setSaving(false);
+  };
+
+  return (
+    <div
+      style={{
+        margin: "1.25rem 1.25rem 0",
+        border: "1px solid #e5e7eb",
+        borderRadius: "1rem",
+        overflow: "hidden",
+        background: "#fff",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "0.875rem 1.125rem",
+          background: "#f8fafc",
+          borderBottom: "1px solid #f1f5f9",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <span style={{ fontSize: "1rem" }}>🏥</span>
+        <h3 style={{ margin: 0, fontSize: "0.9rem", fontWeight: 700, color: "#111827" }}>
+          Байгууллагын ерөнхий ажлын цаг
+        </h3>
+      </div>
+
+      {/* Day rows */}
+      <div style={{ padding: "0.75rem 1.125rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+        {WEEKDAY_NAMES_ORDERED.map((day) => {
+          const dh = hours[day]!;
+          return (
+            <div
+              key={day}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.4rem 0.5rem",
+                borderRadius: "0.5rem",
+                background: dh.enabled ? "#f0fdf4" : "#fafafa",
+              }}
+            >
+              {/* Toggle */}
+              <input
+                type="checkbox"
+                checked={dh.enabled}
+                onChange={() => toggleDay(day)}
+                style={{ cursor: "pointer", accentColor: "#059669" }}
+              />
+              {/* Day name */}
+              <span
+                style={{
+                  minWidth: "52px",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  color: dh.enabled ? "#059669" : "#9ca3af",
+                }}
+              >
+                {day}
+              </span>
+              {dh.enabled ? (
+                <>
+                  <input
+                    type="time"
+                    value={dh.start}
+                    onChange={(e) => setDayField(day, "start", e.target.value)}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "0.375rem",
+                      padding: "2px 6px",
+                      fontSize: "0.82rem",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>–</span>
+                  <input
+                    type="time"
+                    value={dh.end}
+                    onChange={(e) => setDayField(day, "end", e.target.value)}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "0.375rem",
+                      padding: "2px 6px",
+                      fontSize: "0.82rem",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                </>
+              ) : (
+                <span style={{ fontSize: "0.8rem", color: "#d1d5db", flex: 1 }}>—</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          padding: "0.75rem 1.125rem",
+          borderTop: "1px solid #f1f5f9",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+        }}
+      >
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          style={{
+            background: "#0f172a",
+            color: "#fff",
+            border: "none",
+            borderRadius: "0.5rem",
+            padding: "0.45rem 1.25rem",
+            fontSize: "0.82rem",
+            fontWeight: 600,
+            cursor: saving ? "not-allowed" : "pointer",
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? "Хадгалж байна..." : "Хадгалах"}
+        </button>
+        {saved && (
+          <span style={{ fontSize: "0.78rem", color: "#059669" }}>✓ Хадгалагдлаа</span>
+        )}
+        <span style={{ fontSize: "0.72rem", color: "#9ca3af", marginLeft: "auto" }}>
+          {Object.values(hours).filter((d) => d.enabled).length}/7 өдөр
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main AvailabilityListPanel ─────────────────────────────────────── */
+
+export function AvailabilityListPanel({
+  rules,
+  staffMembers,
+  locations,
+  workingHours,
+  onDelete,
+  onUpdate,
+  onAddForStaff,
+}: {
   rules: AvailabilityRule[];
   staffMembers: StaffMember[];
   locations: ClinicLocation[];
+  workingHours: Record<string, string> | null;
   onDelete: (id: string) => void;
   onUpdate: (rule: AvailabilityRule) => void;
+  onAddForStaff: (staffId: string) => void;
 }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editFields, setEditFields] = useState<{ start_local: string; end_local: string; is_available: boolean }>({
-    start_local: "", end_local: "", is_available: true,
-  });
+  const [editFields, setEditFields] = useState<{
+    start_local: string;
+    end_local: string;
+    is_available: boolean;
+  }>({ start_local: "", end_local: "", is_available: true });
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Энэ ажлын цагийн дүрмийг устгах уу?")) return;
     setDeletingId(id);
     const result = await deleteAvailabilityRule(id);
-    if (result.error) alert(result.error); else onDelete(id);
+    if (result.error) alert(result.error);
+    else onDelete(id);
     setDeletingId(null);
   };
 
@@ -41,9 +257,7 @@ export function AvailabilityListPanel({ rules, staffMembers, locations, onDelete
     });
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
+  const cancelEdit = () => setEditingId(null);
 
   const handleSave = async (rule: AvailabilityRule) => {
     setSavingId(rule.id);
@@ -61,118 +275,361 @@ export function AvailabilityListPanel({ rules, staffMembers, locations, onDelete
     setSavingId(null);
   };
 
-  const staffById = new Map(staffMembers.map((s) => [s.id, s]));
   const locById = new Map(locations.map((l) => [l.id, l]));
 
-  // Group by staff member
-  const byStaff = new Map<string, AvailabilityRule[]>();
+  // Group rules by staff
+  const rulesByStaff = new Map<string, AvailabilityRule[]>();
   for (const rule of rules) {
-    const existing = byStaff.get(rule.staff_member_id) ?? [];
-    byStaff.set(rule.staff_member_id, [...existing, rule]);
-  }
-
-  if (rules.length === 0) {
-    return (
-      <div style={{ padding: "3rem 2rem", textAlign: "center", color: "#9ca3af" }}>
-        <p style={{ fontSize: "2rem", margin: "0 0 0.5rem" }}>🗓</p>
-        <p style={{ margin: 0, fontSize: "0.9rem" }}>Ажлын цаг тохируулаагүй байна</p>
-        <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>AI chat-аар нэмнэ үү →</p>
-      </div>
-    );
+    const existing = rulesByStaff.get(rule.staff_member_id) ?? [];
+    rulesByStaff.set(rule.staff_member_id, [...existing, rule]);
   }
 
   return (
-    <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <p style={{ margin: 0, fontSize: "0.65rem", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em" }}>
-        {rules.length} дүрэм
-      </p>
-      {Array.from(byStaff.entries()).map(([staffId, staffRules]) => {
-        const staff = staffById.get(staffId);
-        const sorted = [...staffRules].sort((a, b) => WEEKDAY_ORDER.indexOf(a.weekday) - WEEKDAY_ORDER.indexOf(b.weekday));
-        return (
-          <div key={staffId} style={{ border: "1px solid #e5e7eb", borderRadius: "1rem", overflow: "hidden", background: "#fff" }}>
-            <div style={{ padding: "0.875rem 1.125rem", borderBottom: "1px solid #f3f4f6", background: "#f9fafb" }}>
-              <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>
-                {staff?.full_name ?? "Ажилтан"}
-              </h3>
-            </div>
-            <div style={{ padding: "0.75rem 1.125rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {sorted.map((rule) => {
-                if (editingId === rule.id) {
+    <div style={{ paddingBottom: "1.25rem" }}>
+      {/* ── Org working hours ── */}
+      <OrgWorkingHoursSection workingHours={workingHours} />
+
+      {/* ── Staff list header ── */}
+      <div style={{ padding: "1rem 1.25rem 0.25rem" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "0.65rem",
+            color: "#9ca3af",
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
+          }}
+        >
+          Ажилтнуудын цаг — {staffMembers.length} ажилтан
+        </p>
+      </div>
+
+      {/* ── Per-staff cards ── */}
+      <div style={{ padding: "0 1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        {staffMembers.length === 0 && (
+          <div
+            style={{ padding: "2rem", textAlign: "center", color: "#9ca3af", fontSize: "0.85rem" }}
+          >
+            Ажилтан бүртгэлгүй байна
+          </div>
+        )}
+
+        {staffMembers.map((staff) => {
+          const staffRules = (rulesByStaff.get(staff.id) ?? []).sort(
+            (a, b) => WEEKDAY_ORDER.indexOf(a.weekday) - WEEKDAY_ORDER.indexOf(b.weekday)
+          );
+          const configuredWeekdays = new Set(staffRules.map((r) => r.weekday));
+          const unconfiguredDays = WEEKDAY_ORDER.filter((wd) => !configuredWeekdays.has(wd));
+          const roleColor = ROLE_COLORS[staff.role] ?? "#6b7280";
+          const roleLabel = ROLE_LABELS[staff.role] ?? staff.role;
+
+          return (
+            <div
+              key={staff.id}
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: "1rem",
+                overflow: "hidden",
+                background: "#fff",
+              }}
+            >
+              {/* Card header */}
+              <div
+                style={{
+                  padding: "0.875rem 1.125rem",
+                  borderBottom: "1px solid #f3f4f6",
+                  background: "#f9fafb",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.625rem",
+                }}
+              >
+                <span style={{ fontSize: "1rem" }}>👤</span>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "0.92rem",
+                    fontWeight: 700,
+                    color: "#111827",
+                    flex: 1,
+                  }}
+                >
+                  {staff.full_name}
+                </h3>
+                {/* Role badge */}
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 600,
+                    color: roleColor,
+                    background: `${roleColor}18`,
+                    border: `1px solid ${roleColor}40`,
+                    borderRadius: "999px",
+                    padding: "2px 8px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {roleLabel}
+                </span>
+                {/* Day count */}
+                <span
+                  style={{
+                    fontSize: "0.68rem",
+                    color: "#9ca3af",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {staffRules.length}/7
+                </span>
+                {/* Add button */}
+                <button
+                  onClick={() => onAddForStaff(staff.id)}
+                  title="AI-р ажлын цаг нэмэх"
+                  style={{
+                    background: "#0f172a",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "0.375rem",
+                    padding: "3px 10px",
+                    fontSize: "0.78rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  + Нэмэх
+                </button>
+              </div>
+
+              {/* Rules body */}
+              <div
+                style={{
+                  padding: "0.75rem 1.125rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
+                }}
+              >
+                {staffRules.length === 0 && unconfiguredDays.length === 0 && (
+                  <p style={{ margin: 0, fontSize: "0.8rem", color: "#9ca3af" }}>
+                    Тохируулаагүй
+                  </p>
+                )}
+
+                {/* Configured day rows */}
+                {staffRules.map((rule) => {
+                  if (editingId === rule.id) {
+                    return (
+                      <div
+                        key={rule.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          padding: "0.5rem 0.75rem",
+                          borderRadius: "0.5rem",
+                          background: "#f0f9ff",
+                          border: "1px solid #bae6fd",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            minWidth: "52px",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            color: "#0369a1",
+                          }}
+                        >
+                          {WEEKDAYS[rule.weekday]}
+                        </span>
+                        <input
+                          type="time"
+                          value={editFields.start_local}
+                          onChange={(e) =>
+                            setEditFields((f) => ({ ...f, start_local: e.target.value }))
+                          }
+                          style={{
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "0.375rem",
+                            padding: "2px 6px",
+                            fontSize: "0.82rem",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                        <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>–</span>
+                        <input
+                          type="time"
+                          value={editFields.end_local}
+                          onChange={(e) =>
+                            setEditFields((f) => ({ ...f, end_local: e.target.value }))
+                          }
+                          style={{
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "0.375rem",
+                            padding: "2px 6px",
+                            fontSize: "0.82rem",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                        <select
+                          value={editFields.is_available ? "true" : "false"}
+                          onChange={(e) =>
+                            setEditFields((f) => ({
+                              ...f,
+                              is_available: e.target.value === "true",
+                            }))
+                          }
+                          style={{
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "0.375rem",
+                            padding: "2px 6px",
+                            fontSize: "0.82rem",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <option value="true">Ажиллана</option>
+                          <option value="false">Амарна</option>
+                        </select>
+                        <button
+                          onClick={() => void handleSave(rule)}
+                          disabled={savingId === rule.id}
+                          style={{
+                            background: "#0f172a",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "0.375rem",
+                            padding: "3px 10px",
+                            fontSize: "0.78rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            opacity: savingId === rule.id ? 0.5 : 1,
+                          }}
+                        >
+                          {savingId === rule.id ? "..." : "Хадгалах"}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          style={{
+                            background: "transparent",
+                            color: "#6b7280",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "0.375rem",
+                            padding: "3px 10px",
+                            fontSize: "0.78rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Цуцлах
+                        </button>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div key={rule.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 0.75rem", borderRadius: "0.5rem", background: "#f0f9ff", border: "1px solid #bae6fd", flexWrap: "wrap" }}>
-                      <span style={{ minWidth: "52px", fontSize: "0.8rem", fontWeight: 600, color: "#0369a1" }}>
+                    <div
+                      key={rule.id}
+                      onClick={() => startEdit(rule)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.75rem",
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "0.5rem",
+                        background: rule.is_available ? "#f0fdf4" : "#fef2f2",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span
+                        style={{
+                          minWidth: "52px",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
+                          color: rule.is_available ? "#059669" : "#ef4444",
+                        }}
+                      >
                         {WEEKDAYS[rule.weekday]}
                       </span>
-                      <input
-                        type="time"
-                        value={editFields.start_local}
-                        onChange={(e) => setEditFields((f) => ({ ...f, start_local: e.target.value }))}
-                        style={{ border: "1px solid #cbd5e1", borderRadius: "0.375rem", padding: "2px 6px", fontSize: "0.82rem", fontFamily: "inherit" }}
-                      />
-                      <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>–</span>
-                      <input
-                        type="time"
-                        value={editFields.end_local}
-                        onChange={(e) => setEditFields((f) => ({ ...f, end_local: e.target.value }))}
-                        style={{ border: "1px solid #cbd5e1", borderRadius: "0.375rem", padding: "2px 6px", fontSize: "0.82rem", fontFamily: "inherit" }}
-                      />
-                      <select
-                        value={editFields.is_available ? "true" : "false"}
-                        onChange={(e) => setEditFields((f) => ({ ...f, is_available: e.target.value === "true" }))}
-                        style={{ border: "1px solid #cbd5e1", borderRadius: "0.375rem", padding: "2px 6px", fontSize: "0.82rem", fontFamily: "inherit" }}
-                      >
-                        <option value="true">Ажиллана</option>
-                        <option value="false">Амарна</option>
-                      </select>
+                      <span style={{ flex: 1, fontSize: "0.85rem", color: "#111827" }}>
+                        {rule.is_available
+                          ? `${rule.start_local.slice(0, 5)} – ${rule.end_local.slice(0, 5)}`
+                          : "Амарна"}
+                      </span>
+                      {rule.location_id && (
+                        <span
+                          style={{
+                            fontSize: "0.72rem",
+                            color: "#6b7280",
+                            background: "#f3f4f6",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {locById.get(rule.location_id)?.name ?? "Салбар"}
+                        </span>
+                      )}
                       <button
-                        onClick={() => void handleSave(rule)}
-                        disabled={savingId === rule.id}
-                        style={{ background: "#0f172a", color: "#fff", border: "none", borderRadius: "0.375rem", padding: "3px 10px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", opacity: savingId === rule.id ? 0.5 : 1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDelete(rule.id);
+                        }}
+                        disabled={deletingId === rule.id}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#9ca3af",
+                          cursor: "pointer",
+                          fontSize: "0.75rem",
+                          padding: "2px 4px",
+                          opacity: deletingId === rule.id ? 0.5 : 1,
+                        }}
                       >
-                        {savingId === rule.id ? "..." : "Хадгалах"}
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        style={{ background: "transparent", color: "#6b7280", border: "1px solid #e5e7eb", borderRadius: "0.375rem", padding: "3px 10px", fontSize: "0.78rem", cursor: "pointer" }}
-                      >
-                        Цуцлах
+                        ✕
                       </button>
                     </div>
                   );
-                }
+                })}
 
-                return (
+                {/* Unconfigured days summary */}
+                {unconfiguredDays.length > 0 && staffRules.length > 0 && (
                   <div
-                    key={rule.id}
-                    onClick={() => startEdit(rule)}
-                    style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.75rem", borderRadius: "0.5rem", background: rule.is_available ? "#f0fdf4" : "#fef2f2", cursor: "pointer" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      padding: "0.4rem 0.75rem",
+                      borderRadius: "0.5rem",
+                      background: "#f9fafb",
+                    }}
                   >
-                    <span style={{ minWidth: "52px", fontSize: "0.8rem", fontWeight: 600, color: rule.is_available ? "#059669" : "#ef4444" }}>
-                      {WEEKDAYS[rule.weekday]}
+                    <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+                      — Тохируулаагүй ({unconfiguredDays.length} өдөр:{" "}
+                      {unconfiguredDays.map((wd) => WEEKDAYS[wd]).join(", ")})
                     </span>
-                    <span style={{ flex: 1, fontSize: "0.85rem", color: "#111827" }}>
-                      {rule.is_available ? `${rule.start_local.slice(0,5)} – ${rule.end_local.slice(0,5)}` : "Амарна"}
-                    </span>
-                    {rule.location_id && (
-                      <span style={{ fontSize: "0.72rem", color: "#6b7280", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px" }}>
-                        {locById.get(rule.location_id)?.name ?? "Салбар"}
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); void handleDelete(rule.id); }}
-                      disabled={deletingId === rule.id}
-                      style={{ background: "transparent", border: "none", color: "#9ca3af", cursor: "pointer", fontSize: "0.75rem", padding: "2px 4px", opacity: deletingId === rule.id ? 0.5 : 1 }}
-                    >
-                      ✕
-                    </button>
                   </div>
-                );
-              })}
+                )}
+
+                {/* Fully unconfigured staff */}
+                {staffRules.length === 0 && (
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      borderRadius: "0.5rem",
+                      background: "#fafafa",
+                      border: "1px dashed #e5e7eb",
+                      textAlign: "center",
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: "0.78rem", color: "#9ca3af" }}>
+                      Тохируулаагүй — AI chat-аар нэмнэ үү
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

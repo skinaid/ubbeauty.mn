@@ -8,8 +8,8 @@ import type {
 type Message = { id: string; role: "user" | "assistant"; content: string };
 type ConfirmRequest = { display: string; ruleData: Record<string, unknown> };
 
-export function AvailabilityChatPanel({ orgId, staffMembers, locations, onRuleAdd }: {
-  orgId: string; staffMembers: StaffMember[]; locations: ClinicLocation[]; onRuleAdd: (r: AvailabilityRule) => void;
+export function AvailabilityChatPanel({ orgId, staffMembers, locations, onRuleAdd, focusedStaffId }: {
+  orgId: string; staffMembers: StaffMember[]; locations: ClinicLocation[]; onRuleAdd: (r: AvailabilityRule) => void; focusedStaffId?: string | null;
 }) {
   void orgId;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,6 +23,22 @@ export function AvailabilityChatPanel({ orgId, staffMembers, locations, onRuleAd
     const staffList = staffMembers.map((s) => s.full_name).join(", ");
     setMessages([{ id: "init", role: "assistant", content: staffMembers.length === 0 ? "Ажилтан бүртгэлгүй байна. Эхлээд ажилтан нэмнэ үү." : `Сайн байна уу! Ажилтнуудын ажлын цагийг тохируулцгааё.\n\nАжилтнууд: ${staffList}\n\nХэний ажлын цагийг тохируулах вэ?` }]);
   }, []);
+
+  useEffect(() => {
+    if (!focusedStaffId) return;
+    const staff = staffMembers.find((s) => s.id === focusedStaffId);
+    if (!staff) return;
+    setPendingConfirm(null);
+    setInput("");
+    setMessages([
+      {
+        id: `focused-${focusedStaffId}`,
+        role: "assistant",
+        content: `${staff.full_name}-ийн ажлын цагийг тохируулцгааё. Аль өдрүүдийг нэмэх вэ?`,
+      },
+    ]);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [focusedStaffId, staffMembers]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, pendingConfirm]);
 
