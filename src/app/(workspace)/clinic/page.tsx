@@ -208,7 +208,7 @@ export default async function ClinicProfilePage() {
             </div>
           </Card>
 
-          <div className="ui-stat-grid">
+          <div className="ui-setup-grid">
             <Card padded stack>
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>
                 Алхам 1: Салбар
@@ -227,9 +227,6 @@ export default async function ClinicProfilePage() {
               </p>
               <CreateStaffMemberForm />
             </Card>
-          </div>
-
-          <div className="ui-stat-grid">
             <Card padded stack>
               <h2 className="ui-section-title" style={{ marginTop: 0 }}>
                 Алхам 3: Үйлчилгээ
