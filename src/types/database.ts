@@ -2172,6 +2172,7 @@ export type Database = {
           location_id: string | null
           organization_id: string
           phone: string | null
+          photo_url: string | null
           profile_id: string | null
           role: string
           specialty: string | null
@@ -2188,6 +2189,7 @@ export type Database = {
           location_id?: string | null
           organization_id: string
           phone?: string | null
+          photo_url?: string | null
           profile_id?: string | null
           role: string
           specialty?: string | null
@@ -2204,6 +2206,7 @@ export type Database = {
           location_id?: string | null
           organization_id?: string
           phone?: string | null
+          photo_url?: string | null
           profile_id?: string | null
           role?: string
           specialty?: string | null

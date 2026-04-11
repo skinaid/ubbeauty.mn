@@ -14,6 +14,7 @@ type StaffMember = {
   accepts_online_booking: boolean;
   status: string;
   location_id: string | null;
+  photo_url: string | null;
 };
 
 type Location = { id: string; name: string };

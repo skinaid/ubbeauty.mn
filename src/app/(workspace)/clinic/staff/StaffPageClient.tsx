@@ -16,6 +16,7 @@ type StaffMember = {
   accepts_online_booking: boolean;
   status: string;
   location_id: string | null;
+  photo_url: string | null;
 };
 
 type Location = { id: string; name: string };
@@ -50,6 +51,15 @@ export function StaffPageClient({
     }
   };
 
+  const handlePhotoUpdate = (staffId: string, photoUrl: string) => {
+    setStaff((prev) =>
+      prev.map((s) => (s.id === staffId ? { ...s, photo_url: photoUrl } : s))
+    );
+    if (selectedStaff?.id === staffId) {
+      setSelectedStaff((prev) => (prev ? { ...prev, photo_url: photoUrl } : prev));
+    }
+  };
+
   const leftTabLabel = selectedStaff
     ? `👥 ${selectedStaff.full_name}`
     : `👥 Ажилтнууд (${staff.length})`;
@@ -80,6 +90,7 @@ export function StaffPageClient({
             staff={staff}
             onDelete={handleStaffDelete}
             onSelect={setSelectedStaff}
+            onPhotoUpdate={handlePhotoUpdate}
           />
         )
       }

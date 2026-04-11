@@ -12,6 +12,7 @@ type StaffMember = {
   accepts_online_booking: boolean;
   status: string;
   location_id: string | null;
+  photo_url: string | null;
 };
 
 type Message = { id: string; role: "user" | "assistant"; content: string };
