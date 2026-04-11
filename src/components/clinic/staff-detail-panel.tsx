@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { updateStaffMember, deleteStaffMember } from "@/modules/clinic/actions";
 
@@ -305,12 +306,14 @@ export function StaffDetailPanel({
   onBack,
   onUpdate,
   onDelete,
+  onPhotoUpdate,
 }: {
   staff: StaffMember;
   locations: Location[];
   onBack: () => void;
   onUpdate: (updated: StaffMember) => void;
   onDelete: (id: string) => void;
+  onPhotoUpdate?: (staffId: string, photoUrl: string) => void;
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -319,6 +322,44 @@ export function StaffDetailPanel({
   const [activeTab, setActiveTab] = useState<ActiveTab>("info");
 
   const roleColor = ROLE_COLORS[staff.role] ?? "#e5e7eb";
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoHovered, setPhotoHovered] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const handlePhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setPhotoUploading(true);
+    setPhotoError(null);
+    try {
+      const postRes = await fetch("/api/clinic/staff-photo-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: staff.id, fileName: file.name, mimeType: file.type }),
+      });
+      const { uploadUrl, publicUrl, error: urlErr } = await postRes.json() as { uploadUrl?: string; publicUrl?: string; error?: string };
+      if (urlErr || !uploadUrl || !publicUrl) throw new Error(urlErr ?? "URL авахад алдаа");
+      const putRes = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!putRes.ok) throw new Error("Файл байршуулахад алдаа");
+      const patchRes = await fetch("/api/clinic/staff-photo-upload", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: staff.id, photoUrl: publicUrl }),
+      });
+      const patchData = await patchRes.json() as { ok?: boolean; error?: string };
+      if (!patchData.ok) throw new Error(patchData.error ?? "Хадгалахад алдаа");
+      onPhotoUpdate?.(staff.id, publicUrl);
+      onUpdate({ ...staff, photo_url: publicUrl });
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Алдаа гарлаа");
+      setTimeout(() => setPhotoError(null), 4000);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const locationName = staff.location_id
     ? (locations.find((l) => l.id === staff.location_id)?.name ?? "Тодорхойгүй")
     : "Тодорхойгүй";
@@ -447,19 +488,50 @@ export function StaffDetailPanel({
           {/* ── Tab: Мэдээлэл ── */}
           {activeTab === "info" && (
             <div style={{ padding: "1.5rem 1.25rem" }}>
-              {/* Avatar */}
+              {/* Avatar with upload */}
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
-                <div style={{
-                  width: "72px", height: "72px", borderRadius: "50%",
-                  background: `linear-gradient(135deg, ${roleColor}cc, ${roleColor}66)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "1.5rem", fontWeight: 700, color: "#fff",
-                  letterSpacing: "0.05em",
-                  boxShadow: `0 4px 14px ${roleColor}44`,
-                }}>
-                  {getInitials(staff.full_name)}
+                <div
+                  style={{ position: "relative", width: "80px", height: "80px", cursor: "pointer" }}
+                  onMouseEnter={() => setPhotoHovered(true)}
+                  onMouseLeave={() => setPhotoHovered(false)}
+                  onClick={() => !photoUploading && photoInputRef.current?.click()}
+                >
+                  {/* Photo or initials */}
+                  {staff.photo_url ? (
+                    <div style={{ width: "80px", height: "80px", borderRadius: "50%", overflow: "hidden", position: "relative", boxShadow: `0 4px 14px ${roleColor}44` }}>
+                      <Image src={staff.photo_url} alt={staff.full_name} fill unoptimized style={{ objectFit: "cover" }} />
+                    </div>
+                  ) : (
+                    <div style={{
+                      width: "80px", height: "80px", borderRadius: "50%",
+                      background: `linear-gradient(135deg, ${roleColor}cc, ${roleColor}66)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "1.5rem", fontWeight: 700, color: "#fff",
+                      boxShadow: `0 4px 14px ${roleColor}44`,
+                    }}>
+                      {getInitials(staff.full_name)}
+                    </div>
+                  )}
+                  {/* Hover/upload overlay */}
+                  <div style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: "rgba(0,0,0,0.45)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: photoHovered || photoUploading ? 1 : 0,
+                    transition: "opacity 0.15s",
+                    fontSize: "1.2rem", color: "#fff",
+                    pointerEvents: "none",
+                  }}>
+                    {photoUploading ? "⏳" : "📷"}
+                  </div>
+                  {/* Hidden input */}
+                  <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoFile} />
                 </div>
               </div>
+              {/* Photo error */}
+              {photoError && (
+                <div style={{ textAlign: "center", marginBottom: "0.75rem", fontSize: "0.75rem", color: "#dc2626" }}>{photoError}</div>
+              )}
 
               {/* Badges */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem", justifyContent: "center" }}>

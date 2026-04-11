@@ -84,6 +84,7 @@ export function StaffPageClient({
               handleStaffDelete(id);
               setSelectedStaff(null);
             }}
+            onPhotoUpdate={handlePhotoUpdate}
           />
         ) : (
           <StaffListPanel
