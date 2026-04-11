@@ -1043,7 +1043,7 @@ function DayGridCalendar({
       </div>
 
       {/* Grid body */}
-      <div style={{ display: "flex", flex: 1 }}>
+      <div style={{ display: "flex", minHeight: GRID_HEIGHT }}>
         {/* Time column */}
         <div
           style={{
