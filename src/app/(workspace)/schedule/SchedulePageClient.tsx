@@ -117,6 +117,19 @@ type Props = {
 
 const addInitialState: ClinicSetupActionState = {};
 
+const APPOINTMENT_COLORS = ["#6366f1", "#2563eb", "#059669", "#d97706", "#ef4444", "#ec4899"];
+
+function generateTimeOptions(): string[] {
+  const times: string[] = [];
+  for (let h = 6; h <= 22; h++) {
+    times.push(`${String(h).padStart(2, "0")}:00`);
+    if (h < 22) times.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return times;
+}
+
+const TIME_OPTIONS = generateTimeOptions();
+
 function AddModal({
   services,
   staffMembers,
@@ -137,6 +150,21 @@ function AddModal({
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(createAdminAppointmentAction, addInitialState);
   const prevMessageRef = useRef<string | undefined>(undefined);
+
+  // Animation state
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 10);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Date/time split state
+  const [dateVal, setDateVal] = useState(prefilledDateTime?.slice(0, 10) ?? getTodayString());
+  const [timeVal, setTimeVal] = useState(prefilledDateTime?.slice(11, 16) ?? "10:00");
+  const scheduledStart = `${dateVal}T${timeVal}`;
+
+  // Color selection
+  const [selectedColor, setSelectedColor] = useState(APPOINTMENT_COLORS[0]);
 
   useEffect(() => {
     if (state.message && state.message !== prevMessageRef.current) {
@@ -159,107 +187,196 @@ function AddModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: "0.7rem",
-    textTransform: "uppercase" as const,
-    color: "#6b7280",
-    fontWeight: 600,
-    letterSpacing: "0.07em",
-    display: "block",
-    marginBottom: "0.3rem",
+  const inputFieldStyle: React.CSSProperties = {
+    flex: 1,
+    border: "none",
+    outline: "none",
+    fontSize: "0.9rem",
+    color: "#111827",
+    background: "transparent",
+    fontFamily: "inherit",
+    padding: "0",
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "0.5rem 0.75rem",
-    border: "1px solid #e5e7eb",
-    borderRadius: "0.5rem",
-    fontSize: "0.875rem",
-    boxSizing: "border-box",
-    background: "#fff",
-    outline: "none",
-    fontFamily: "inherit",
+  const selectFieldStyle: React.CSSProperties = {
+    ...inputFieldStyle,
+    cursor: "pointer",
+    appearance: "auto" as React.CSSProperties["appearance"],
+  };
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    padding: "0.65rem 1.25rem",
+    borderBottom: "1px solid #f3f4f6",
+  };
+
+  const iconStyle: React.CSSProperties = {
+    fontSize: "1rem",
+    color: "#9ca3af",
+    width: "1.25rem",
+    flexShrink: 0,
+    textAlign: "center",
   };
 
   return (
-    <div
-      onClick={handleBackdropClick}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background: "rgba(0,0,0,0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "1rem",
-      }}
-    >
+    <>
+      {/* Subtle backdrop */}
+      <div
+        onClick={handleBackdropClick}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9998,
+          background: "rgba(0,0,0,0.15)",
+        }}
+      />
+
+      {/* Drawer */}
       <div
         style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "420px",
+          maxWidth: "100vw",
+          zIndex: 9999,
           background: "#fff",
-          borderRadius: "1rem",
-          width: "480px",
-          maxWidth: "100%",
-          maxHeight: "90vh",
+          boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.1)",
+          transform: visible ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
         }}
       >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "1rem 1.25rem",
-            borderBottom: "1px solid #e5e7eb",
-            flexShrink: 0,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>✚ Шинэ захиалга</h2>
+        {/* ── Title row ── */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <input
+            type="text"
+            placeholder="Захиалгын гарчиг нэмэх"
+            style={{
+              width: "100%",
+              border: "none",
+              outline: "none",
+              fontSize: "1.4rem",
+              fontWeight: 600,
+              color: "#111827",
+              padding: "1.5rem 3rem 0.5rem 1.25rem",
+              fontFamily: "inherit",
+              background: "transparent",
+              borderBottom: "2px solid #6366f1",
+              boxSizing: "border-box",
+            }}
+          />
           <button
+            type="button"
             onClick={onClose}
             style={{
+              position: "absolute",
+              top: "1.1rem",
+              right: "0.75rem",
               background: "none",
               border: "none",
               cursor: "pointer",
-              fontSize: "1.25rem",
+              fontSize: "1.1rem",
               color: "#6b7280",
-              padding: "0.25rem 0.5rem",
-              borderRadius: "6px",
+              padding: "0.25rem",
               lineHeight: 1,
+              borderRadius: "4px",
             }}
           >
             ✕
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem" }}>
-          <form ref={formRef} id="add-appointment-form" action={formAction} style={{ display: "grid", gap: "0.85rem" }}>
+        {/* ── Color dots ── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.6rem 1.25rem 0.75rem",
+            borderBottom: "1px solid #f3f4f6",
+            flexShrink: 0,
+          }}
+        >
+          {APPOINTMENT_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => setSelectedColor(color)}
+              style={{
+                width: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                background: color,
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+                outline: selectedColor === color ? `3px solid ${color}` : "none",
+                outlineOffset: "2px",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* ── Scrollable form body ── */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <form ref={formRef} id="add-appointment-form" action={formAction}>
             <input type="hidden" name="source" value="admin" />
+            <input type="hidden" name="scheduledStart" value={scheduledStart} />
 
-            <div>
-              <label style={labelStyle}>Patient нэр *</label>
-              <input name="fullName" required placeholder="Бат-Эрдэнэ" style={inputStyle} />
+            {/* Date + Time */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>🕐</span>
+              <input
+                type="date"
+                value={dateVal}
+                onChange={(e) => setDateVal(e.target.value)}
+                style={{ ...inputFieldStyle, flex: "0 0 auto", width: "140px" }}
+              />
+              <select
+                value={timeVal}
+                onChange={(e) => setTimeVal(e.target.value)}
+                style={{ ...selectFieldStyle, flex: "0 0 auto" }}
+              >
+                {TIME_OPTIONS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <label style={labelStyle}>Утас *</label>
-              <input name="phone" required type="tel" placeholder="+976 9900 0000" style={inputStyle} />
+            {/* Patient name */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>👤</span>
+              <input
+                name="fullName"
+                required
+                placeholder="Нэр эсвэл утас"
+                style={inputFieldStyle}
+              />
             </div>
 
-            <div>
-              <label style={labelStyle}>И-мэйл</label>
-              <input name="email" type="email" placeholder="example@mail.com" style={inputStyle} />
+            {/* Phone */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>📱</span>
+              <input
+                name="phone"
+                required
+                type="tel"
+                placeholder="+976 ..."
+                style={inputFieldStyle}
+              />
             </div>
 
-            <div>
-              <label style={labelStyle}>Үйлчилгээ *</label>
-              <select name="serviceId" required style={inputStyle}>
-                <option value="">— Сонгоно уу —</option>
+            {/* Service */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>💆</span>
+              <select name="serviceId" required style={selectFieldStyle}>
+                <option value="">Үйлчилгээ сонгох</option>
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} · {s.duration_minutes} мин
@@ -268,34 +385,37 @@ function AddModal({
               </select>
             </div>
 
-            <div>
-              <label style={labelStyle}>Захиалгын цаг *</label>
-              <input
-                name="scheduledStart"
-                required
-                type="datetime-local"
-                defaultValue={prefilledDateTime}
-                key={prefilledDateTime}
-                style={inputStyle}
-              />
-            </div>
-
-            <div>
-              <label style={labelStyle}>Ажилтан</label>
-              <select name="staffMemberId" style={inputStyle} defaultValue={prefilledStaffId} key={prefilledStaffId}>
-                <option value="">— Сонгоогүй —</option>
-                {staffMembers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.full_name}
-                  </option>
-                ))}
+            {/* Staff */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>👨‍⚕️</span>
+              <select
+                name="staffMemberId"
+                style={selectFieldStyle}
+                defaultValue={prefilledStaffId}
+                key={prefilledStaffId}
+              >
+                <option value="">Ажилтан сонгох</option>
+                {staffMembers.map((s) => {
+                  const initials = s.full_name
+                    .split(" ")
+                    .map((w: string) => w[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase();
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {initials} — {s.full_name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            <div>
-              <label style={labelStyle}>Байршил</label>
-              <select name="locationId" style={inputStyle}>
-                <option value="">— Сонгоогүй —</option>
+            {/* Location */}
+            <div style={rowStyle}>
+              <span style={iconStyle}>📍</span>
+              <select name="locationId" style={selectFieldStyle}>
+                <option value="">Байршил сонгох</option>
                 {locations.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
@@ -304,65 +424,52 @@ function AddModal({
               </select>
             </div>
 
-            <div>
-              <label style={labelStyle}>Тэмдэглэл</label>
+            {/* Notes */}
+            <div style={{ ...rowStyle, alignItems: "flex-start" }}>
+              <span style={{ ...iconStyle, marginTop: "0.1rem" }}>📝</span>
               <textarea
                 name="internalNotes"
                 rows={3}
-                placeholder="Дотоод тэмдэглэл..."
-                style={{ ...inputStyle, resize: "vertical" }}
+                placeholder="Тэмдэглэл..."
+                style={{
+                  ...inputFieldStyle,
+                  resize: "none",
+                  borderBottom: "1px solid #e5e7eb",
+                  paddingBottom: "0.25rem",
+                }}
               />
             </div>
 
             {state.error && (
-              <p style={{ margin: 0, color: "#ef4444", fontSize: "0.82rem", fontWeight: 600 }}>{state.error}</p>
+              <p style={{ margin: "0.5rem 1.25rem", color: "#ef4444", fontSize: "0.82rem", fontWeight: 600 }}>
+                {state.error}
+              </p>
             )}
             {state.message && (
-              <p style={{ margin: 0, color: "#059669", fontSize: "0.82rem", fontWeight: 600 }}>{state.message}</p>
+              <p style={{ margin: "0.5rem 1.25rem", color: "#059669", fontSize: "0.82rem", fontWeight: 600 }}>
+                {state.message}
+              </p>
             )}
           </form>
         </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "0.75rem",
-            padding: "1rem 1.25rem",
-            borderTop: "1px solid #e5e7eb",
-            flexShrink: 0,
-          }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "1px solid #e5e7eb",
-              borderRadius: "0.5rem",
-              padding: "0.55rem 1.25rem",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              fontFamily: "inherit",
-            }}
-          >
-            Болих
-          </button>
+        {/* ── Footer ── */}
+        <div style={{ flexShrink: 0, paddingBottom: "0.5rem" }}>
           <button
             type="submit"
             form="add-appointment-form"
             disabled={pending}
             style={{
-              background: pending ? "#a5b4fc" : "#6366f1",
+              width: "calc(100% - 2.5rem)",
+              margin: "1rem 1.25rem",
+              background: pending ? "#a5b4fc" : selectedColor,
               color: "#fff",
               border: "none",
-              borderRadius: "0.5rem",
-              padding: "0.55rem 1.5rem",
-              cursor: pending ? "not-allowed" : "pointer",
-              fontSize: "0.875rem",
+              borderRadius: "0.625rem",
+              padding: "0.75rem",
+              fontSize: "1rem",
               fontWeight: 600,
+              cursor: pending ? "not-allowed" : "pointer",
               fontFamily: "inherit",
               transition: "background 0.15s",
             }}
@@ -371,7 +478,7 @@ function AddModal({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
