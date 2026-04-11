@@ -182,12 +182,16 @@ function ImageUploadArea({
 
   const triggerPicker = () => fileInputRef.current?.click();
 
+  const inputId = `svc-img-${service.id}`;
+
   return (
     <div style={{ marginBottom: "1.25rem" }}>
       <input
         ref={fileInputRef}
+        id={inputId}
         type="file"
         accept="image/*"
+        disabled={uploading}
         style={{ display: "none" }}
         onChange={handleInputChange}
       />
@@ -197,7 +201,6 @@ function ImageUploadArea({
           style={{
             position: "relative",
             width: "100%",
-            maxHeight: "180px",
             height: "180px",
             borderRadius: "0.75rem",
             overflow: "hidden",
@@ -212,34 +215,33 @@ function ImageUploadArea({
             unoptimized
             style={{ objectFit: "cover" }}
           />
-          <button
-            onClick={triggerPicker}
-            disabled={uploading}
+          <label
+            htmlFor={inputId}
             style={{
               position: "absolute",
               bottom: "0.5rem",
               right: "0.5rem",
               background: "rgba(0,0,0,0.6)",
               color: "#fff",
-              border: "none",
               borderRadius: "0.5rem",
               padding: "4px 10px",
               fontSize: "0.75rem",
               cursor: uploading ? "not-allowed" : "pointer",
               fontFamily: "inherit",
+              userSelect: "none",
             }}
           >
             {uploading ? "Байршуулж байна..." : "📷 Зураг солих"}
-          </button>
+          </label>
         </div>
       ) : (
-        <div
-          onClick={uploading ? undefined : triggerPicker}
+        <label
+          htmlFor={inputId}
           style={{
+            display: "flex",
             height: "120px",
             border: "2px dashed #d1d5db",
             borderRadius: "0.75rem",
-            display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
@@ -249,17 +251,17 @@ function ImageUploadArea({
             gap: "0.4rem",
           }}
           onMouseEnter={(e) => {
-            if (!uploading) (e.currentTarget as HTMLDivElement).style.borderColor = "#6366f1";
+            if (!uploading) (e.currentTarget as HTMLLabelElement).style.borderColor = "#6366f1";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor = "#d1d5db";
+            (e.currentTarget as HTMLLabelElement).style.borderColor = "#d1d5db";
           }}
         >
           <span style={{ fontSize: "1.5rem" }}>📷</span>
           <span style={{ fontSize: "0.8rem", color: "#6b7280", fontWeight: 500 }}>
             {uploading ? "Байршуулж байна..." : "Зураг нэмэх"}
           </span>
-        </div>
+        </label>
       )}
 
       {error && (
