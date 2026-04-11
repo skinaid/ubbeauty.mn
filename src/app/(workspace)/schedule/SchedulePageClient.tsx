@@ -746,6 +746,7 @@ function DayGridCalendar({
   selectedAppointmentId,
   onAppointmentClick,
   onSlotClick,
+  previewSlotExternal,
 }: {
   appointments: AppointmentWithRelations[];
   staffMembers: StaffMemberRow[];
@@ -753,6 +754,7 @@ function DayGridCalendar({
   selectedAppointmentId: string | null;
   onAppointmentClick: (apt: AppointmentWithRelations) => void;
   onSlotClick: (staffId: string, hour: number, minute: number) => void;
+  previewSlotExternal: { staffId: string; h: number; m: number } | null;
 }) {
   // Group appointments by staff_member_id
   const byStaff = new Map<string, AppointmentWithRelations[]>();
@@ -769,8 +771,14 @@ function DayGridCalendar({
   }
 
   const hasUnassigned = unassigned.length > 0;
-  // If no staff members defined, use a single "all appointments" column
   const useAllColumn = staffMembers.length === 0;
+
+  // Use external preview slot prop
+  const previewSlot = previewSlotExternal;
+
+  const handleSlotClickInternal = (staffId: string, h: number, m: number) => {
+    onSlotClick(staffId, h, m);
+  };
 
   // Build time slots array
   const timeSlots = Array.from({ length: TOTAL_SLOTS }, (_, i) => {
@@ -870,6 +878,39 @@ function DayGridCalendar({
         </div>
       );
     });
+
+  // Ghost preview block for selected slot
+  const renderGhostBlock = (colStaffId: string) => {
+    if (!previewSlot) return null;
+    if (previewSlot.staffId !== colStaffId) return null;
+    const mins = (previewSlot.h - GRID_START_HOUR) * 60 + previewSlot.m;
+    const topPx = (mins / 30) * SLOT_HEIGHT;
+    const heightPx = SLOT_HEIGHT * 2; // default 1hr
+    return (
+      <div
+        key="ghost"
+        style={{
+          position: "absolute",
+          top: topPx,
+          left: 4,
+          right: 4,
+          height: heightPx,
+          borderRadius: 6,
+          background: "rgba(99,102,241,0.15)",
+          border: "2px dashed #6366f1",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+          zIndex: 5,
+        }}
+      >
+        <span style={{ fontSize: "0.75rem", color: "#6366f1", fontWeight: 600 }}>
+          {String(previewSlot.h).padStart(2, "0")}:{String(previewSlot.m).padStart(2, "0")} — шинэ захиалга
+        </span>
+      </div>
+    );
+  };
 
   // Column header for a staff member
   const renderStaffHeader = (staff: StaffMemberRow) => {
@@ -1053,7 +1094,7 @@ function DayGridCalendar({
             {timeSlots.map(({ i, h, m }) => (
               <div
                 key={i}
-                onClick={() => onSlotClick("", h, m)}
+                onClick={() => handleSlotClickInternal("", h, m)}
                 style={{
                   position: "absolute",
                   top: i * SLOT_HEIGHT,
@@ -1066,6 +1107,7 @@ function DayGridCalendar({
               />
             ))}
             {renderAppointments(appointments, "")}
+            {renderGhostBlock("")}
           </div>
         ) : (
           <>
@@ -1085,7 +1127,7 @@ function DayGridCalendar({
                   {timeSlots.map(({ i, h, m }) => (
                     <div
                       key={i}
-                      onClick={() => onSlotClick(staff.id, h, m)}
+                      onClick={() => handleSlotClickInternal(staff.id, h, m)}
                       style={{
                         position: "absolute",
                         top: i * SLOT_HEIGHT,
@@ -1098,6 +1140,7 @@ function DayGridCalendar({
                     />
                   ))}
                   {renderAppointments(colApts, staff.id)}
+                  {renderGhostBlock(staff.id)}
                 </div>
               );
             })}
@@ -1114,7 +1157,7 @@ function DayGridCalendar({
                 {timeSlots.map(({ i, h, m }) => (
                   <div
                     key={i}
-                    onClick={() => onSlotClick("", h, m)}
+                    onClick={() => handleSlotClickInternal("", h, m)}
                     style={{
                       position: "absolute",
                       top: i * SLOT_HEIGHT,
@@ -1145,6 +1188,7 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
   const [appointments, setAppointments] = useState<AppointmentWithRelations[]>(initialAppointments);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithRelations | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [previewSlot, setPreviewSlot] = useState<{ staffId: string; h: number; m: number } | null>(null);
   const [prefilledStaffId, setPrefilledStaffId] = useState<string>("");
   const [prefilledDateTime, setPrefilledDateTime] = useState<string>("");
   const [, startTransition] = useTransition();
@@ -1195,12 +1239,14 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
     const dtStr = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
     setPrefilledStaffId(staffId);
     setPrefilledDateTime(dtStr);
+    setPreviewSlot({ staffId, h: hour, m: minute });
     setShowAddModal(true);
   };
 
   const handleAddClick = () => {
     setPrefilledStaffId("");
     setPrefilledDateTime("");
+    setPreviewSlot(null);
     setShowAddModal(true);
   };
 
@@ -1352,6 +1398,7 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
             selectedAppointmentId={selectedAppointment?.id ?? null}
             onAppointmentClick={handleAppointmentClick}
             onSlotClick={handleSlotClick}
+            previewSlotExternal={previewSlot}
           />
         )}
       </div>
@@ -1365,7 +1412,7 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
             locations={locations}
             prefilledStaffId={prefilledStaffId}
             prefilledDateTime={prefilledDateTime}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => { setShowAddModal(false); setPreviewSlot(null); }}
             onSuccess={onAddSuccess}
           />,
           document.body
