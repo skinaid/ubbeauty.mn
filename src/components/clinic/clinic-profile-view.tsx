@@ -372,7 +372,7 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
 
       <div style={{ display: "grid", gap: 0 }}>
         {/* Identity header */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", paddingBottom: "1rem", marginBottom: "0.5rem", borderBottom: "1px solid #e5e7eb", position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", paddingBottom: "1rem", marginBottom: "0.5rem", borderBottom: "1px solid #e5e7eb" }}>
           <div style={{
             width: "3rem", height: "3rem", borderRadius: "0.75rem", flexShrink: 0,
             background: "linear-gradient(135deg, #818cf8, #a855f7)",
@@ -391,15 +391,14 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
               <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#d1d5db", fontStyle: "italic" }}>Уриа үг нэмэгдээгүй...</p>
             )}
           </div>
-          <ProgressRing percent={completionPercent} />
           <button
             type="button"
             onClick={() => setEditOpen(true)}
             title="Засварлах"
             style={{
-              position: "absolute", top: 0, right: 0,
+              flexShrink: 0,
               background: "#f5f3ff", border: "1.5px solid #c7d2fe",
-              borderRadius: "0.5rem", padding: "0.3rem 0.6rem",
+              borderRadius: "0.5rem", padding: "0.3rem 0.65rem",
               cursor: "pointer", fontSize: "0.8rem", color: "#6366f1",
               fontWeight: 600, lineHeight: 1,
               display: "flex", alignItems: "center", gap: "0.3rem",
@@ -411,9 +410,12 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
 
         {/* Completion label */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0 0.75rem" }}>
-          <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-            {completedCount}/{totalCount} талбар бөглөгдсөн
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <ProgressRing percent={completionPercent} />
+            <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
+              {completedCount}/{totalCount} талбар бөглөгдсөн
+            </span>
+          </div>
           {completionPercent === 100 ? (
             <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#10b981", background: "#ecfdf5", padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
               ✓ Бүрэн
