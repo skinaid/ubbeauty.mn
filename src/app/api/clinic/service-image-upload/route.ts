@@ -15,7 +15,6 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
-import { revalidatePath } from "next/cache";
 
 const BUCKET = "brand-assets";
 
@@ -112,6 +111,5 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  revalidatePath("/clinic/services");
   return NextResponse.json({ ok: true });
 }
