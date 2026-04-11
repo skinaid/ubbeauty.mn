@@ -1115,25 +1115,21 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
           zIndex: 10,
           background: "#fff",
           borderBottom: "1px solid #e5e7eb",
-          padding: "0.75rem 1.25rem",
+          padding: "0.65rem 1.25rem",
           display: "flex",
-          flexDirection: "column",
-          gap: "0.6rem",
+          alignItems: "center",
+          gap: "0.5rem",
+          flexWrap: "wrap",
         }}
       >
-        {/* Row 1: back link + title */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <Link
-            href="/clinic"
-            style={{ color: "#6b7280", fontSize: "0.85rem", textDecoration: "none", fontWeight: 500 }}
-          >
-            ← Буцах
-          </Link>
-          <h1 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Цаг захиалга</h1>
-        </div>
-
-        {/* Row 2: date nav + count + add button */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        {/* Single row: back + date nav + count + add button */}
+        <Link
+          href="/clinic"
+          style={{ color: "#9ca3af", fontSize: "0.8rem", textDecoration: "none", fontWeight: 500, flexShrink: 0 }}
+        >
+          ←
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", flex: 1 }}>
           <button
             onClick={() => navigateDate(-1)}
             style={{
@@ -1217,7 +1213,7 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
             + Захиалга нэмэх
           </button>
         </div>
-      </div>
+      </div>  {/* end single-row header */}
 
       {/* ── Full-width day grid (scrollable) ── */}
       <div style={{ flex: 1, overflowY: "auto", overflowX: "auto" }}>
