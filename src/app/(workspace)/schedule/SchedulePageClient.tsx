@@ -1105,7 +1105,11 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
   };
 
   return (
-    <div className="schedule-root" style={{ height: "100%", display: "flex", flexDirection: "column", background: "#fff" }}>
+    <div className="schedule-root" style={{
+      position: "absolute", inset: 0,
+      display: "flex", flexDirection: "column",
+      background: "#fff", overflow: "hidden",
+    }}>
       {/* ── Top header (sticky) ── */}
       <div
         style={{

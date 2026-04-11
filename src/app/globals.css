@@ -991,6 +991,7 @@ code {
   background: var(--bg-subtle);
   padding: 3rem;
   overflow-y: auto;
+  position: relative;
 }
 
 /* Mobile: collapse to top bar */
