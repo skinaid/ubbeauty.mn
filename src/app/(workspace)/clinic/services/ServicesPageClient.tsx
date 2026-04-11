@@ -32,11 +32,13 @@ export function ServicesPageClient({
     setServices((prev) => prev.filter((s) => s.id !== id));
 
   const handleImageUpdate = (serviceId: string, imageUrl: string) => {
+    // Append timestamp to bust browser cache for same-path URLs
+    const cacheBustedUrl = `${imageUrl.split("?")[0]}?t=${Date.now()}`;
     setServices((prev) =>
-      prev.map((s) => (s.id === serviceId ? { ...s, image_url: imageUrl } : s))
+      prev.map((s) => (s.id === serviceId ? { ...s, image_url: cacheBustedUrl } : s))
     );
     setSelectedService((prev) =>
-      prev?.id === serviceId ? { ...prev, image_url: imageUrl } : prev
+      prev?.id === serviceId ? { ...prev, image_url: cacheBustedUrl } : prev
     );
   };
 

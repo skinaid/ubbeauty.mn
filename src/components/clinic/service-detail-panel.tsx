@@ -122,6 +122,7 @@ function ImageUploadArea({
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
@@ -166,6 +167,9 @@ function ImageUploadArea({
         throw new Error(patchData.error ?? "URL хадгалахад алдаа гарлаа");
       }
 
+      // Show local preview immediately (bypasses browser cache)
+      const localUrl = URL.createObjectURL(file);
+      setLocalPreview(localUrl);
       onImageUpdate?.(service.id, postData.publicUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Алдаа гарлаа");
@@ -179,6 +183,8 @@ function ImageUploadArea({
     const file = e.target.files?.[0];
     if (file) void handleFile(file);
   };
+
+  const displayUrl = localPreview ?? service.image_url;
 
   const triggerPicker = () => fileInputRef.current?.click();
 
@@ -196,7 +202,7 @@ function ImageUploadArea({
         onChange={handleInputChange}
       />
 
-      {service.image_url ? (
+      {displayUrl ? (
         <div
           style={{
             position: "relative",
@@ -209,7 +215,7 @@ function ImageUploadArea({
           }}
         >
           <Image
-            src={service.image_url}
+            src={displayUrl}
             alt={service.name}
             fill
             unoptimized
