@@ -842,10 +842,10 @@ export function ServiceDetailPanel({
   const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("info");
 
-  // Sync when parent changes selected service (e.g. from list)
+  // Sync when parent changes selected service or updates fields (e.g. image_url)
   useEffect(() => {
     setService(initialService);
-  }, [initialService.id]);
+  }, [initialService]);
 
   const categoryMap = new Map<string, string>(categories.map((c) => [c.id, c.name]));
   const categoryLabel = service.category_id
