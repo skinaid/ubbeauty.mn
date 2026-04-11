@@ -295,7 +295,7 @@ export function StaffListPanel({
             </div>
             {/* Fields */}
             <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem" }}>
-              {s.specialty && <Field label="Мэргэжил" value={s.specialty} />}
+              {s.specialty && <Field label="Албан тушаал" value={s.specialty} />}
               {s.phone && <Field label="Утас" value={s.phone} />}
               {s.email && <Field label="И-мэйл" value={s.email} />}
               {s.bio && <Field label="Танилцуулга" value={s.bio} />}

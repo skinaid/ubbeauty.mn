@@ -204,8 +204,8 @@ function EditDialog({
             <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
           </FormField>
 
-          <FormField label="Мэргэжил / Specialty">
-            <input type="text" value={specialty} onChange={(e) => setSpecialty(e.target.value)} style={inputStyle} placeholder="Жишээ: Арьс судлаач" />
+          <FormField label="Албан тушаал / Мэргэжил">
+            <input type="text" value={specialty} onChange={(e) => setSpecialty(e.target.value)} style={inputStyle} placeholder="Жишээ: Эмч, Сувилагч, Гоо сайхны мэргэжилтэн, Физиотерапевт..." />
           </FormField>
 
           <FormField label="Танилцуулга / Bio">
@@ -553,7 +553,7 @@ export function StaffDetailPanel({
                 display: "grid", gridTemplateColumns: "1fr 1fr",
                 gap: "0.5rem 2rem", marginBottom: "1.25rem",
               }}>
-                <InfoRow label="Мэргэжил" value={staff.specialty ?? "—"} />
+                <InfoRow label="Албан тушаал" value={staff.specialty ?? "—"} />
                 <InfoRow label="Утас" value={staff.phone ?? "—"} />
                 <InfoRow label="И-мэйл" value={staff.email ?? "—"} />
                 <InfoRow label="Байршил" value={locationName} />
