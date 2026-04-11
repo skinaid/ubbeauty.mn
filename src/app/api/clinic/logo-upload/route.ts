@@ -11,8 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getCurrentUserOrganization } from "@/modules/organizations/data";
 import { revalidatePath } from "next/cache";
@@ -43,8 +43,9 @@ export async function POST(req: NextRequest) {
   // Fixed path — always overwrite so there's only one logo per org
   const filePath = `org-logos/${org.id}/logo.${ext}`;
 
-  const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase.storage
+  // Use admin client to bypass RLS for storage signed URL creation
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.storage
     .from(BUCKET)
     .createSignedUploadUrl(filePath, { upsert: true });
 
@@ -53,7 +54,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Build the public URL (will be valid after upload completes)
-  const admin = getSupabaseAdminClient();
   const { data: publicData } = admin.storage.from(BUCKET).getPublicUrl(filePath);
 
   return NextResponse.json({
