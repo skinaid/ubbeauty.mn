@@ -41,6 +41,8 @@ type Props = {
   rightPanel: ReactNode;
   leftTabLabel?: string;
   rightTabLabel?: string;
+  /** Optional actions rendered in the header bar (e.g. edit button) */
+  headerActions?: ReactNode;
   /** Optional controlled tab (for external tab switching) */
   activeTab?: Tab;
   onTabChange?: (tab: Tab) => void;
@@ -54,6 +56,7 @@ export function ClinicSplitLayout({
   rightPanel,
   leftTabLabel = "Жагсаалт",
   rightTabLabel = "✦ AI",
+  headerActions,
   activeTab: controlledTab,
   onTabChange,
 }: Props) {
@@ -73,6 +76,9 @@ export function ClinicSplitLayout({
           <h1 className="clinic-split-header__title">{title}</h1>
           {subtitle && <p className="clinic-split-header__subtitle">{subtitle}</p>}
         </div>
+        {headerActions && (
+          <div className="clinic-split-header__actions">{headerActions}</div>
+        )}
       </div>
 
       {/* ── Desktop: side-by-side ── */}

@@ -8,6 +8,9 @@ import { updateClinicProfile } from "@/modules/clinic/profile";
 type Props = {
   profile: ClinicProfile | null;
   onProfileUpdate?: (fields: Record<string, unknown>) => void;
+  /** Controlled edit modal state — driven by parent */
+  editOpen?: boolean;
+  onEditClose?: () => void;
 };
 
 const emDash = "—";
@@ -327,8 +330,7 @@ function EditModal({ profile, onClose, onSaved }: EditModalProps) {
 // Main ClinicProfileView
 // ──────────────────────────────────────────────
 
-export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
-  const [editOpen, setEditOpen] = useState(false);
+export function ClinicProfileView({ profile, onProfileUpdate, editOpen = false, onEditClose }: Props) {
 
   const completionFields = [
     profile?.tagline,
@@ -362,10 +364,10 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
 
   return (
     <>
-      {editOpen && (
+      {editOpen && profile && (
         <EditModal
           profile={profile}
-          onClose={() => setEditOpen(false)}
+          onClose={() => onEditClose?.()}
           onSaved={handleSaved}
         />
       )}
@@ -391,21 +393,7 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
               <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#d1d5db", fontStyle: "italic" }}>Уриа үг нэмэгдээгүй...</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            title="Засварлах"
-            style={{
-              flexShrink: 0,
-              background: "#f5f3ff", border: "1.5px solid #c7d2fe",
-              borderRadius: "0.5rem", padding: "0.3rem 0.65rem",
-              cursor: "pointer", fontSize: "0.8rem", color: "#6366f1",
-              fontWeight: 600, lineHeight: 1,
-              display: "flex", alignItems: "center", gap: "0.3rem",
-            }}
-          >
-            ✏️ Засах
-          </button>
+
         </div>
 
         {/* Completion label */}
