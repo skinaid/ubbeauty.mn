@@ -75,12 +75,12 @@ function ServiceCard({
 export function ServicesListPanel({
   services,
   categories = [],
-  onDelete,
+  onDelete: _onDelete,
   onSelect,
 }: {
   services: ServiceRecord[];
   categories?: Category[];
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onSelect: (service: ServiceRecord) => void;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
