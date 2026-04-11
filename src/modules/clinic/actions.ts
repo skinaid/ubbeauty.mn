@@ -3188,6 +3188,36 @@ export async function updateServiceDirect(
   return {};
 }
 
+export async function createAvailabilityRule(fields: {
+  staff_member_id: string;
+  location_id: string | null;
+  weekday: number;
+  start_local: string;
+  end_local: string;
+  is_available: boolean;
+}): Promise<{ rule?: import("@/modules/clinic/availability-types").AvailabilityRule; error?: string }> {
+  const context = await requireClinicActionAccess(["owner", "manager"]);
+  if ("error" in context) return { error: context.error };
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("staff_availability_rules")
+    .insert({
+      organization_id: context.organization.id,
+      staff_member_id: fields.staff_member_id,
+      location_id: fields.location_id,
+      weekday: fields.weekday,
+      start_local: fields.start_local,
+      end_local: fields.end_local,
+      is_available: fields.is_available,
+    })
+    .select("id, staff_member_id, location_id, weekday, start_local, end_local, is_available")
+    .single();
+  if (error) return { error: toFriendlyClinicError(error) };
+  revalidatePath("/clinic/availability");
+  revalidatePath("/schedule");
+  return { rule: data as import("@/modules/clinic/availability-types").AvailabilityRule };
+}
+
 export async function updateAvailabilityRule(
   ruleId: string,
   fields: { start_local?: string; end_local?: string; is_available?: boolean }

@@ -60,6 +60,7 @@ export function AvailabilityPageClient({
           workingHours={initialWorkingHours}
           onDelete={handleRuleDelete}
           onUpdate={handleRuleUpdate}
+          onAdd={handleRuleAdd}
           onAddForStaff={handleAddForStaff}
         />
       }

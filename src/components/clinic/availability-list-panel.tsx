@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
-import { deleteAvailabilityRule, updateAvailabilityRule } from "@/modules/clinic/actions";
+import { createAvailabilityRule, deleteAvailabilityRule, updateAvailabilityRule } from "@/modules/clinic/actions";
 import { updateClinicProfile } from "@/modules/clinic/profile";
 import type {
   AvailabilityRule,
@@ -212,6 +213,257 @@ function OrgWorkingHoursSection({ workingHours }: { workingHours: Record<string,
   );
 }
 
+/* ─── AddRuleDialog ─────────────────────────────────────────────────── */
+
+function AddRuleDialog({
+  staffId,
+  staffName,
+  locations,
+  onClose,
+  onSaved,
+}: {
+  staffId: string;
+  staffName: string;
+  locations: ClinicLocation[];
+  onClose: () => void;
+  onSaved: (rule: AvailabilityRule) => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const [weekday, setWeekday] = useState<number>(1);
+  const [startLocal, setStartLocal] = useState("09:00");
+  const [endLocal, setEndLocal] = useState("18:00");
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError(null);
+    const result = await createAvailabilityRule({
+      staff_member_id: staffId,
+      location_id: locationId,
+      weekday,
+      start_local: startLocal,
+      end_local: endLocal,
+      is_available: isAvailable,
+    });
+    setSaving(false);
+    if (result.error) {
+      setError(result.error);
+    } else if (result.rule) {
+      onSaved(result.rule);
+      onClose();
+    }
+  };
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.35)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: "1rem",
+          maxWidth: "420px",
+          width: "calc(100% - 2rem)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.12)",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "90vh",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "1rem 1.25rem",
+            borderBottom: "1px solid #e5e7eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#111827" }}>
+            Ажлын цаг нэмэх — {staffName}
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: "1.1rem",
+              color: "#6b7280",
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: "0 0.25rem",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div
+          style={{
+            padding: "1.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+            overflowY: "auto",
+          }}
+        >
+          {/* Weekday */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <label style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 600 }}>
+              Гараг
+            </label>
+            <select
+              value={weekday}
+              onChange={(e) => setWeekday(Number(e.target.value))}
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", fontSize: "0.875rem", fontFamily: "inherit" }}
+            >
+              <option value={1}>Даваа</option>
+              <option value={2}>Мягмар</option>
+              <option value={3}>Лхагва</option>
+              <option value={4}>Пүрэв</option>
+              <option value={5}>Баасан</option>
+              <option value={6}>Бямба</option>
+              <option value={0}>Ням</option>
+            </select>
+          </div>
+
+          {/* Start time */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <label style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 600 }}>
+              Эхлэх цаг
+            </label>
+            <input
+              type="time"
+              value={startLocal}
+              onChange={(e) => setStartLocal(e.target.value)}
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", fontSize: "0.875rem", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+          </div>
+
+          {/* End time */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <label style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 600 }}>
+              Дуусах цаг
+            </label>
+            <input
+              type="time"
+              value={endLocal}
+              onChange={(e) => setEndLocal(e.target.value)}
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", fontSize: "0.875rem", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+          </div>
+
+          {/* Location */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+            <label style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280", fontWeight: 600 }}>
+              Байршил
+            </label>
+            <select
+              value={locationId ?? ""}
+              onChange={(e) => setLocationId(e.target.value === "" ? null : e.target.value)}
+              style={{ width: "100%", padding: "0.5rem 0.75rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem", fontSize: "0.875rem", fontFamily: "inherit" }}
+            >
+              <option value="">Тодорхойгүй</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Is available */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <input
+              type="checkbox"
+              id="add-rule-is-available"
+              checked={isAvailable}
+              onChange={(e) => setIsAvailable(e.target.checked)}
+              style={{ cursor: "pointer", accentColor: "#6366f1", width: "1rem", height: "1rem" }}
+            />
+            <label
+              htmlFor="add-rule-is-available"
+              style={{ fontSize: "0.875rem", color: "#374151", cursor: "pointer" }}
+            >
+              Боломжтой эсэх
+            </label>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p style={{ margin: 0, fontSize: "0.8rem", color: "#ef4444", background: "#fef2f2", padding: "0.5rem 0.75rem", borderRadius: "0.5rem" }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "0.875rem 1.25rem",
+            borderTop: "1px solid #e5e7eb",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "0.5rem",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              color: "#374151",
+              border: "1px solid #e5e7eb",
+              borderRadius: "0.5rem",
+              padding: "0.45rem 1rem",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Болих
+          </button>
+          <button
+            onClick={() => void handleSubmit()}
+            disabled={saving}
+            style={{
+              background: "#6366f1",
+              color: "#fff",
+              border: "none",
+              borderRadius: "0.5rem",
+              padding: "0.45rem 1.25rem",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? "Хадгалж байна..." : "Хадгалах"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /* ─── Main AvailabilityListPanel ─────────────────────────────────────── */
 
 export function AvailabilityListPanel({
@@ -221,6 +473,7 @@ export function AvailabilityListPanel({
   workingHours,
   onDelete,
   onUpdate,
+  onAdd,
   onAddForStaff,
 }: {
   rules: AvailabilityRule[];
@@ -229,10 +482,12 @@ export function AvailabilityListPanel({
   workingHours: Record<string, string> | null;
   onDelete: (id: string) => void;
   onUpdate: (rule: AvailabilityRule) => void;
+  onAdd: (rule: AvailabilityRule) => void;
   onAddForStaff: (staffId: string) => void;
 }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [addDialogStaffId, setAddDialogStaffId] = useState<string | null>(null);
   const [editFields, setEditFields] = useState<{
     start_local: string;
     end_local: string;
@@ -402,7 +657,26 @@ export function AvailabilityListPanel({
                 >
                   {staffRules.length}/7
                 </span>
-                {/* Add button */}
+                {/* Manual add button */}
+                <button
+                  onClick={() => setAddDialogStaffId(staff.id)}
+                  title="Гараар ажлын цаг нэмэх"
+                  style={{
+                    background: "#f5f3ff",
+                    border: "1.5px solid #c7d2fe",
+                    color: "#6366f1",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    borderRadius: "0.375rem",
+                    padding: "3px 10px",
+                    cursor: "pointer",
+                    lineHeight: 1.5,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  ✚ Гараар
+                </button>
+                {/* Add via AI button */}
                 <button
                   onClick={() => onAddForStaff(staff.id)}
                   title="AI-р ажлын цаг нэмэх"
@@ -651,6 +925,25 @@ export function AvailabilityListPanel({
           );
         })}
       </div>
+
+      {/* Manual add dialog */}
+      {addDialogStaffId && (() => {
+        const s = staffMembers.find((m) => m.id === addDialogStaffId);
+        if (!s) return null;
+        return (
+          <AddRuleDialog
+            key={addDialogStaffId}
+            staffId={s.id}
+            staffName={s.full_name}
+            locations={locations}
+            onClose={() => setAddDialogStaffId(null)}
+            onSaved={(rule) => {
+              onAdd(rule);
+              setAddDialogStaffId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
