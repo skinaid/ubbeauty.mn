@@ -1,8 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { appConfig } from "@/config/app";
 import { LoginForm } from "@/components/auth/login-form";
-import { Alert } from "@/components/ui";
+import { Alert, Logo } from "@/components/ui";
 
 type LoginPageProps = {
   searchParams: Promise<{ next?: string; error?: string }>;
@@ -63,14 +62,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="login-brand__content">
           {/* Logo */}
           <Link href="/" className="login-brand__logo-link" aria-label={`${appConfig.name} нүүр`}>
-            <Image
-              src="/brand/logo.svg"
-              alt={appConfig.name}
-              width={280}
-              height={70}
-              className="login-brand__logo"
-              priority
-            />
+            <Logo size="lg" />
           </Link>
 
           <div className="login-brand__copy">

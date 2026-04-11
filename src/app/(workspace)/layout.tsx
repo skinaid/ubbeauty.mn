@@ -1,8 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui";
+import { Button, Logo } from "@/components/ui";
 import { SidebarNav } from "@/components/ui/sidebar-nav";
 import { signOutAction } from "@/modules/auth/actions";
 import { getCurrentUser } from "@/modules/auth/session";
@@ -39,14 +38,7 @@ export default async function WorkspaceLayout({ children }: WorkspaceLayoutProps
       <aside className="app-shell__sidebar">
         <div className="app-shell__sidebar-top">
           <Link href="/pulse" className="app-shell__logo-link">
-            <Image
-              src="/brand/logo.svg"
-              alt="UbBeauty"
-              width={140}
-              height={40}
-              className="app-shell__logo"
-              priority
-            />
+            <Logo size="md" />
           </Link>
         </div>
 

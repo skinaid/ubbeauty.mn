@@ -8,3 +8,4 @@ export { Card } from "./card";
 export { Input } from "./input";
 export { PageHeader } from "./page-header";
 export { ClinicSplitLayout } from "./clinic-split-layout";
+export { Logo } from "./logo";
