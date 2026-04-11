@@ -31,6 +31,15 @@ export function ServicesPageClient({
   const handleServiceDelete = (id: string) =>
     setServices((prev) => prev.filter((s) => s.id !== id));
 
+  const handleImageUpdate = (serviceId: string, imageUrl: string) => {
+    setServices((prev) =>
+      prev.map((s) => (s.id === serviceId ? { ...s, image_url: imageUrl } : s))
+    );
+    setSelectedService((prev) =>
+      prev?.id === serviceId ? { ...prev, image_url: imageUrl } : prev
+    );
+  };
+
   return (
     <ClinicSplitLayout
       title="Үйлчилгээ"
@@ -51,6 +60,7 @@ export function ServicesPageClient({
               handleServiceDelete(id);
               setSelectedService(null);
             }}
+            onImageUpdate={handleImageUpdate}
           />
         ) : (
           <ServicesListPanel

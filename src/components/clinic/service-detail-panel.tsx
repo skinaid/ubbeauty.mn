@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { updateServiceDirect, deleteService } from "@/modules/clinic/actions";
 import type { ServiceRecord } from "@/modules/clinic/service-types";
 
@@ -109,6 +110,164 @@ const inputStyle: React.CSSProperties = {
   color: "#111827", background: "#fff", boxSizing: "border-box",
   fontFamily: "inherit",
 };
+
+// ── Image Upload Area ────────────────────────────────────────────────────────
+
+function ImageUploadArea({
+  service,
+  onImageUpdate,
+}: {
+  service: ServiceRecord;
+  onImageUpdate?: (serviceId: string, imageUrl: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Зөвхөн зураг оруулна уу.");
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      // 1. Get signed upload URL
+      const postRes = await fetch("/api/clinic/service-image-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: service.id,
+          fileName: file.name,
+          mimeType: file.type,
+        }),
+      });
+      const postData = await postRes.json() as { uploadUrl?: string; publicUrl?: string; error?: string };
+      if (!postRes.ok || !postData.uploadUrl || !postData.publicUrl) {
+        throw new Error(postData.error ?? "Upload URL авахад алдаа гарлаа");
+      }
+
+      // 2. PUT to Supabase Storage
+      const putRes = await fetch(postData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error("Файл байршуулахад алдаа гарлаа");
+
+      // 3. PATCH to save URL in DB
+      const patchRes = await fetch("/api/clinic/service-image-upload", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId: service.id, imageUrl: postData.publicUrl }),
+      });
+      const patchData = await patchRes.json() as { ok?: boolean; error?: string };
+      if (!patchRes.ok || !patchData.ok) {
+        throw new Error(patchData.error ?? "URL хадгалахад алдаа гарлаа");
+      }
+
+      onImageUpdate?.(service.id, postData.publicUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Алдаа гарлаа");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void handleFile(file);
+  };
+
+  const triggerPicker = () => fileInputRef.current?.click();
+
+  return (
+    <div style={{ marginBottom: "1.25rem" }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleInputChange}
+      />
+
+      {service.image_url ? (
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            maxHeight: "180px",
+            height: "180px",
+            borderRadius: "0.75rem",
+            overflow: "hidden",
+            opacity: uploading ? 0.5 : 1,
+            transition: "opacity 0.2s",
+          }}
+        >
+          <Image
+            src={service.image_url}
+            alt={service.name}
+            fill
+            unoptimized
+            style={{ objectFit: "cover" }}
+          />
+          <button
+            onClick={triggerPicker}
+            disabled={uploading}
+            style={{
+              position: "absolute",
+              bottom: "0.5rem",
+              right: "0.5rem",
+              background: "rgba(0,0,0,0.6)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "0.5rem",
+              padding: "4px 10px",
+              fontSize: "0.75rem",
+              cursor: uploading ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {uploading ? "Байршуулж байна..." : "📷 Зураг солих"}
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={uploading ? undefined : triggerPicker}
+          style={{
+            height: "120px",
+            border: "2px dashed #d1d5db",
+            borderRadius: "0.75rem",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: uploading ? "not-allowed" : "pointer",
+            opacity: uploading ? 0.5 : 1,
+            transition: "opacity 0.2s, border-color 0.15s",
+            gap: "0.4rem",
+          }}
+          onMouseEnter={(e) => {
+            if (!uploading) (e.currentTarget as HTMLDivElement).style.borderColor = "#6366f1";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLDivElement).style.borderColor = "#d1d5db";
+          }}
+        >
+          <span style={{ fontSize: "1.5rem" }}>📷</span>
+          <span style={{ fontSize: "0.8rem", color: "#6b7280", fontWeight: 500 }}>
+            {uploading ? "Байршуулж байна..." : "Зураг нэмэх"}
+          </span>
+        </div>
+      )}
+
+      {error && (
+        <p style={{ margin: "0.4rem 0 0", fontSize: "0.75rem", color: "#dc2626" }}>{error}</p>
+      )}
+    </div>
+  );
+}
 
 // ── Edit Dialog ──────────────────────────────────────────────────────────────
 
@@ -661,22 +820,30 @@ function SalesTab({ service }: { service: ServiceRecord }) {
 // ── Main Detail Panel ────────────────────────────────────────────────────────
 
 export function ServiceDetailPanel({
-  service,
+  service: initialService,
   categories,
   onBack,
   onUpdate,
   onDelete,
+  onImageUpdate,
 }: {
   service: ServiceRecord;
   categories: Category[];
   onBack: () => void;
   onUpdate: (updated: ServiceRecord) => void;
   onDelete: (id: string) => void;
+  onImageUpdate?: (serviceId: string, imageUrl: string) => void;
 }) {
+  const [service, setService] = useState<ServiceRecord>(initialService);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("info");
+
+  // Sync when parent changes selected service (e.g. from list)
+  useEffect(() => {
+    setService(initialService);
+  }, [initialService.id]);
 
   const categoryMap = new Map<string, string>(categories.map((c) => [c.id, c.name]));
   const categoryLabel = service.category_id
@@ -685,9 +852,17 @@ export function ServiceDetailPanel({
 
   const handleSaveFromDialog = (updated: ServiceRecord) => {
     setEditOpen(false);
+    setService(updated);
     onUpdate(updated);
     setFlash({ type: "success", msg: "✓ Хадгалагдлаа" });
     setTimeout(() => setFlash(null), 3000);
+  };
+
+  const handleImageUpdate = (serviceId: string, imageUrl: string) => {
+    const updated = { ...service, image_url: imageUrl };
+    setService(updated);
+    onUpdate(updated);
+    onImageUpdate?.(serviceId, imageUrl);
   };
 
   const handleDelete = async () => {
@@ -808,6 +983,9 @@ export function ServiceDetailPanel({
           {/* ── Tab: Мэдээлэл ── */}
           {activeTab === "info" && (
             <div style={{ padding: "1.5rem 1.25rem" }}>
+              {/* Cover image upload */}
+              <ImageUploadArea service={service} onImageUpdate={handleImageUpdate} />
+
               {/* Badges */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1.25rem" }}>
                 <Badge color="#6d28d9" bg="#ede9fe">{categoryLabel}</Badge>

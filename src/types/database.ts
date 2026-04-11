@@ -2031,6 +2031,7 @@ export type Database = {
           description: string | null
           duration_minutes: number
           id: string
+          image_url: string | null
           is_bookable: boolean
           location_id: string | null
           name: string
@@ -2049,6 +2050,7 @@ export type Database = {
           description?: string | null
           duration_minutes: number
           id?: string
+          image_url?: string | null
           is_bookable?: boolean
           location_id?: string | null
           name: string
@@ -2067,6 +2069,7 @@ export type Database = {
           description?: string | null
           duration_minutes?: number
           id?: string
+          image_url?: string | null
           is_bookable?: boolean
           location_id?: string | null
           name?: string

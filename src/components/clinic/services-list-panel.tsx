@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import type { ServiceRecord } from "@/modules/clinic/service-types";
 
 type Category = { id: string; name: string };
@@ -44,7 +45,19 @@ function ServiceCard({
         transition: "border-color 0.15s, box-shadow 0.15s",
       }}
     >
-      <div style={{ height: "4px", background: STATUS_COLORS[s.status] ?? "#e5e7eb" }} />
+      {s.image_url ? (
+        <div style={{ position: "relative", height: "120px", borderRadius: "1rem 1rem 0 0", overflow: "hidden" }}>
+          <Image
+            src={s.image_url}
+            alt={s.name}
+            fill
+            unoptimized
+            style={{ objectFit: "cover" }}
+          />
+        </div>
+      ) : (
+        <div style={{ height: "4px", background: STATUS_COLORS[s.status] ?? "#e5e7eb" }} />
+      )}
       <div style={{ padding: "1rem 1.125rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem" }}>
           <div>
