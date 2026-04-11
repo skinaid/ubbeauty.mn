@@ -25,7 +25,7 @@ export function ProfilePageClient({
       rightTabLabel="✦ AI Туслах"
       leftPanel={
         <div style={{ padding: "1.5rem 2rem" }}>
-          <ClinicProfileView profile={profile} />
+          <ClinicProfileView profile={profile} onProfileUpdate={handleProfileUpdate} />
         </div>
       }
       rightPanel={
