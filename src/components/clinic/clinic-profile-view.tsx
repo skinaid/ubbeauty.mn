@@ -372,7 +372,7 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
 
       <div style={{ display: "grid", gap: 0 }}>
         {/* Identity header */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", paddingBottom: "1rem", marginBottom: "0.5rem", borderBottom: "1px solid #e5e7eb" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", paddingBottom: "1rem", marginBottom: "0.5rem", borderBottom: "1px solid #e5e7eb", position: "relative" }}>
           <div style={{
             width: "3rem", height: "3rem", borderRadius: "0.75rem", flexShrink: 0,
             background: "linear-gradient(135deg, #818cf8, #a855f7)",
@@ -392,6 +392,21 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
             )}
           </div>
           <ProgressRing percent={completionPercent} />
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            title="Засварлах"
+            style={{
+              position: "absolute", top: 0, right: 0,
+              background: "#f5f3ff", border: "1.5px solid #c7d2fe",
+              borderRadius: "0.5rem", padding: "0.3rem 0.6rem",
+              cursor: "pointer", fontSize: "0.8rem", color: "#6366f1",
+              fontWeight: 600, lineHeight: 1,
+              display: "flex", alignItems: "center", gap: "0.3rem",
+            }}
+          >
+            ✏️ Засах
+          </button>
         </div>
 
         {/* Completion label */}
@@ -483,24 +498,7 @@ export function ClinicProfileView({ profile, onProfileUpdate }: Props) {
           </FieldRow>
         </Section>
 
-        {/* Edit button */}
-        <div style={{ paddingTop: "1.25rem", paddingBottom: "0.5rem" }}>
-          <button
-            type="button"
-            onClick={() => setEditOpen(true)}
-            style={{
-              width: "100%", fontSize: "0.8rem", color: "#6366f1",
-              border: "1.5px dashed #c7d2fe", borderRadius: "0.75rem",
-              padding: "0.75rem", background: "#f5f3ff", cursor: "pointer",
-              fontWeight: 600,
-              transition: "background 0.15s",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eef2ff"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f3ff"; }}
-          >
-            ✏️ Гараар засварлах
-          </button>
-        </div>
+
       </div>
     </>
   );
