@@ -199,6 +199,41 @@ export type Database = {
           },
         ]
       }
+      clinic_photos: {
+        Row: {
+          id: string
+          organization_id: string
+          url: string
+          caption: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          url: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          url?: string
+          caption?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic_photos_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinic_locations: {
         Row: {
           address_line1: string | null

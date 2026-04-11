@@ -4,12 +4,16 @@ import { useState } from "react";
 import { ClinicSplitLayout } from "@/components/ui";
 import { ClinicProfileView } from "@/components/clinic/clinic-profile-view";
 import { ClinicProfileChatPanel } from "@/components/clinic/clinic-profile-chat-panel";
+import { ClinicPhotosPanel } from "@/components/clinic/clinic-photos-panel";
 import type { ClinicProfile } from "@/modules/clinic/profile";
+import type { ClinicPhoto } from "@/modules/clinic/photos";
 
 export function ProfilePageClient({
   initialProfile,
+  initialPhotos,
 }: {
   initialProfile: ClinicProfile | null;
+  initialPhotos: ClinicPhoto[];
 }) {
   const [profile, setProfile] = useState<ClinicProfile | null>(initialProfile);
   const [editOpen, setEditOpen] = useState(false);
@@ -47,6 +51,10 @@ export function ProfilePageClient({
             onProfileUpdate={handleProfileUpdate}
             editOpen={editOpen}
             onEditClose={() => setEditOpen(false)}
+          />
+          <ClinicPhotosPanel
+            orgId={profile?.id ?? ""}
+            initialPhotos={initialPhotos}
           />
         </div>
       }
