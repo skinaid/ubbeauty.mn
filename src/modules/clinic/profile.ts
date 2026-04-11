@@ -9,6 +9,7 @@ export type ClinicProfile = {
   id: string;
   name: string;
   slug: string;
+  logo_url: string | null;
   description: string | null;
   tagline: string | null;
   phone: string | null;
@@ -32,7 +33,7 @@ export async function getClinicProfile(): Promise<ClinicProfile | null> {
   const { data, error } = await supabase
     .from("organizations")
     .select(
-      "id, name, slug, description, tagline, phone, website, address, city, working_hours, services_summary, social_instagram, social_facebook, founded_year, staff_count, profile_completed"
+      "id, name, slug, logo_url, description, tagline, phone, website, address, city, working_hours, services_summary, social_instagram, social_facebook, founded_year, staff_count, profile_completed"
     )
     .eq("id", (await getCurrentUserOrganization(user.id))?.id ?? "")
     .single();

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import type { ClinicProfile, UpdateClinicProfileInput } from "@/modules/clinic/profile";
 import { updateClinicProfile } from "@/modules/clinic/profile";
 
@@ -330,6 +331,137 @@ function EditModal({ profile, onClose, onSaved }: EditModalProps) {
 // Main ClinicProfileView
 // ──────────────────────────────────────────────
 
+// ──────────────────────────────────────────────
+// Logo Upload Avatar
+// ──────────────────────────────────────────────
+
+function LogoAvatar({
+  profile,
+  onLogoUploaded,
+}: {
+  profile: ClinicProfile;
+  onLogoUploaded: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(profile.logo_url);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+
+    try {
+      // 1. Get signed upload URL
+      const res = await fetch("/api/clinic/logo-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type }),
+      });
+      const { uploadUrl, publicUrl, error: urlErr } = await res.json() as {
+        uploadUrl?: string; publicUrl?: string; error?: string;
+      };
+      if (urlErr || !uploadUrl || !publicUrl) throw new Error(urlErr ?? "URL авахад алдаа");
+
+      // 2. Upload directly to Supabase Storage
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) throw new Error("Файл байршуулахад алдаа");
+
+      // 3. Save public URL to DB
+      const saveRes = await fetch("/api/clinic/logo-upload", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicUrl }),
+      });
+      const saveData = await saveRes.json() as { ok?: boolean; error?: string };
+      if (!saveData.ok) throw new Error(saveData.error ?? "Хадгалахад алдаа");
+
+      // 4. Show preview + notify parent
+      const localUrl = URL.createObjectURL(file);
+      setPreview(localUrl);
+      onLogoUploaded(publicUrl);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Алдаа гарлаа");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        title="Лого солих"
+        style={{
+          width: "3rem", height: "3rem", borderRadius: "0.75rem",
+          border: uploading ? "2px solid #a5b4fc" : "2px solid transparent",
+          padding: 0, cursor: "pointer", overflow: "hidden",
+          background: "linear-gradient(135deg, #818cf8, #a855f7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          position: "relative",
+          flexShrink: 0,
+        }}
+      >
+        {preview ? (
+          <Image
+            src={preview}
+            alt="Лого"
+            fill
+            sizes="48px"
+            style={{ objectFit: "cover", borderRadius: "0.65rem" }}
+            unoptimized
+          />
+        ) : (
+          <span style={{ color: "#fff", fontSize: "1.25rem", fontWeight: 800, lineHeight: 1 }}>
+            {profile.name?.[0]?.toUpperCase() ?? "?"}
+          </span>
+        )}
+        {/* Hover overlay */}
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: "0.65rem",
+          background: uploading ? "rgba(99,102,241,0.5)" : "rgba(0,0,0,0)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.15s",
+        }}
+          onMouseEnter={(e) => { if (!uploading) (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0.35)"; }}
+          onMouseLeave={(e) => { if (!uploading) (e.currentTarget as HTMLDivElement).style.background = "rgba(0,0,0,0)"; }}
+        >
+          {uploading ? (
+            <span style={{ fontSize: "0.7rem", color: "#fff", fontWeight: 700 }}>...</span>
+          ) : (
+            <span style={{ fontSize: "0.85rem", color: "#fff", opacity: 0 }}
+              className="logo-upload-icon"
+            >📷</span>
+          )}
+        </div>
+      </button>
+      {error && (
+        <div style={{
+          position: "absolute", top: "110%", left: 0, zIndex: 10,
+          background: "#fef2f2", border: "1px solid #fecaca",
+          borderRadius: "0.4rem", padding: "0.3rem 0.5rem",
+          fontSize: "0.7rem", color: "#dc2626", whiteSpace: "nowrap",
+        }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ClinicProfileView({ profile, onProfileUpdate, editOpen = false, onEditClose }: Props) {
 
   const completionFields = [
@@ -375,14 +507,10 @@ export function ClinicProfileView({ profile, onProfileUpdate, editOpen = false, 
       <div style={{ display: "grid", gap: 0 }}>
         {/* Identity header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", paddingBottom: "1rem", marginBottom: "0.5rem", borderBottom: "1px solid #e5e7eb" }}>
-          <div style={{
-            width: "3rem", height: "3rem", borderRadius: "0.75rem", flexShrink: 0,
-            background: "linear-gradient(135deg, #818cf8, #a855f7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: "1.25rem", fontWeight: 800,
-          }}>
-            {profile.name?.[0]?.toUpperCase() ?? "?"}
-          </div>
+          <LogoAvatar
+            profile={profile}
+            onLogoUploaded={(url) => onProfileUpdate?.({ logo_url: url })}
+          />
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {profile.name || "Нэргүй эмнэлэг"}
