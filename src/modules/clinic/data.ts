@@ -258,6 +258,34 @@ export async function getUpcomingAppointments(userId: string, limit = 50): Promi
   return (data ?? []) as AppointmentWithRelations[];
 }
 
+export async function getAppointmentsByDate(
+  userId: string,
+  date: string
+): Promise<AppointmentWithRelations[]> {
+  const organizationId = await requireOrganizationId(userId);
+  if (!organizationId) return [];
+
+  const supabase = await getSupabaseServerClient();
+  const startOfDay = new Date(`${date}T00:00:00.000Z`);
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(
+      "*, patient:patients(full_name,phone), service:services(name,duration_minutes), staff_member:staff_members(full_name), location:clinic_locations(name)"
+    )
+    .eq("organization_id", organizationId)
+    .gte("scheduled_start", startOfDay.toISOString())
+    .lt("scheduled_start", endOfDay.toISOString())
+    .order("scheduled_start", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as AppointmentWithRelations[];
+}
+
 export async function getRecentAppointmentsForDesk(
   userId: string,
   limit = 30
