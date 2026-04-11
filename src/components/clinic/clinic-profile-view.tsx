@@ -86,16 +86,37 @@ function Section({ children }: { children: React.ReactNode }) {
 // Edit Modal
 // ──────────────────────────────────────────────
 
+const CLINIC_TYPES = [
+  "Арьс гоо засалын эмнэлгэг",
+  "Арьсны өвчний эмнэлгэг",
+  "Харилцааны эмнэлгэг",
+  "Шүдний эмнэлгэг",
+  "Нүдний эмнэлгэг",
+  "Оптометрийн эмнэлгэг",
+  "Дотоодох эмнэлгэг",
+  "Эрүү эмнэлгэг",
+  "Хүүхний эмнэлгэг",
+  "Реабилитацийн эмнэлгэг",
+  "Ойл биеийн эмнэлгэг",
+  "Эрхийн эмчийн эмнэлгэг",
+  "Дүй ойлын эмнэлгэг",
+  "Цогоонийн эмнэлгэг",
+  "Олон улсын эмнэлгэг",
+  "Бусад эмнэлгэг",
+];
+
 type EditField = {
   key: keyof UpdateClinicProfileInput;
   label: string;
-  type?: "text" | "textarea" | "number" | "url" | "tel";
+  type?: "text" | "textarea" | "number" | "url" | "tel" | "select";
   placeholder?: string;
   prefix?: string;
+  options?: string[];
 };
 
 const EDIT_FIELDS: EditField[] = [
   { key: "name", label: "Эмнэлгийн нэр", type: "text", placeholder: "Жишээ: Гэрэл Клиник" },
+  { key: "clinic_type", label: "Эмнэлгийн төрөл", type: "select", options: CLINIC_TYPES, placeholder: "Төрөл сонгоно уу..." },
   { key: "tagline", label: "Уриа үг", type: "text", placeholder: "Жишээ: Эрүүл мэндийн найдвартай түнш" },
   { key: "phone", label: "Утасны дугаар", type: "tel", placeholder: "+976 9900 0000" },
   { key: "website", label: "Вебсайт", type: "url", placeholder: "https://example.mn" },
@@ -259,6 +280,17 @@ function EditModal({ profile, onClose, onSaved }: EditModalProps) {
                   placeholder={field.placeholder}
                   style={inputStyle(true)}
                 />
+              ) : field.type === "select" ? (
+                <select
+                  value={form[field.key] ?? ""}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  style={{ ...inputStyle(), appearance: "auto" }}
+                >
+                  <option value="">{field.placeholder ?? "Төрөл сонгоно уу..."}</option>
+                  {field.options?.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                   {field.prefix && (
@@ -515,6 +547,16 @@ export function ClinicProfileView({ profile, onProfileUpdate, editOpen = false, 
             <h2 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {profile.name || "Нэргүй эмнэлэг"}
             </h2>
+            {profile.clinic_type && (
+              <span style={{
+                display: "inline-block", fontSize: "0.65rem", fontWeight: 700,
+                background: "#eef2ff", color: "#4f46e5",
+                padding: "0.15rem 0.55rem", borderRadius: "999px",
+                marginBottom: "0.2rem",
+              }}>
+                {profile.clinic_type}
+              </span>
+            )}
             {profile.tagline ? (
               <p style={{ margin: "0.15rem 0 0", fontSize: "0.8rem", color: "#6b7280" }}>{profile.tagline}</p>
             ) : (
