@@ -1225,17 +1225,16 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              gap: "1rem",
-              padding: "4rem 1rem",
+              gap: "0.5rem",
+              padding: "1.25rem 1rem",
               color: "#9ca3af",
-              textAlign: "center",
             }}
           >
-            <span style={{ fontSize: "3rem" }}>📅</span>
-            <p style={{ margin: 0, fontSize: "1rem", color: "#6b7280" }}>Энэ өдрийн захиалга байхгүй байна</p>
+            <span style={{ fontSize: "1rem" }}>📅</span>
+            <p style={{ margin: 0, fontSize: "0.875rem", color: "#9ca3af" }}>Энэ өдрийн захиалга байхгүй байна</p>
           </div>
         )}
         {(appointments.length > 0 || staffMembers.length > 0) && (
