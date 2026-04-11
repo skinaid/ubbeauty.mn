@@ -263,14 +263,14 @@ export function StaffListPanel({
           onMouseLeave={() => setHoveredId(null)}
           style={{
             border: hoveredId === s.id ? "1px solid #6366f1" : "1px solid #e5e7eb",
-            borderRadius: "1rem", overflow: "hidden", background: "#fff",
+            borderRadius: "1rem", background: "#fff",
             cursor: "pointer",
             boxShadow: hoveredId === s.id ? "0 4px 16px rgba(99,102,241,0.12)" : "none",
             transition: "border-color 0.15s, box-shadow 0.15s",
           }}
         >
           {/* Role color bar */}
-          <div style={{ height: "4px", background: ROLE_COLORS[s.role] ?? "#e5e7eb" }} />
+          <div style={{ height: "4px", background: ROLE_COLORS[s.role] ?? "#e5e7eb", borderRadius: "1rem 1rem 0 0" }} />
           <div style={{ padding: "1rem 1.125rem" }}>
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.75rem", gap: "0.75rem" }}>
