@@ -133,9 +133,13 @@ function StaffAvatar({
 
   return (
     <div
-      style={{ position: "relative", width: "3rem", height: "3rem", flexShrink: 0 }}
+      style={{ position: "relative", width: "3rem", height: "3rem", flexShrink: 0, cursor: "pointer" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!uploading) fileInputRef.current?.click();
+      }}
     >
       {/* Avatar image or initials */}
       {staff.photo_url ? (
@@ -168,33 +172,26 @@ function StaffAvatar({
         </div>
       )}
 
-      {/* Hover overlay with camera icon */}
-      {(hovered || uploading) && (
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!uploading) fileInputRef.current?.click();
-          }}
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: "0.75rem",
-            background: "rgba(0,0,0,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: uploading ? "wait" : "pointer",
-            fontSize: uploading ? "0.75rem" : "1rem",
-            color: "#fff",
-          }}
-        >
-          {uploading ? (
-            <span style={{ display: "inline-block", animation: "spin 0.8s linear infinite" }}>⏳</span>
-          ) : (
-            "📷"
-          )}
-        </div>
-      )}
+      {/* Hover/upload overlay — always rendered, opacity toggled */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "0.75rem",
+          background: "rgba(0,0,0,0.45)",
+          display: "flex",
+          opacity: hovered || uploading ? 1 : 0,
+          transition: "opacity 0.15s",
+          pointerEvents: hovered || uploading ? "auto" : "none",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: uploading ? "wait" : "pointer",
+          fontSize: uploading ? "0.75rem" : "1rem",
+          color: "#fff",
+        }}
+      >
+        {uploading ? "⏳" : "📷"}
+      </div>
 
       {/* Error tooltip */}
       {errorMsg && (
