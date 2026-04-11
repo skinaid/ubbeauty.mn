@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { ClinicProfile, UpdateClinicProfileInput } from "@/modules/clinic/profile";
 import { updateClinicProfile } from "@/modules/clinic/profile";
 
@@ -141,6 +142,8 @@ type EditModalProps = {
 function EditModal({ profile, onClose, onSaved }: EditModalProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const [form, setForm] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
@@ -180,12 +183,14 @@ function EditModal({ profile, onClose, onSaved }: EditModalProps) {
     });
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     // Backdrop
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, zIndex: 1000,
+        position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(0,0,0,0.35)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "1rem",
@@ -313,7 +318,8 @@ function EditModal({ profile, onClose, onSaved }: EditModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
