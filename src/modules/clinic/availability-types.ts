@@ -12,6 +12,7 @@ export type AvailabilityStaffMember = {
   id: string;
   full_name: string;
   role: string;
+  photo_url: string | null;
 };
 
 export type AvailabilityLocation = {

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { deleteAvailabilityRule, updateAvailabilityRule } from "@/modules/clinic/actions";
 import { updateClinicProfile } from "@/modules/clinic/profile";
 import type {
@@ -336,7 +337,7 @@ export function AvailabilityListPanel({
               {/* Card header */}
               <div
                 style={{
-                  padding: "0.875rem 1.125rem",
+                  padding: "0.75rem 1.125rem",
                   borderBottom: "1px solid #f3f4f6",
                   background: "#f9fafb",
                   display: "flex",
@@ -344,7 +345,27 @@ export function AvailabilityListPanel({
                   gap: "0.625rem",
                 }}
               >
-                <span style={{ fontSize: "1rem" }}>👤</span>
+                {/* Avatar */}
+                <div style={{ position: "relative", width: "2rem", height: "2rem", flexShrink: 0 }}>
+                  {staff.photo_url ? (
+                    <Image
+                      src={staff.photo_url}
+                      alt={staff.full_name}
+                      fill
+                      unoptimized
+                      style={{ objectFit: "cover", borderRadius: "50%" }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: "2rem", height: "2rem", borderRadius: "50%",
+                      background: `linear-gradient(135deg, ${roleColor}cc, ${roleColor}66)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontSize: "0.8rem", fontWeight: 700,
+                    }}>
+                      {staff.full_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
                 <h3
                   style={{
                     margin: 0,
