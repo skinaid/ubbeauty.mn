@@ -14,7 +14,6 @@ type Props = {
   onEditClose?: () => void;
 };
 
-const emDash = "—";
 
 function ProgressRing({ percent }: { percent: number }) {
   const size = 60;
@@ -42,42 +41,34 @@ function ProgressRing({ percent }: { percent: number }) {
   );
 }
 
-function SectionHeader({ title, first }: { title: string; first?: boolean }) {
+function InfoGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <h3 style={{
-      fontSize: "0.7rem",
-      fontWeight: 700,
-      textTransform: "uppercase",
-      letterSpacing: "0.1em",
-      color: "#9ca3af",
-      margin: first ? "0.5rem 0 0.5rem" : "1.25rem 0 0.5rem",
-    }}>
-      {title}
-    </h3>
-  );
-}
-
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ padding: "0.6rem 0", borderBottom: "1px solid #f3f4f6" }}>
-      <span style={{ display: "block", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", marginBottom: "0.2rem" }}>
-        {label}
-      </span>
-      <div style={{ fontSize: "0.875rem", color: "#111827", lineHeight: 1.5 }}>
+    <div style={{ marginBottom: "1.5rem" }}>
+      <p style={{
+        margin: "0 0 0.6rem",
+        fontSize: "0.68rem", fontWeight: 700,
+        textTransform: "uppercase", letterSpacing: "0.1em",
+        color: "#9ca3af",
+      }}>
+        {title}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         {children}
       </div>
     </div>
   );
 }
 
-function EmptyVal() {
-  return <span style={{ color: "#d1d5db" }}>{emDash}</span>;
-}
-
-function Section({ children }: { children: React.ReactNode }) {
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  if (!children) return null;
   return (
-    <div style={{ background: "#f9fafb", borderRadius: "0.75rem", padding: "0 1rem" }}>
-      {children}
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem" }}>
+      <span style={{ fontSize: "0.68rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#d1d5db" }}>
+        {label}
+      </span>
+      <div style={{ fontSize: "0.875rem", color: "#111827", lineHeight: 1.5 }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -566,99 +557,79 @@ export function ClinicProfileView({ profile, onProfileUpdate, editOpen = false, 
 
         </div>
 
-        {/* Completion label */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0 0.75rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <ProgressRing percent={completionPercent} />
-            <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>
-              {completedCount}/{totalCount} талбар бөглөгдсөн
-            </span>
-          </div>
-          {completionPercent === 100 ? (
-            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#10b981", background: "#ecfdf5", padding: "0.2rem 0.6rem", borderRadius: "999px" }}>
-              ✓ Бүрэн
-            </span>
-          ) : (
-            <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>{100 - completionPercent}% үлдлээ</span>
-          )}
+        {/* Completion bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0 1.5rem" }}>
+          <ProgressRing percent={completionPercent} />
+          <span style={{ fontSize: "0.75rem", color: "#6b7280", fontWeight: 500 }}>
+            {completionPercent === 100
+              ? <span style={{ color: "#10b981", fontWeight: 700 }}>✓ Профайл бүрэн бөглөгдсөн</span>
+              : <>{completedCount}/{totalCount} талбар бөглөгдсөн &middot; {100 - completionPercent}% үлдлээ</>}
+          </span>
         </div>
 
-        {/* Contact */}
-        <SectionHeader title="Холбоо барих" first />
-        <Section>
-          <FieldRow label="Утас">
+        {/* Холбоо барих */}
+        <InfoGroup title="Холбоо барих">
+          <InfoRow label="Утас">
             {profile.phone
-              ? <a href={`tel:${profile.phone}`} style={{ color: "#6366f1", textDecoration: "none" }}>{profile.phone}</a>
-              : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Вебсайт">
+              ? <a href={`tel:${profile.phone}`} style={{ color: "#4f46e5", textDecoration: "none" }}>{profile.phone}</a>
+              : null}
+          </InfoRow>
+          <InfoRow label="Вэбсайт">
             {profile.website
-              ? <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: "#6366f1", textDecoration: "none", wordBreak: "break-all" }}>{profile.website}</a>
-              : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Хаяг">
-            {addressValue || <EmptyVal />}
-          </FieldRow>
-        </Section>
+              ? <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: "#4f46e5", textDecoration: "none", wordBreak: "break-all" }}>{profile.website}</a>
+              : null}
+          </InfoRow>
+          <InfoRow label="Хаяг">{addressValue || null}</InfoRow>
+        </InfoGroup>
 
-        {/* Working hours */}
-        <SectionHeader title="Ажлын цаг" />
-        <Section>
-          <div style={{ padding: "0.6rem 0" }}>
-            {profile.working_hours && Object.keys(profile.working_hours).length > 0 ? (
-              Object.entries(profile.working_hours).map(([day, time]) => (
-                <div key={day} style={{ display: "flex", justifyContent: "space-between", gap: "1rem", padding: "0.2rem 0" }}>
-                  <span style={{ fontSize: "0.875rem", color: "#6b7280", fontWeight: 500, minWidth: "5rem" }}>{day}</span>
-                  <span style={{ fontSize: "0.875rem", color: "#111827" }}>{time}</span>
-                </div>
-              ))
-            ) : (
-              <span style={{ fontSize: "0.875rem", color: "#d1d5db" }}>{emDash}</span>
-            )}
-          </div>
-        </Section>
+        {/* Ажлын цаг */}
+        {profile.working_hours && Object.keys(profile.working_hours).length > 0 && (
+          <InfoGroup title="Ажлын цаг">
+            {Object.entries(profile.working_hours).map(([day, time]) => (
+              <div key={day} style={{ display: "flex", justifyContent: "space-between", padding: "0.3rem 0", borderBottom: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: "0.85rem", color: "#9ca3af", fontWeight: 500 }}>{day}</span>
+                <span style={{ fontSize: "0.85rem", color: "#111827" }}>{time}</span>
+              </div>
+            ))}
+          </InfoGroup>
+        )}
 
-        {/* Social */}
-        <SectionHeader title="Сошиал сувгууд" />
-        <Section>
-          <FieldRow label="Instagram">
-            {profile.social_instagram
-              ? <span>@{profile.social_instagram.replace(/^@/, "")}</span>
-              : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Facebook">
-            {profile.social_facebook || <EmptyVal />}
-          </FieldRow>
-        </Section>
-
-        {/* About */}
-        <SectionHeader title="Байгууллагын тухай" />
-        <Section>
-          <FieldRow label="Тайлбар">
+        {/* Тухай */}
+        <InfoGroup title="Тухай">
+          <InfoRow label="Төрөл">{profile.clinic_type || null}</InfoRow>
+          <InfoRow label="Тайлбар">
             {profile.description
-              ? <span style={{ whiteSpace: "pre-line" }}>{profile.description}</span>
-              : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Үйлчилгээ">
+              ? <span style={{ whiteSpace: "pre-line", lineHeight: 1.6 }}>{profile.description}</span>
+              : null}
+          </InfoRow>
+          <InfoRow label="Үйлчилгээ">
             {profile.services_summary?.length ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", paddingTop: "0.25rem" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", paddingTop: "0.2rem" }}>
                 {profile.services_summary.map((s, i) => (
-                  <span key={i} style={{ fontSize: "0.75rem", background: "#eef2ff", color: "#4f46e5", padding: "0.15rem 0.6rem", borderRadius: "999px", fontWeight: 500 }}>
-                    {s}
-                  </span>
+                  <span key={i} style={{ fontSize: "0.73rem", background: "#eef2ff", color: "#4f46e5", padding: "0.15rem 0.55rem", borderRadius: "999px", fontWeight: 500 }}>{s}</span>
                 ))}
               </div>
-            ) : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Үүсгэн байгуулагдсан">
-            {profile.founded_year != null ? String(profile.founded_year) : <EmptyVal />}
-          </FieldRow>
-          <FieldRow label="Ажилтны тоо">
-            {profile.staff_count != null ? `${profile.staff_count} хүн` : <EmptyVal />}
-          </FieldRow>
-        </Section>
+            ) : null}
+          </InfoRow>
+          {profile.founded_year != null && (
+            <InfoRow label="Үүсгэн байгуулагдсан">{String(profile.founded_year)} он</InfoRow>
+          )}
+          {profile.staff_count != null && (
+            <InfoRow label="Ажилтны тоо">{profile.staff_count} хүн</InfoRow>
+          )}
+        </InfoGroup>
 
-
+        {/* Сошиал */}
+        {(profile.social_instagram || profile.social_facebook) && (
+          <InfoGroup title="Сошиал">
+            <InfoRow label="Instagram">
+              {profile.social_instagram
+                ? <span style={{ color: "#4f46e5" }}>@{profile.social_instagram.replace(/^@/, "")}</span>
+                : null}
+            </InfoRow>
+            <InfoRow label="Facebook">{profile.social_facebook || null}</InfoRow>
+          </InfoGroup>
+        )}
       </div>
     </>
   );
