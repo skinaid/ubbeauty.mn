@@ -1232,22 +1232,6 @@ export function SchedulePageClient({ initialAppointments, staffMembers, services
           >
             <span style={{ fontSize: "3rem" }}>📅</span>
             <p style={{ margin: 0, fontSize: "1rem", color: "#6b7280" }}>Энэ өдрийн захиалга байхгүй байна</p>
-            <button
-              onClick={handleAddClick}
-              style={{
-                background: "#6366f1",
-                color: "#fff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "0.5rem 1.25rem",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                fontFamily: "inherit",
-              }}
-            >
-              + Шинэ захиалга нэмэх
-            </button>
           </div>
         )}
         {(appointments.length > 0 || staffMembers.length > 0) && (
